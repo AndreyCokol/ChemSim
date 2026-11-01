@@ -1,9 +1,10 @@
 class_name ReactionBalancer
 extends RefCounted
 
-const PIVOT_EPSILON := 1.0e-10
-const VERIFY_EPSILON := 1.0e-7
-const MAX_INTEGER_COEFFICIENT := 10000
+# Rational arithmetic is exact while every intermediate integer remains within
+# this conservative bound. We fail closed instead of falling back to floats.
+const MAX_SAFE_INTEGER := 1000000000
+const MAX_COEFFICIENT := 1000000000
 
 func balance(reaction: ReactionParseResult) -> BalanceResult:
 	if reaction == null or not reaction.ok:
@@ -19,21 +20,27 @@ func balance(reaction: ReactionParseResult) -> BalanceResult:
 		for element in term.element_counts:
 			elements[element] = true
 	var rows: Array[String] = []
+	var element_names: Array[String] = []
 	for element in elements:
+		element_names.append(str(element))
+	element_names.sort()
+	for element in element_names:
 		rows.append(element)
 	rows.append("__charge__")
 
 	var matrix: Array[Array] = []
 	for row_name in rows:
-		var row: Array[float] = []
+		var row: Array[Dictionary] = []
 		for column in range(terms.size()):
-			var value := float(terms[column].net_charge) if row_name == "__charge__" else float(terms[column].element_counts.get(row_name, 0))
+			var value := int(terms[column].net_charge) if row_name == "__charge__" else int(terms[column].element_counts.get(row_name, 0))
 			if column >= reaction.reactants.size():
 				value = -value
-			row.append(value)
+			row.append(_rat(value, 1))
 		matrix.append(row)
 
 	var reduced := _rref(matrix)
+	if not reduced.ok:
+		return BalanceResult.failure("numeric_limit", "BALANCE_EXACT_ARITHMETIC_LIMIT", "Точная рациональная балансировка превысила безопасный диапазон целых промежуточных значений; коэффициенты не были угаданы.")
 	var pivots: Array[int] = reduced.pivots
 	var free_columns: Array[int] = []
 	for column in range(terms.size()):
@@ -44,108 +51,166 @@ func balance(reaction: ReactionParseResult) -> BalanceResult:
 	if free_columns.size() > 1:
 		return BalanceResult.failure("ambiguous", "BALANCE_AMBIGUOUS", "Найдено несколько независимых степеней свободы; автоматический выбор коэффициентов небезопасен.")
 
-	var vector: Array[float] = []
-	vector.resize(terms.size())
-	for i in range(vector.size()):
-		vector[i] = 0.0
-	vector[free_columns[0]] = 1.0
+	var vector: Array[Dictionary] = []
+	for _i in range(terms.size()):
+		vector.append(_rat(0, 1))
+	vector[free_columns[0]] = _rat(1, 1)
 	for pivot_row in range(pivots.size() - 1, -1, -1):
 		var pivot_column: int = pivots[pivot_row]
-		var value := 0.0
+		var value := _rat(0, 1)
 		for column in range(pivot_column + 1, terms.size()):
-			value += float(reduced.matrix[pivot_row][column]) * vector[column]
-		vector[pivot_column] = -value
+			var product := _multiply(reduced.matrix[pivot_row][column], vector[column])
+			if not product.ok:
+				return _arithmetic_limit()
+			var added := _add(value, product.value)
+			if not added.ok:
+				return _arithmetic_limit()
+			value = added.value
+		vector[pivot_column] = _negate(value)
 
-	return _integerize_and_verify(vector, matrix)
+	return _to_positive_integers(vector, matrix)
 
 func _rref(source: Array[Array]) -> Dictionary:
 	var matrix: Array[Array] = []
-	for row in source:
-		matrix.append(row.duplicate())
-	var pivot_columns: Array[int] = []
+	for source_row in source:
+		var row: Array[Dictionary] = []
+		for value in source_row:
+			row.append(_rat(value.n, value.d))
+		matrix.append(row)
+	var pivots: Array[int] = []
 	var pivot_row := 0
 	var row_count := matrix.size()
 	var column_count := matrix[0].size()
 	for column in range(column_count):
-		var best_row := -1
-		var best_value := PIVOT_EPSILON
+		var best := -1
 		for candidate in range(pivot_row, row_count):
-			var candidate_value := abs(float(matrix[candidate][column]))
-			if candidate_value > best_value:
-				best_value = candidate_value
-				best_row = candidate
-		if best_row < 0:
+			if matrix[candidate][column].n != 0:
+				best = candidate
+				break
+		if best < 0:
 			continue
 		var swap: Array = matrix[pivot_row]
-		matrix[pivot_row] = matrix[best_row]
-		matrix[best_row] = swap
-		var pivot := float(matrix[pivot_row][column])
+		matrix[pivot_row] = matrix[best]
+		matrix[best] = swap
+		var pivot: Dictionary = matrix[pivot_row][column]
 		for j in range(column_count):
-			matrix[pivot_row][j] = float(matrix[pivot_row][j]) / pivot
+			var divided := _divide(matrix[pivot_row][j], pivot)
+			if not divided.ok:
+				return {"ok": false}
+			matrix[pivot_row][j] = divided.value
 		for i in range(row_count):
 			if i == pivot_row:
 				continue
-			var factor := float(matrix[i][column])
-			if abs(factor) <= PIVOT_EPSILON:
+			var factor: Dictionary = matrix[i][column]
+			if factor.n == 0:
 				continue
 			for j in range(column_count):
-				matrix[i][j] = float(matrix[i][j]) - factor * float(matrix[pivot_row][j])
-		pivot_columns.append(column)
+				var product := _multiply(factor, matrix[pivot_row][j])
+				if not product.ok:
+					return {"ok": false}
+				var difference := _subtract(matrix[i][j], product.value)
+				if not difference.ok:
+					return {"ok": false}
+				matrix[i][j] = difference.value
+		pivots.append(column)
 		pivot_row += 1
 		if pivot_row >= row_count:
 			break
-	return {"matrix": matrix, "pivots": pivot_columns}
+	return {"ok": true, "matrix": matrix, "pivots": pivots}
 
-func _integerize_and_verify(vector: Array[float], original_matrix: Array[Array]) -> BalanceResult:
-	var first_nonzero := -1
-	for i in range(vector.size()):
-		if abs(vector[i]) > PIVOT_EPSILON:
-			first_nonzero = i
-			break
-	if first_nonzero < 0:
-		return BalanceResult.failure("no_solution", "BALANCE_ZERO_VECTOR", "Получено нулевое решение.")
-
-	var sign := 1.0 if vector[first_nonzero] > 0.0 else -1.0
-	var normalized: Array[float] = []
+func _to_positive_integers(vector: Array[Dictionary], original_matrix: Array[Array]) -> BalanceResult:
+	var lcm := 1
 	for value in vector:
-		normalized.append(value * sign)
-	for value in normalized:
-		if value <= PIVOT_EPSILON:
+		if value.n == 0:
 			return BalanceResult.failure("no_positive_solution", "BALANCE_NO_POSITIVE_SOLUTION", "Для реакции не найдено решения, в котором все коэффициенты положительны.")
+		if value.n < 0:
+			return BalanceResult.failure("no_positive_solution", "BALANCE_NO_POSITIVE_SOLUTION", "Для реакции не найдено решения, в котором все коэффициенты положительны.")
+		var divisor := _gcd(lcm, value.d)
+		var factor := value.d / divisor
+		if not _within_safe(lcm, factor):
+			return _arithmetic_limit()
+		lcm *= factor
+	var coefficients: Array[int] = []
+	for value in vector:
+		var factor := lcm / value.d
+		if not _within_safe(value.n, factor):
+			return _arithmetic_limit()
+		var coefficient := value.n * factor
+		if coefficient <= 0 or coefficient > MAX_COEFFICIENT:
+			return BalanceResult.failure("numeric_limit", "BALANCE_COEFFICIENT_LIMIT", "Точные коэффициенты превышают поддерживаемый предел.")
+		coefficients.append(coefficient)
+	var divisor := coefficients[0]
+	for coefficient in coefficients:
+		divisor = _gcd(divisor, coefficient)
+	for i in range(coefficients.size()):
+		coefficients[i] = coefficients[i] / divisor
+	if not _verify_integer_balance(coefficients, original_matrix):
+		return BalanceResult.failure("internal_error", "BALANCE_INTERNAL_VERIFICATION_FAILED", "Внутренняя проверка точного баланса не пройдена.")
+	return BalanceResult.success(coefficients)
 
-	for multiplier in range(1, MAX_INTEGER_COEFFICIENT + 1):
-		var candidate: Array[int] = []
-		var valid := true
-		for value in normalized:
-			var scaled := value * float(multiplier)
-			var rounded := int(round(scaled))
-			if rounded <= 0 or abs(scaled - float(rounded)) > VERIFY_EPSILON:
-				valid = false
-				break
-			candidate.append(rounded)
-		if not valid:
-			continue
-		if _is_exact_integer_balance(candidate, original_matrix):
-			return BalanceResult.success(_normalize_gcd(candidate))
-	return BalanceResult.failure("numeric_limit", "BALANCE_INTEGERIZATION_LIMIT", "Не удалось подтвердить целочисленные коэффициенты в установленном диапазоне. Требуется точная рациональная процедура или ручная проверка.")
-
-func _is_exact_integer_balance(coefficients: Array[int], matrix: Array[Array]) -> bool:
+func _verify_integer_balance(coefficients: Array[int], matrix: Array[Array]) -> bool:
 	for row in matrix:
-		var total := 0.0
+		var total := 0
 		for column in range(coefficients.size()):
-			total += float(row[column]) * float(coefficients[column])
-		if abs(total) > VERIFY_EPSILON:
+			var term := int(row[column].n) * coefficients[column]
+			if not _within_safe(int(row[column].n), coefficients[column]):
+				return false
+			total += term
+		if total != 0:
 			return false
 	return true
 
-func _normalize_gcd(values: Array[int]) -> Array[int]:
-	var divisor := values[0]
-	for value in values:
-		divisor = _gcd(divisor, value)
-	var result: Array[int] = []
-	for value in values:
-		result.append(value / divisor)
-	return result
+func _rat(numerator: int, denominator: int) -> Dictionary:
+	if denominator < 0:
+		numerator = -numerator
+		denominator = -denominator
+	if denominator == 0:
+		return {"n": 0, "d": 1}
+	var divisor := _gcd(numerator, denominator)
+	return {"n": numerator / divisor, "d": denominator / divisor}
+
+func _add(a: Dictionary, b: Dictionary) -> Dictionary:
+	var left := _safe_product(a.n, b.d)
+	var right := _safe_product(b.n, a.d)
+	var denominator := _safe_product(a.d, b.d)
+	if not left.ok or not right.ok or not denominator.ok:
+		return {"ok": false}
+	var numerator := int(left.value) + int(right.value)
+	if abs(numerator) > MAX_SAFE_INTEGER:
+		return {"ok": false}
+	return {"ok": true, "value": _rat(numerator, denominator.value)}
+
+func _subtract(a: Dictionary, b: Dictionary) -> Dictionary:
+	return _add(a, _negate(b))
+
+func _multiply(a: Dictionary, b: Dictionary) -> Dictionary:
+	var numerator := _safe_product(a.n, b.n)
+	var denominator := _safe_product(a.d, b.d)
+	if not numerator.ok or not denominator.ok:
+		return {"ok": false}
+	return {"ok": true, "value": _rat(numerator.value, denominator.value)}
+
+func _divide(a: Dictionary, b: Dictionary) -> Dictionary:
+	if b.n == 0:
+		return {"ok": false}
+	var numerator := _safe_product(a.n, b.d)
+	var denominator := _safe_product(a.d, b.n)
+	if not numerator.ok or not denominator.ok:
+		return {"ok": false}
+	return {"ok": true, "value": _rat(numerator.value, denominator.value)}
+
+func _safe_product(a: int, b: int) -> Dictionary:
+	if a == 0 or b == 0:
+		return {"ok": true, "value": 0}
+	if abs(a) > MAX_SAFE_INTEGER / abs(b):
+		return {"ok": false}
+	return {"ok": true, "value": a * b}
+
+func _within_safe(a: int, b: int) -> bool:
+	return a == 0 or b == 0 or abs(a) <= MAX_SAFE_INTEGER / abs(b)
+
+func _negate(value: Dictionary) -> Dictionary:
+	return _rat(-value.n, value.d)
 
 func _gcd(a: int, b: int) -> int:
 	var left := abs(a)
@@ -155,3 +220,6 @@ func _gcd(a: int, b: int) -> int:
 		left = right
 		right = remainder
 	return maxi(left, 1)
+
+func _arithmetic_limit() -> BalanceResult:
+	return BalanceResult.failure("numeric_limit", "BALANCE_EXACT_ARITHMETIC_LIMIT", "Точная рациональная балансировка превысила безопасный диапазон целых промежуточных значений; коэффициенты не были угаданы.")
