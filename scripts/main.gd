@@ -363,6 +363,9 @@ func _confirm_add_component() -> void:
 				components[index].amount = amount_input.text.strip_edges()
 				components[index].unit = unit
 				components[index].phase = phase
+				var marker_position: Vector2 = components[index].position
+				if marker_position.x >= 0.0 and marker_position.y >= 0.0:
+					visual_field.set_marker(editing_component_id, item_name, marker_position)
 				break
 		selected_component_id = editing_component_id
 		status_label.text = "Черновик вещества обновлён: " + item_name
