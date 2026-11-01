@@ -1,0 +1,62 @@
+extends RefCounted
+class_name ChemSimDraftRepository
+
+const DraftCodec = preload("res://scripts/draft_codec.gd")
+
+static func save_draft(path: String, payload: Dictionary) -> Dictionary:
+	if not path.begins_with("user://"):
+		return _failure("Черновики разрешено сохранять только в пользовательской папке.")
+	var absolute_path := ProjectSettings.globalize_path(path)
+	var absolute_dir := ProjectSettings.globalize_path(path.get_base_dir())
+	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
+	if dir_error != OK:
+		return _failure("Не удалось создать папку для черновиков: " + str(dir_error))
+
+	var temporary_path := path + ".tmp"
+	var temporary_absolute := ProjectSettings.globalize_path(temporary_path)
+	if FileAccess.file_exists(temporary_path):
+		DirAccess.remove_absolute(temporary_absolute)
+	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
+	if file == null:
+		return _failure("Не удалось открыть временный файл: " + str(FileAccess.get_open_error()))
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.flush()
+	var write_error := file.get_error()
+	file.close()
+	if write_error != OK:
+		DirAccess.remove_absolute(temporary_absolute)
+		return _failure("Ошибка записи черновика: " + str(write_error))
+
+	var backup_path := path + ".bak"
+	var backup_absolute := ProjectSettings.globalize_path(backup_path)
+	var had_previous_file := FileAccess.file_exists(path)
+	if had_previous_file:
+		if FileAccess.file_exists(backup_path):
+			DirAccess.remove_absolute(backup_absolute)
+		var backup_error := DirAccess.rename_absolute(absolute_path, backup_absolute)
+		if backup_error != OK:
+			DirAccess.remove_absolute(temporary_absolute)
+			return _failure("Не удалось подготовить замену файла: " + str(backup_error))
+
+	var rename_error := DirAccess.rename_absolute(temporary_absolute, absolute_path)
+	if rename_error != OK:
+		DirAccess.remove_absolute(temporary_absolute)
+		if had_previous_file:
+			DirAccess.rename_absolute(backup_absolute, absolute_path)
+		return _failure("Не удалось завершить сохранение: " + str(rename_error))
+	if had_previous_file:
+		DirAccess.remove_absolute(backup_absolute)
+	return {"ok": true}
+
+static func load_draft(path: String) -> Dictionary:
+	if not path.begins_with("user://"):
+		return _failure("Открывать черновики разрешено только из пользовательской папки.")
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return _failure("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	return DraftCodec.decode_payload(parsed)
+
+static func _failure(message: String) -> Dictionary:
+	return {"ok": false, "error": message}
