@@ -64,6 +64,25 @@ class AqueousBenchmarkTests(unittest.TestCase):
             solve_agcl_precipitation(0.01, 0.01, 0.02, 0.01, 1e-10, 1e-14)
 
 
+    def test_strong_acid_only_and_strong_base_only(self):
+        acid = solve_strong_neutralization(0.01000, 0.0, 1.0e-14)
+        base = solve_strong_neutralization(0.0, 0.01000, 1.0e-14)
+        self.assertAlmostEqual(acid.pH, 2.0, places=9)
+        self.assertAlmostEqual(base.pH, 12.0, places=9)
+        self.assertLess(acid.diagnostics.charge_balance_mol, 1e-11)
+        self.assertLess(base.diagnostics.charge_balance_mol, 1e-11)
+
+    def test_rejects_empty_strong_electrolyte_fixture(self):
+        with self.assertRaises(EquilibriumInputError):
+            solve_strong_neutralization(0.0, 0.0, 1.0e-14)
+
+    def test_ammonium_only_solution_is_acidic(self):
+        result = solve_ammonia_buffer(0.01000, 0.01000, 10 ** -9.245, 1.0e-14)
+        self.assertLess(result.pH, 7.0)
+        self.assertGreater(result.species_mol_l["NH4+"], result.species_mol_l["NH3"])
+
+
+
 class GasBenchmarkTests(unittest.TestCase):
     def test_g01_no2_dimerization(self):
         result = solve_no2_dimerization(0.010, 0.0, 298.15, 1.0e-3, 6.73)
