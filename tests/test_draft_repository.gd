@@ -29,6 +29,13 @@ func _initialize() -> void:
 	var rejected_load := DraftRepository.load_draft("res://project.godot")
 	assert(not rejected_load.ok, "Repository must reject reads outside user://")
 
+	var traversal_save := DraftRepository.save_draft("user://experiments/../escape.json", payload)
+	assert(not traversal_save.ok, "Repository must reject parent-directory traversal on save")
+	var nested_traversal_load := DraftRepository.load_draft("user://experiments\\..\\escape.json")
+	assert(not nested_traversal_load.ok, "Repository must reject Windows-style parent-directory traversal on load")
+	var empty_path_save := DraftRepository.save_draft("user://", payload)
+	assert(not empty_path_save.ok, "Repository must reject the user data root as a file path")
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("Draft repository tests passed")
 	quit(0)
