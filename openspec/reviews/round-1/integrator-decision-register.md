@@ -50,6 +50,12 @@
 | INT-25 | P1 | Save document boundary | Разделить chemical experiment document, immutable replay metadata, user annotations и UI layout. Утвердить, какие версии сохраняются inline, а какие через content-addressed refs. | A5 + A1/A4 | Save/load and portability |
 | INT-26 | P1 | Numerical fixture provenance | Для каждого численного benchmark хранить independent expected value, source/derivation, conditions, basis, uncertainty, units, tolerances, license. Scenario-only cases не выдавать за executable numeric tests. | A1 + A3/A4 | Scientific validation |
 | INT-27 | P2 | UI labels/status vocabulary | Утвердить русские пользовательские labels для Ready/Blocked/Running/Paused/Stepping/Completed/Failed/ResultsWithWarnings и причины блокировки. | A5 + владелец | UX polish, not chemistry core |
+| INT-28 | P0 | Зарядовая нотация | Согласовать caret-only запись (^+, ^2-, ^3+) либо короткие aliases H+/OH-/Ag+; Fe3+ без caret отклонять как неоднозначное. | Владелец + A2 | Parser grammar and round-trip |
+| INT-29 | P0 | Стрелка равновесия | Утвердить единственный canonical token для equilibrium arrow и правила lexer aliases. | Владелец + A2/A3 | Reaction AST and equilibrium input |
+| INT-30 | P1 | Дублирующиеся ReactionTerm | Решить, сохранять ли H2 + H2 как два исходных term или агрегировать в один term с коэффициентом; сохранять исходный текст для редактора. | A2 + интегратор | Reaction canonicalization and editing |
+| INT-31 | P1 | Species по обе стороны | Определить политику одинакового SpeciesRef на reactant и product side (допуск промежуточных/каталитических случаев либо validation error). | A2 + A4 | Reaction validation and kinetics |
+| INT-32 | P1 | Неуказанная фаза | Разрешить parse/catalog записи без phase, но требовать phase для моделей, где она обязательна; parser phase не угадывает. | A1 + A2 + A3 | Catalog, equilibrium and reaction validation |
+| INT-33 | P1 | BalanceResult mutability | Утвердить immutable input Reaction + отдельный BalanceResult; применение коэффициентов создаёт новую Reaction revision. | Интегратор + A2/A5 | Editing, persistence, kinetic references |
 
 ## 3. Набор DTO для последующего согласования
 
