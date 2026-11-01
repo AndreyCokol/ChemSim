@@ -10,12 +10,12 @@ PR: #3 (draft, not merged)
 - Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
 - Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
 - Separate local draft repository restricted to normalized paths inside `user://`; parent traversal, mixed-separator traversal and the user-data root are rejected. Writes use a temporary file and backup/restore replacement, with round-trip/security tests.
-- Presentation-only placement and dragging of component markers. Normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
+- Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
 - Versioned local UI-draft document (`chemsim_ui_draft`, schema version 1), with codec validation, round-trip tests, and rejection of unsupported schema versions, duplicate IDs, non-finite/out-of-range marker coordinates and partial unplaced-marker sentinels.
 - Atomic-style replacement using a temporary file and backup/restore path.
-- Headless Godot import/startup CI, draft-codec tests and draft-repository round-trip/security tests.
+- Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/security tests and visual-field movement/bounds tests.
 
 ## Explicitly not implemented
 
