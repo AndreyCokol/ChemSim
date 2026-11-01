@@ -51,6 +51,11 @@ public sealed class KineticsSimulator
                         new(accepted, rejected, evaluations, "Maximum internal-step budget exceeded."));
 
                 var target = Math.Min(request.EndTimeSeconds, time + request.OutputIntervalSeconds);
+                if (target <= time)
+                    return new(SimulationStatus.InvalidInput, Array.AsReadOnly(samples.ToArray()),
+                        new(accepted, rejected, evaluations,
+                            "Output interval cannot advance the representable simulation time at the current timestamp."));
+
                 var integrator = new DormandPrince54(
                     request.Solver.RelativeTolerance,
                     request.Solver.AbsoluteToleranceMol,
