@@ -3,6 +3,7 @@ class_name ChemSimVisualField
 
 signal field_pressed(normalized_position: Vector2)
 signal marker_pressed(component_id: int)
+signal marker_moved(component_id: int, normalized_position: Vector2)
 
 const GRID_STEP := 32
 const BACKGROUND := Color("#101923")
@@ -90,6 +91,7 @@ func _gui_input(event: InputEvent) -> void:
 			dragging_marker_id = -1
 	elif event is InputEventMouseMotion and dragging_marker_id >= 0:
 		set_marker(dragging_marker_id, _marker_label(dragging_marker_id), _to_normalized(event.position))
+		marker_moved.emit(dragging_marker_id, _to_normalized(event.position))
 
 func _find_marker_at(point: Vector2) -> int:
 	for marker in markers:
