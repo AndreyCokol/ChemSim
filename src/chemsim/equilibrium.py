@@ -15,7 +15,7 @@ fixed to one; callers must not use this module outside that approximation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp, isfinite, log, log10, sqrt
+from math import isfinite, isnan, log, log10, sqrt
 from typing import Callable
 
 
@@ -36,9 +36,10 @@ class EquilibriumConvergenceError(RuntimeError):
 class SolverDiagnostics:
     iterations: int
     residual: float
-    mass_balance_max_mol: float
-    charge_balance_mol: float
+    component_balance_residual: float
+    charge_balance_residual: float
     method: str
+    balance_unit: str
     activity_model: str = "ideal_dilute_gamma_equals_1"
 
 
@@ -77,20 +78,20 @@ def _bisect(
     """Bisection with endpoint handling; fn must be monotone on [low, high]."""
     f_low = fn(low)
     f_high = fn(high)
-    if not isfinite(f_low) and f_low not in (-float("inf"), float("inf")):
-        raise EquilibriumConvergenceError("Non-finite lower bracket residual")
-    if not isfinite(f_high) and f_high not in (-float("inf"), float("inf")):
-        raise EquilibriumConvergenceError("Non-finite upper bracket residual")
+    if isnan(f_low) or isnan(f_high):
+        raise EquilibriumConvergenceError("NaN encountered at an equilibrium bracket endpoint")
     if abs(f_low) <= f_tol:
         return low, 0, f_low
     if abs(f_high) <= f_tol:
         return high, 0, f_high
-    if f_low * f_high > 0:
+    if (f_low > 0 and f_high > 0) or (f_low < 0 and f_high < 0):
         raise EquilibriumConvergenceError("Equilibrium root is not bracketed")
 
     for iteration in range(1, max_iter + 1):
         mid = 0.5 * (low + high)
         f_mid = fn(mid)
+        if isnan(f_mid):
+            raise EquilibriumConvergenceError("NaN encountered during equilibrium iteration")
         if abs(f_mid) <= f_tol or (high - low) <= x_tol * max(1.0, abs(mid)):
             return mid, iteration, f_mid
         if f_low * f_mid <= 0:
@@ -142,7 +143,7 @@ def solve_weak_acid(
     return AqueousResult(
         {"HA": ha, "A-": a_minus, "H+": h, "OH-": oh},
         -log10(h / STANDARD_CONCENTRATION_MOL_L),
-        SolverDiagnostics(iterations, residual, mass_error, charge_error, "log-space bisection"),
+        SolverDiagnostics(iterations, residual, mass_error, charge_error, "log-space bisection", "mol/L"),
     )
 
 
@@ -169,7 +170,7 @@ def solve_strong_neutralization(
     return AqueousResult(
         {"H+": h, "OH-": oh, "Na+": naoh_mol_l, "Cl-": hcl_mol_l},
         -log10(h),
-        SolverDiagnostics(iterations, f_residual, 0.0, abs(charge), "log-space bisection"),
+        SolverDiagnostics(iterations, f_residual, 0.0, abs(charge), "log-space bisection", "mol/L"),
     )
 
 
@@ -188,7 +189,7 @@ def solve_agcl_solubility(ksp: float, kw: float) -> AqueousResult:
         {"Ag+": s, "Cl-": s, "H+": h, "OH-": oh},
         -log10(h),
         SolverDiagnostics(
-            0, 0.0, 0.0, abs((s + h) - (s + oh)), "closed-form ideal solubility"
+            0, 0.0, 0.0, abs((s + h) - (s + oh)), "closed-form ideal solubility", "mol/L"
         ),
     )
 
@@ -285,6 +286,7 @@ def solve_agcl_precipitation(
         SolverDiagnostics(
             iterations, residual, max(ag_balance, cl_balance), abs(charge),
             "active-set + bisection" if solid > 0 else "inactive-solid check",
+            "mol/L",
         ),
         solid_mol_l=solid,
     )
@@ -360,8 +362,12 @@ def _gas_equilibrium(
     }
     total_pressure = total_moles * R * temperature_k / volume_m3
 
-    # Verify each element-like conserved moiety from stoichiometric invariants
-    # is preserved by construction; numerical residual is checked in amount space.
+    # Verify the extent update itself in amount space. Atom conservation is
+    # guaranteed by the fixed benchmark stoichiometries, not by this generic helper.
+    component_balance_residual = max(
+        abs(final[name] - species_initial[name] - stoichiometry[name] * extent)
+        for name in species_initial
+    )
     min_amount = min(final.values())
     if min_amount < -1e-12:
         raise EquilibriumConvergenceError("Solver produced a negative gas amount")
@@ -371,7 +377,8 @@ def _gas_equilibrium(
         total_pressure,
         extent,
         SolverDiagnostics(
-            iterations, f_residual, 0.0, 0.0, "extent + logQ bisection"
+            iterations, f_residual, component_balance_residual, 0.0,
+            "extent + logQ bisection", "mol"
         ),
     )
 
