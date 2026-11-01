@@ -13,7 +13,7 @@ const DANGER := Color("#D97878")
 
 var status_label: Label
 var composition_list: VBoxContainer
-var visual_field: Control
+var visual_field
 var graph_title: Label
 var reaction_input: LineEdit
 var temperature_input: LineEdit
@@ -133,11 +133,11 @@ func _center_panel() -> Control:
 	header.add_child(spacer)
 	header.add_child(_label("Позиция объектов — только визуальная", 11, MUTED))
 	column.add_child(header)
-	visual_field = Control.new()
-	visual_field.set_script(VisualFieldScript)
+	visual_field = VisualFieldScript.new()
 	visual_field.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	visual_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	visual_field.marker_pressed.connect(_on_marker_pressed)
+	visual_field.marker_moved.connect(_on_marker_moved)
 	visual_field.field_pressed.connect(_on_field_pressed)
 	column.add_child(visual_field)
 	var note := _label("Выберите компонент слева → нажмите на поле, чтобы поставить маркер. Координаты не влияют на расчёт.", 11, MUTED)
@@ -307,8 +307,8 @@ func _confirm_add_component() -> void:
 	if display_name.is_empty() and formula.is_empty():
 		status_label.text = "Нужно указать название или формулу"
 		return
-	var unit := amount_unit.get_item_text(amount_unit.selected)
-	var phase := phase_input.get_item_text(phase_input.selected)
+	var unit := amount_unit.get_item_text(amount_unit.get_selected())
+	var phase := phase_input.get_item_text(phase_input.get_selected())
 	var item := {
 		"id": next_component_id,
 		"name": display_name if not display_name.is_empty() else formula,
@@ -395,6 +395,13 @@ func _on_marker_pressed(component_id: int) -> void:
 	selected_component_id = component_id
 	_refresh_composition()
 	status_label.text = "Выбран маркер · перетащите его или нажмите новое место"
+
+func _on_marker_moved(component_id: int, normalized_position: Vector2) -> void:
+	for index in range(components.size()):
+		if int(components[index].id) == component_id:
+			components[index].position = normalized_position
+			draft_dirty = true
+			return
 
 func _on_reaction_changed(_value: String) -> void:
 	draft_dirty = true
