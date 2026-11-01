@@ -59,6 +59,11 @@ class AqueousBenchmarkTests(unittest.TestCase):
         )
         self.assertEqual(result.solid_mol_l, 0.0)
 
+
+    def test_rejects_relative_feed_mismatch_for_trace_totals(self):
+        with self.assertRaises(EquilibriumInputError):
+            solve_agcl_precipitation(1.0e-12, 1.0e-12, 1.0e-12, 0.0, 1.0e-10, 1.0e-14)
+
     def test_rejects_inconsistent_spectator_totals(self):
         with self.assertRaises(EquilibriumInputError):
             solve_agcl_precipitation(0.01, 0.01, 0.02, 0.01, 1e-10, 1e-14)
