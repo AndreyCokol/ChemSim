@@ -27,6 +27,12 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 - Cancellation and a simulation-wide internal-step budget.
 - Analytical first- and second-order tests.
 
+## CI
+
+- Added `.github/workflows/a4-dotnet.yml` to restore, build, and test the solution with the .NET 10 SDK on pushes to the A4 feature branch and pull requests.
+- CI uploads TRX test results when available.
+- The GitHub connector used for this work exposes pull-request-triggered runs only; it does not currently provide a result for the branch-push run. A passing CI result is therefore not claimed.
+
 ## Numerical edge-case hardening
 
 - A final requested integration interval shorter than the configured minimum step is allowed when it is integrated as one final step; the minimum-step limit applies to further subdivision.
