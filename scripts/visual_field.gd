@@ -19,6 +19,8 @@ var dragging_marker_id: int = -1
 func _ready() -> void:
 	custom_minimum_size = Vector2(480, 320)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	focus_mode = Control.FOCUS_ALL
+	tooltip_text = "Визуальная раскладка: мышь для перетаскивания, стрелки для перемещения, Shift + стрелка — крупный шаг. Не влияет на химию."
 	queue_redraw()
 
 func set_marker(component_id: int, label: String, normalized_position: Vector2) -> void:
@@ -79,6 +81,7 @@ func _draw() -> void:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+			grab_focus()
 			var hit_id := _find_marker_at(event.position)
 			if hit_id >= 0:
 				selected_marker_id = hit_id
@@ -92,6 +95,27 @@ func _gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and dragging_marker_id >= 0:
 		set_marker(dragging_marker_id, _marker_label(dragging_marker_id), _to_normalized(event.position))
 		marker_moved.emit(dragging_marker_id, _to_normalized(event.position))
+	elif event is InputEventKey and event.pressed and not event.echo:
+		var direction := Vector2.ZERO
+		match event.keycode:
+			KEY_LEFT:
+				direction = Vector2.LEFT
+			KEY_RIGHT:
+				direction = Vector2.RIGHT
+			KEY_UP:
+				direction = Vector2.UP
+			KEY_DOWN:
+				direction = Vector2.DOWN
+		if direction != Vector2.ZERO and selected_marker_id >= 0:
+			var step := 0.05 if event.shift_pressed else 0.01
+			for marker in markers:
+				if int(marker.id) != selected_marker_id:
+					continue
+				var next_position := _clamp_position(Vector2(marker.position) + direction * step)
+				set_marker(selected_marker_id, str(marker.label), next_position)
+				marker_moved.emit(selected_marker_id, next_position)
+				accept_event()
+				break
 
 func _find_marker_at(point: Vector2) -> int:
 	for marker in markers:
