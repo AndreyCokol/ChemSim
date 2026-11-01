@@ -27,7 +27,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.pH, 7.0, places=10)
         self.assertAlmostEqual(result.species_mol_l["Na+"], 0.01000)
         self.assertAlmostEqual(result.species_mol_l["Cl-"], 0.01000)
-        self.assertLess(result.diagnostics.charge_balance_mol, 1e-12)
+        self.assertLess(result.diagnostics.charge_balance_residual, 1e-12)
 
     def test_w03_agcl_solubility(self):
         result = solve_agcl_solubility(10 ** -9.748, 1.0e-14)
@@ -50,8 +50,8 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["Ag+"], math.sqrt(ksp), delta=1e-10)
         self.assertAlmostEqual(result.species_mol_l["Cl-"], math.sqrt(ksp), delta=1e-10)
         self.assertAlmostEqual(result.solid_mol_l, 0.01000 - math.sqrt(ksp), delta=1e-10)
-        self.assertLess(result.diagnostics.mass_balance_max_mol, 1e-11)
-        self.assertLess(result.diagnostics.charge_balance_mol, 1e-11)
+        self.assertLess(result.diagnostics.component_balance_residual, 1e-11)
+        self.assertLess(result.diagnostics.charge_balance_residual, 1e-11)
 
     def test_precipitation_is_inactive_when_undersaturated(self):
         result = solve_agcl_precipitation(
@@ -69,8 +69,8 @@ class AqueousBenchmarkTests(unittest.TestCase):
         base = solve_strong_neutralization(0.0, 0.01000, 1.0e-14)
         self.assertAlmostEqual(acid.pH, 2.0, places=9)
         self.assertAlmostEqual(base.pH, 12.0, places=9)
-        self.assertLess(acid.diagnostics.charge_balance_mol, 1e-11)
-        self.assertLess(base.diagnostics.charge_balance_mol, 1e-11)
+        self.assertLess(acid.diagnostics.charge_balance_residual, 1e-11)
+        self.assertLess(base.diagnostics.charge_balance_residual, 1e-11)
 
     def test_rejects_empty_strong_electrolyte_fixture(self):
         with self.assertRaises(EquilibriumInputError):
