@@ -373,3 +373,91 @@ A1 не реализует парсер/балансировщик, equilibrium/
 - EUR-Lex / Publications Office — EU reuse policy: https://op.europa.eu/en/web/about-us/legal-notices/publications-office-of-the-european-union-copyright .
 
 Источники проверены 2026-11-02. Для включения конкретных значений в релиз нужно повторно проверить актуальную лицензию и конкретный dataset release.
+
+
+## 12. Раунд 2 — межагентная сверка и уточнения (2026-11-02)
+
+### 12.1 A1 ↔ A2: Substance и Species нельзя сливать
+
+A2 фиксирует, что фаза не является частью формулы и должна храниться отдельно. Это совместимо с A1, если развести три уровня:
+
+1. **SubstanceRecord** — каталоговая сущность с устойчивым ID, именем, FormulaAST/структурной идентичностью и набором утверждений-свойств.
+2. **SpeciesRef** — участник химической реакции/равновесия: ссылка на SubstanceRef/FormulaAST плюс явно заданные charge и phase. Фаза относится к конкретному species occurrence/model context, а не меняет строковую формулу.
+3. **ExperimentComponent** — экземпляр вещества в эксперименте с количеством, массой/концентрацией, объёмом/состоянием и ссылкой на SpeciesRef; не является записью каталога.
+
+Следствие: поле `phase` не должно использоваться как часть primary key SubstanceRecord. В SubstanceRecord можно хранить reference phase/physical form как свойство с условиями, но A2 ReactionTerm должен ссылаться на SpeciesRef, где фаза задана явно. Это предотвращает коллизию «одна формула — разные фазы» и не превращает фазу в часть химической формулы.
+
+A2 владеет грамматикой FormulaAST, токенизацией, canonicalization и ReactionTerm. A1 хранит ссылку на AST/version и не дублирует разбор. Требует совместного решения: является ли SpeciesRef полноценной сущностью с собственным ID или детерминированной составной ссылкой `(substance_id, formula_ast_version, charge, phase)`. Рекомендация A1: стабильный Species ID для сохранения экспериментов и явная revision/version ссылки на FormulaAST.
+
+### 12.2 A1 ↔ A3: basis равновесных констант
+
+Сверка с A3 подтверждает:
+- термодинамическая equilibrium constant формулируется через activities относительно standard states;
+- `Kp`, `Kc`, activity-based K и эмпирические концентрационные константы не взаимозаменяемы;
+- activity coefficient/model и область применимости должны входить в контекст расчёта, а не выводиться из одной константы;
+- pH связан с активностью H+, а `-log10[H+]` допустим только как явно обозначенное идеальное приближение;
+- K(T) нельзя экстраполировать из одной температуры без применимой термодинамической зависимости/данных.
+
+Уточнение к схеме: `basis` сам по себе недостаточен. Для activity-based K хранить по каждому участвующему компоненту ссылку на стандартное состояние и конвенцию activity; для концентрационной константы — единицы и конкретную концентрационную шкалу. Для gas equilibrium MVP — ideal-gas partial-pressure approximation, но не записывать fugacity coefficient как будто он известен. Параметры модели активности принадлежат A3; A1 предоставляет типизированные исходные данные и применимость.
+
+Открытый вопрос A3: какие именно equilibrium basis enum и standard-state DTO A3 готов принимать в MVP? До ответа не фиксировать enum как публичный.
+
+### 12.3 A1 ↔ A4: кинетические свойства и размерности
+
+A4 подтверждает, что K не задаёт временной масштаб, а k, orders, Ea и reference temperature принадлежат kinetic model. A1 должен предоставлять PropertyRecord для исходных данных, но не определять универсальный unit для k.
+
+Для rate law вида (r = k \, \prod_i c_i^{\alpha_i}), если r выражена как концентрация/время, размерность k зависит от суммарного порядка (n=\sum_i\alpha_i): ([k]=[C]^{1-n}[t]^{-1}). Для rate law на основе amount/time, surface rate или иной формы размерность будет другой. Поэтому PropertyRecord для k обязательно должен ссылаться на конкретный rate-law definition/kinetic model ID и basis скорости. Нельзя принимать `s^-1` как универсальную единицу k.
+
+Для Arrhenius-параметров:
+- Ea — энергия на количество вещества (обычно energy/mol), с явной единицей;
+- reference temperature и reference k должны быть записаны;
+- R берётся в согласованной энергетической единице;
+- validity interval и provenance относятся к конкретной kinetic parameter set.
+
+Рекомендация: A4 владеет KineticParameterSet DTO и rate-law schema; A1 предоставляет общий unit registry, provenance и quality envelope. Не переносить kinetic orders в SubstanceRecord.
+
+### 12.4 A1 ↔ A5: DataQuality не равен ReliabilityVector
+
+A5 предлагает статус результата из data_quality, model_validity, numerical_status, completeness и warnings. A1 предлагает DataQuality для отдельного утверждения о данных. Это разные уровни:
+- PropertyRecord.data_quality описывает происхождение/проверенность/неопределённость/применимость/лицензию конкретного утверждения.
+- SimulationResult.ReliabilityVector.data_quality — агрегированная оценка использованных данных, сформированная интегратором из конкретных PropertyRecord и их provenance; она не заменяет исходные записи.
+- Hazard completeness — отдельный статус покрытия hazard evidence, не показатель качества расчётных свойств и не probability.
+
+A5 должен отображать причины и source/version, а не вычислять единый «процент достоверности». Отсутствие HazardRecord визуально отличается от `no_data_found`.
+
+### 12.5 Уточнение источников по актуальным публичным страницам
+
+Повторно проверены публичные страницы источников. Это desk research, не юридическое заключение:
+
+| Источник | Уточнение после повторной проверки | Решение |
+|---|---|---|
+| IUPAC Gold Book | Официальная страница указывает CC BY-SA 4.0 для individual terms и просит обращаться в IUPAC для commercial use; также предупреждает, что часть определений могла устареть. <https://www.dev.goldbook.iupac.org/> | Использовать как терминологический указатель; перед копированием определений/массовым включением проверить share-alike и коммерческие условия |
+| CIAAW | Официальный impressum разрешает republication/reproduction/storage/dissemination при видимой полной атрибуции и ©/годе; commercial use — через CIAAW Secretariat. <https://ciaaw.org/impressum.htm> | Для коммерческого ChemSim получить согласование; сохранять edition/year, диапазоны/неопределённость и атрибуцию |
+| PubChem | Официальные страницы подтверждают сотни contributors, field-level/source provenance и различия лицензий; в текущем источниковом списке 891 из 1,138 sources имеют unspecified license. <https://pubchem.ncbi.nlm.nih.gov/docs/downloads> <https://pubchem.ncbi.nlm.nih.gov/docs/data-sources> | Не считать PubChem blanket-licensed; только source-specific imports с проверенной лицензией |
+| ECHA | Legal notice допускает повторное использование части материалов с атрибуцией, но исключает whole/substantial database extraction и материалы третьих лиц; отдельно упоминается CAS Information. <https://echa.europa.eu/legal-notice> | Точечное использование только после проверки конкретного материала и прав третьих лиц; не зеркалировать существенную часть базы |
+| NIST SRD 69 | Ранее отмеченное ограничение остаётся блокером для bundle: нельзя делать вывод о праве на распространение SRD из общей доступности сайта. <https://www.nist.gov/open/copyright-fair-use-and-licensing-statements-srd-data-software-and-technical-series-publications> | Не включать в redistributable bundle до получения применимого разрешения/соглашения |
+
+### 12.6 Список вопросов для интегратора (не закрывать предположениями)
+
+1. Утвердить разделение SubstanceRef / SpeciesRef / ExperimentComponent и владельца canonical Species ID.
+2. Согласовать общий UnitId registry и семантику dimension/basis; решить, нужен ли UCUM-compatible identifier либо собственный закрытый registry.
+3. Утвердить representation uncertainty: standard uncertainty, expanded uncertainty, interval/range, confidence level, unknown/not reported/exact-by-definition.
+4. Утвердить условия допустимого использования user-provided values в benchmark/replay и правила наследования quality status в SimulationResult.
+5. Согласовать scope лицензий для релиза: коммерческое или некоммерческое распространение, отдельные bundled datasets и механизм attribution manifest.
+6. Получить от A3 список equilibrium basis/standard-state fields и от A4 KineticParameterSet/rate-law unit requirements.
+7. Утвердить единый DomainError registry; коды A1 остаются предложением, не публичным API.
+
+### 12.7 Новые тесты на границах DTO
+
+| ID | Случай | Ожидаемый результат |
+|---|---|---|
+| DTO-01 | Одна формула, два SpeciesRef с разными фазами | Разные species context; FormulaAST остаётся одинаковым |
+| DTO-02 | Один SubstanceRecord используется в двух экспериментах | Независимые ExperimentComponent amounts/state |
+| DTO-03 | K(activity) подставляется в Kc model без преобразования | CHEM_BASIS_MISMATCH |
+| DTO-04 | k с единицей s^-1, но rate law второго порядка | Reject dimension mismatch, если unit не соответствует declared rate law |
+| DTO-05 | PropertyRecord license unknown | Может быть сохранён в исследовательской/пользовательской среде, но исключён из release bundle |
+| DTO-06 | DataQuality=verified, но applicability=out_of_range | Расчёт блокируется; нельзя усреднять статусы в «verified» |
+| DTO-07 | HazardRecord complete_for_scope для EU CLP, запрашивается другая юрисдикция | Для новой юрисдикции статус остаётся not_assessed/partial |
+| DTO-08 | Изменился только display_name | Новая revision или metadata revision; substance_id остаётся стабильным |
+| DTO-09 | FormulaAST semantics version changed | Явная migration/compatibility mapping; не менять прошлый experiment replay |
+| DTO-10 | Unknown future field/schema version round-trip | Не удалять неизвестные поля и не выполнять destructive rewrite |
