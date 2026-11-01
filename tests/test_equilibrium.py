@@ -111,5 +111,18 @@ class GasBenchmarkTests(unittest.TestCase):
             solve_no2_dimerization(0.01, 0.0, 298.15, 1e-3, 0.0)
 
 
+    def test_g02_equilibrium_can_proceed_in_reverse(self):
+        result = solve_h2_i2_hi(0.0, 0.0, 0.010, 298.15, 1.0e-3, 690.2)
+        self.assertLess(result.extent_mol, 0.0)
+        self.assertGreater(result.species_mol["H2"], 0.0)
+        self.assertGreater(result.species_mol["I2(g)"], 0.0)
+        self.assertGreater(result.species_mol["HI"], 0.0)
+        self.assertAlmostEqual(
+            result.species_mol["H2"] + 0.5 * result.species_mol["HI"],
+            0.005,
+            places=10,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
