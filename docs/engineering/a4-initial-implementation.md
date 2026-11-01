@@ -30,8 +30,8 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 ## Numerical edge-case hardening
 
 - A final requested integration interval shorter than the configured minimum step is allowed when it is integrated as one final step; the minimum-step limit applies to further subdivision.
-- The integrator does not infer completion from an epsilon scaled by absolute simulation time. It reaches the requested endpoint only after integrating the remaining interval.
-- Each trial uses the representable increment between the current and next time coordinate, avoiding duration drift when the absolute time is large relative to the step size.
+- The integrator advances in elapsed-time coordinates while passing absolute simulation time to the RHS, avoiding loss of step resolution at large absolute start times.
+- The simulator rejects output intervals that cannot advance the representable time coordinate and rejects non-finite total durations.
 - RHS evaluation diagnostics count the stages actually evaluated before a rejected non-physical trial.
 
 ## Explicitly not implemented
