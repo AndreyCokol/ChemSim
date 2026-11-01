@@ -35,5 +35,25 @@ func _initialize() -> void:
 	var duplicate_result := DraftCodec.decode_payload(duplicate_ids)
 	assert(not duplicate_result.ok, "Duplicate component IDs must be rejected")
 
+	var invalid_position := payload.duplicate(true)
+	invalid_position.components[0].position = [0.5]
+	var invalid_position_result := DraftCodec.decode_payload(invalid_position)
+	assert(not invalid_position_result.ok, "Malformed marker coordinates must be rejected")
+
+	var invalid_component := payload.duplicate(true)
+	invalid_component.components[0] = "not-a-dictionary"
+	var invalid_component_result := DraftCodec.decode_payload(invalid_component)
+	assert(not invalid_component_result.ok, "Malformed component records must be rejected")
+
+	var invalid_conditions := payload.duplicate(true)
+	invalid_conditions.conditions = []
+	var invalid_conditions_result := DraftCodec.decode_payload(invalid_conditions)
+	assert(not invalid_conditions_result.ok, "Malformed condition blocks must be rejected")
+
+	var missing_document_type := payload.duplicate(true)
+	missing_document_type.erase("document_type")
+	var missing_type_result := DraftCodec.decode_payload(missing_document_type)
+	assert(not missing_type_result.ok, "Documents without a type marker must be rejected")
+
 	print("Draft codec tests passed")
 	quit(0)
