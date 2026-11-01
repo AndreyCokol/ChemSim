@@ -21,8 +21,7 @@ const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": 
 # Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
 const SIMPLE_ION_ALIASES := [
 	"H+", "H-", "OH-", "NH4+", "Ag+", "Ag-", "Cl-", "Na+", "K+",
-	"Li+", "Mg2+", "Ca2+", "Zn2+", "Cu2+", "Fe2+", "Fe3+", "Al3+",
-	"NO3-", "NO2-", "HCO3-", "CH3COO-"
+	"Li+", "NO3-", "NO2-", "HCO3-", "CH3COO-"
 ]
 
 func parse_formula(source: String) -> Dictionary:
@@ -238,6 +237,9 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			if int(state.index) == 0 or text.substr(int(state.index) - 1, 1) != ")":
 				state.error = "PARSE_UNCLOSED_GROUP"
 				return nodes
+			if children.is_empty():
+				state.error = "PARSE_EMPTY_GROUP"
+				return nodes
 			var group_count := _read_count(text, state)
 			if group_count < 0:
 				return nodes
@@ -294,13 +296,21 @@ func _expand_nodes(nodes: Array) -> Dictionary:
 func _find_arrow(source: String) -> Dictionary:
 	var found := ""
 	var found_pos := -1
-	for arrow in ARROWS:
-		var pos := source.find(arrow)
-		if pos >= 0:
+	var index := 0
+	while index < source.length():
+		var matched := ""
+		for candidate in ["<->", "⇌", "->", "→"]:
+			if source.substr(index, candidate.length()) == candidate:
+				matched = candidate
+				break
+		if not matched.is_empty():
 			if found_pos >= 0:
 				return {"ok": false, "code": "PARSE_MULTIPLE_ARROWS", "message": "Reaction must contain exactly one arrow."}
-			found = arrow
-			found_pos = pos
+			found = matched
+			found_pos = index
+			index += matched.length()
+		else:
+			index += 1
 	if found_pos < 0:
 		return {"ok": false, "code": "PARSE_MISSING_ARROW", "message": "Reaction arrow is missing."}
 	return {"ok": true, "arrow": found, "position": found_pos}
