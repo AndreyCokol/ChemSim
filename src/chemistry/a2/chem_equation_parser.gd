@@ -276,9 +276,9 @@ func _extract_charge(text: String) -> Dictionary:
 		var magnitude_text := suffix.substr(0, suffix.length() - 1)
 		var magnitude := 1
 		if not magnitude_text.is_empty():
-			if not magnitude_text.is_valid_int():
-				return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be a positive integer."}
-			magnitude = int(magnitude_text)
+			magnitude = _parse_bounded_integer(magnitude_text, MAX_INTEGER_TOKEN)
+			if magnitude < 0:
+				return {"ok": false, "code": "PARSE_CHARGE_TOO_LARGE", "message": "Charge magnitude exceeds the configured safe limit."}
 		if magnitude <= 0:
 			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be positive."}
 		return {"ok": true, "body": text.substr(0, caret), "charge": magnitude if sign_text == "+" else -magnitude}
@@ -368,9 +368,9 @@ func _parse_bounded_integer(digits: String, limit: int) -> int:
 	var value := 0
 	for i in range(digits.length()):
 		var digit := int(digits.substr(i, 1))
-		if value > int((limit - digit) / 10):
-			return -1
 		value = value * 10 + digit
+		if value > limit:
+			return -1
 	return value
 
 func _expand_nodes(nodes: Array, state: Dictionary) -> Dictionary:
