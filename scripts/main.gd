@@ -9,12 +9,35 @@ const FG := Color("#E6EDF3")
 const MUTED := Color("#91A4B5")
 const ACCENT := Color("#62B6A5")
 const WARNING := Color("#D8A85B")
+const DANGER := Color("#D97878")
 
 var status_label: Label
+var composition_list: VBoxContainer
+var visual_field: Control
 var graph_title: Label
+var reaction_input: LineEdit
+var temperature_input: LineEdit
+var pressure_input: LineEdit
+var volume_input: LineEdit
+var diagnostic_label: Label
+var selected_component_id: int = -1
+var next_component_id: int = 1
+var components: Array[Dictionary] = []
+var experiment_name: String = "Новый эксперимент"
+var draft_dirty: bool = false
+var active_graph: String = "concentration"
+var add_dialog: AcceptDialog
+var name_input: LineEdit
+var formula_input: LineEdit
+var amount_input: LineEdit
+var amount_unit: OptionButton
+var phase_input: OptionButton
+var edit_dialog: AcceptDialog
 
 func _ready() -> void:
 	_build_ui()
+	_create_add_dialog()
+	_refresh_composition()
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -40,16 +63,18 @@ func _header() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	panel.add_child(_pad(row, 18, 12, 18, 12))
-	var title := _label("ChemSim", 23, FG)
-	row.add_child(title)
+	row.add_child(_label("ChemSim", 23, FG))
 	row.add_child(_label("ЛАБОРАТОРИЯ ОБЩЕЙ ХИМИИ", 10, MUTED))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 	row.add_child(_label("ИЗОТЕРМИЧЕСКАЯ МОДЕЛЬ", 10, ACCENT))
 	var new_button := _button("＋ Новый эксперимент", true)
-	new_button.pressed.connect(func(): status_label.text = "Создан пустой черновик интерфейса")
+	new_button.pressed.connect(_new_experiment)
 	row.add_child(new_button)
+	var save_button := _button("Сохранить черновик", false)
+	save_button.pressed.connect(_show_save_notice)
+	row.add_child(save_button)
 	var settings := _button("Настройки", false)
 	settings.disabled = true
 	row.add_child(settings)
@@ -57,26 +82,38 @@ func _header() -> Control:
 
 func _left_panel() -> Control:
 	var panel := _panel(PANEL, 1)
-	panel.custom_minimum_size.x = 250
+	panel.custom_minimum_size.x = 280
+	panel.size_flags_horizontal = Control.SIZE_FILL
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
-	panel.add_child(_pad(box, 16, 18, 16, 16))
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(_pad(box, 14, 16, 14, 14))
 	box.add_child(_section("СОСТАВ ЭКСПЕРИМЕНТА"))
-	box.add_child(_empty_card("Пока нет компонентов", "Добавленные вещества и их количества появятся здесь."))
-	var add := _button("＋ Добавить вещество", false)
-	add.disabled = true
-	box.add_child(add)
-	box.add_child(_separator())
-	box.add_child(_section("УРАВНЕНИЕ РЕАКЦИИ"))
-	var hint := _label("Введите реакцию для анализа состава и стехиометрии.", 12, MUTED)
+	var hint := _label("Черновые записи. Формулы и значения пока не проверяются химическим ядром.", 11, MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(hint)
-	var input := LineEdit.new()
-	input.placeholder_text = "Например: H2 + O2 -> H2O"
-	input.editable = false
-	box.add_child(input)
+	var add := _button("＋ Добавить вещество", true)
+	add.pressed.connect(_open_add_dialog)
+	box.add_child(add)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	composition_list = VBoxContainer.new()
+	composition_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	composition_list.add_theme_constant_override("separation", 7)
+	scroll.add_child(composition_list)
+	box.add_child(scroll)
+	box.add_child(_separator())
+	box.add_child(_section("УРАВНЕНИЕ РЕАКЦИИ"))
+	var reaction_hint := _label("Ввод доступен как текстовый черновик. Разбор и балансировка подключаются отдельно.", 11, MUTED)
+	reaction_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(reaction_hint)
+	reaction_input = LineEdit.new()
+	reaction_input.placeholder_text = "Например: H2 + O2 -> H2O"
+	reaction_input.text_changed.connect(_on_reaction_changed)
+	box.add_child(reaction_input)
 	var balance := _button("Сбалансировать", false)
 	balance.disabled = true
+	balance.tooltip_text = "Ожидает подключения A2 Equation Parser & Balancer"
 	box.add_child(balance)
 	return panel
 
@@ -87,21 +124,24 @@ func _center_panel() -> Control:
 	var field_panel := _panel(BG, 1)
 	field_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
-	field_panel.add_child(_pad(column, 18, 16, 18, 12))
+	column.add_theme_constant_override("separation", 9)
+	field_panel.add_child(_pad(column, 16, 14, 16, 10))
 	var header := HBoxContainer.new()
 	header.add_child(_section("ВИЗУАЛЬНОЕ ПОЛЕ"))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(spacer)
-	header.add_child(_label("Визуализация · не физическая модель", 11, MUTED))
+	header.add_child(_label("Позиция объектов — только визуальная", 11, MUTED))
 	column.add_child(header)
-	var field := Control.new()
-	field.set_script(VisualFieldScript)
-	field.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(field)
-	var note := _label("Цвета и координаты объектов не влияют на химический расчёт.", 11, MUTED)
+	visual_field = Control.new()
+	visual_field.set_script(VisualFieldScript)
+	visual_field.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	visual_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	visual_field.marker_pressed.connect(_on_marker_pressed)
+	visual_field.field_pressed.connect(_on_field_pressed)
+	column.add_child(visual_field)
+	var note := _label("Выберите компонент слева → нажмите на поле, чтобы поставить маркер. Координаты не влияют на расчёт.", 11, MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(note)
 	center.add_child(field_panel)
 	center.add_child(_graph_panel())
@@ -109,38 +149,56 @@ func _center_panel() -> Control:
 
 func _graph_panel() -> Control:
 	var panel := _panel(PANEL, 1)
-	panel.custom_minimum_size.y = 235
+	panel.custom_minimum_size.y = 225
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
-	panel.add_child(_pad(column, 18, 14, 18, 12))
+	column.add_theme_constant_override("separation", 8)
+	panel.add_child(_pad(column, 16, 12, 16, 10))
 	var row := HBoxContainer.new()
-	graph_title = _section("Концентрация · время")
+	graph_title = _section("КОНЦЕНТРАЦИЯ · ВРЕМЯ")
 	row.add_child(graph_title)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
-	row.add_child(_graph_tab("Концентрация", "Концентрация · время"))
-	row.add_child(_graph_tab("Скорость", "Скорость · время"))
-	row.add_child(_graph_tab("Температура", "Температура · время"))
+	row.add_child(_graph_tab("Концентрация", "concentration"))
+	row.add_child(_graph_tab("Скорость", "rate"))
+	row.add_child(_graph_tab("Температура", "temperature"))
 	column.add_child(row)
-	var center := CenterContainer.new()
-	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	center.add_child(_label("График появится после получения расчётных данных", 12, MUTED))
-	column.add_child(center)
+	var chart_area := Control.new()
+	chart_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	chart_area.set_script(null)
+	var chart_label := _label("Нет расчётных временных рядов", 12, MUTED)
+	chart_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	chart_area.add_child(chart_label)
+	column.add_child(chart_area)
 	column.add_child(_label("Температура постоянна: изотермическая модель", 11, MUTED))
 	return panel
 
 func _right_panel() -> Control:
 	var panel := _panel(PANEL, 1)
-	panel.custom_minimum_size.x = 300
+	panel.custom_minimum_size.x = 270
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
-	panel.add_child(_pad(box, 16, 18, 16, 16))
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(_pad(box, 14, 16, 14, 14))
 	box.add_child(_section("УСЛОВИЯ ЭКСПЕРИМЕНТА"))
-	box.add_child(_value_row("Температура", "298.15 K"))
-	box.add_child(_value_row("Давление", "—"))
-	box.add_child(_value_row("Объём", "—"))
-	box.add_child(_value_row("Модель", "Изотермическая"))
+	box.add_child(_label("Температура · K", 11, MUTED))
+	temperature_input = LineEdit.new()
+	temperature_input.text = "298.15"
+	temperature_input.editable = false
+	temperature_input.tooltip_text = "MVP изотермический: температура постоянна"
+	box.add_child(temperature_input)
+	box.add_child(_label("Давление · единица не задана", 11, MUTED))
+	pressure_input = LineEdit.new()
+	pressure_input.placeholder_text = "Не задано"
+	pressure_input.text_changed.connect(_on_condition_changed)
+	box.add_child(pressure_input)
+	box.add_child(_label("Объём · единица не задана", 11, MUTED))
+	volume_input = LineEdit.new()
+	volume_input.placeholder_text = "Не задано"
+	volume_input.text_changed.connect(_on_condition_changed)
+	box.add_child(volume_input)
+	var model_note := _label("Модель: изотермическая. Ввод давления и объёма пока хранится как необработанный текст.", 10, MUTED)
+	model_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(model_note)
 	box.add_child(_separator())
 	box.add_child(_section("СОСТОЯНИЕ РАСЧЁТА"))
 	box.add_child(_status_row("Качество данных", "Не оценено"))
@@ -149,11 +207,12 @@ func _right_panel() -> Control:
 	box.add_child(_status_row("Полнота результата", "Нет результата"))
 	box.add_child(_separator())
 	box.add_child(_section("ДИАГНОСТИКА"))
-	var diag := _label("Расчётные модули ещё не подключены. Здесь будут отображаться предупреждения и пояснения.", 12, MUTED)
-	diag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(diag)
+	diagnostic_label = _label("Черновик не проверен. Расчёт недоступен до подключения и проверки химических модулей.", 11, WARNING)
+	diagnostic_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(diagnostic_label)
 	var run := _button("▶  Запустить расчёт", true)
 	run.disabled = true
+	run.tooltip_text = "Ожидает A1–A4 и утверждённых контрактов"
 	box.add_child(run)
 	var step := _button("Один шаг", false)
 	step.disabled = true
@@ -162,12 +221,13 @@ func _right_panel() -> Control:
 
 func _timeline() -> Control:
 	var panel := _panel(PANEL_ALT, 0)
-	panel.custom_minimum_size.y = 72
+	panel.custom_minimum_size.y = 68
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	panel.add_child(_pad(row, 18, 10, 18, 10))
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(_pad(row, 16, 9, 16, 9))
 	var rewind := _button("↶", false)
 	rewind.disabled = true
+	rewind.tooltip_text = "История и повторный расчёт будут подключены после согласования A4"
 	row.add_child(rewind)
 	var play := _button("▶", false)
 	play.disabled = true
@@ -187,19 +247,198 @@ func _timeline() -> Control:
 
 func _footer() -> Control:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size.y = 30
-	row.add_child(_pad(_label("OFFLINE · ЛОКАЛЬНЫЙ ПРОЕКТ", 10, MUTED), 14, 5, 0, 5))
+	row.custom_minimum_size.y = 28
+	row.add_child(_pad(_label("OFFLINE · ЛОКАЛЬНЫЙ ПРОЕКТ", 10, MUTED), 12, 4, 0, 4))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
-	status_label = _label("Ожидание ввода", 10, MUTED)
-	row.add_child(_pad(status_label, 0, 5, 14, 5))
+	status_label = _label("Черновик · не проверен", 10, WARNING)
+	row.add_child(_pad(status_label, 0, 4, 12, 4))
 	return row
 
+func _create_add_dialog() -> void:
+	add_dialog = AcceptDialog.new()
+	add_dialog.title = "Добавить вещество в черновик"
+	add_dialog.dialog_text = "Запись не будет химически проверена."
+	add_child(add_dialog)
+	var form := VBoxContainer.new()
+	form.custom_minimum_size.x = 360
+	form.add_theme_constant_override("separation", 8)
+	add_dialog.add_child(form)
+	form.add_child(_label("Название / обозначение", 11, MUTED))
+	name_input = LineEdit.new()
+	name_input.placeholder_text = "Например: Вода"
+	form.add_child(name_input)
+	form.add_child(_label("Формула (без проверки)", 11, MUTED))
+	formula_input = LineEdit.new()
+	formula_input.placeholder_text = "H2O"
+	form.add_child(formula_input)
+	form.add_child(_label("Количество (текст)", 11, MUTED))
+	amount_input = LineEdit.new()
+	amount_input.placeholder_text = "Например: 1"
+	form.add_child(amount_input)
+	amount_unit = OptionButton.new()
+	amount_unit.add_item("моль")
+	amount_unit.add_item("г")
+	amount_unit.add_item("мл")
+	amount_unit.add_item("л")
+	amount_unit.add_item("не задано")
+	form.add_child(amount_unit)
+	phase_input = OptionButton.new()
+	phase_input.add_item("Фаза не указана")
+	phase_input.add_item("Водный раствор")
+	phase_input.add_item("Газ")
+	phase_input.add_item("Жидкость")
+	phase_input.add_item("Твёрдое")
+	form.add_child(phase_input)
+	add_dialog.confirmed.connect(_confirm_add_component)
+
+func _open_add_dialog() -> void:
+	name_input.text = ""
+	formula_input.text = ""
+	amount_input.text = ""
+	amount_unit.select(0)
+	phase_input.select(0)
+	add_dialog.popup_centered()
+
+func _confirm_add_component() -> void:
+	var display_name := name_input.text.strip_edges()
+	var formula := formula_input.text.strip_edges()
+	if display_name.is_empty() and formula.is_empty():
+		status_label.text = "Нужно указать название или формулу"
+		return
+	var unit := amount_unit.get_item_text(amount_unit.selected)
+	var phase := phase_input.get_item_text(phase_input.selected)
+	var item := {
+		"id": next_component_id,
+		"name": display_name if not display_name.is_empty() else formula,
+		"formula": formula,
+		"amount": amount_input.text.strip_edges(),
+		"unit": unit,
+		"phase": phase,
+		"position": Vector2(-1, -1)
+	}
+	next_component_id += 1
+	components.append(item)
+	draft_dirty = true
+	selected_component_id = int(item.id)
+	_refresh_composition()
+	status_label.text = "Добавлен черновик: " + str(item.name)
+
+func _refresh_composition() -> void:
+	if composition_list == null:
+		return
+	for child in composition_list.get_children():
+		child.queue_free()
+	if components.is_empty():
+		var empty := _empty_card("Состав пока пуст", "Добавьте вещество. Запись останется черновой до проверки A1/A2.")
+		composition_list.add_child(empty)
+		return
+	for item in components:
+		var card := _panel(PANEL_ALT, 1)
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 5)
+		card.add_child(_pad(row, 9, 8, 9, 8))
+		var title_row := HBoxContainer.new()
+		title_row.add_child(_label(str(item.name), 13, FG))
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_row.add_child(spacer)
+		var remove := _button("×", false)
+		remove.custom_minimum_size.x = 30
+		remove.pressed.connect(_remove_component.bind(int(item.id)))
+		title_row.add_child(remove)
+		row.add_child(title_row)
+		var details := str(item.formula) + " · " + str(item.amount) + " " + str(item.unit)
+		var detail_label := _label(details, 10, MUTED)
+		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(detail_label)
+		row.add_child(_label(str(item.phase), 10, MUTED))
+		var place := _button("Разместить на поле", false)
+		place.pressed.connect(_select_component_for_placement.bind(int(item.id)))
+		row.add_child(place)
+		if int(item.id) == selected_component_id:
+			row.add_child(_label("Выбрано · нажмите на поле", 10, ACCENT))
+		composition_list.add_child(card)
+
+func _remove_component(component_id: int) -> void:
+	for index in range(components.size() - 1, -1, -1):
+		if int(components[index].id) == component_id:
+			components.remove_at(index)
+			break
+	if selected_component_id == component_id:
+		selected_component_id = -1
+	visual_field.remove_marker(component_id)
+	draft_dirty = true
+	_refresh_composition()
+	status_label.text = "Черновая запись удалена"
+
+func _select_component_for_placement(component_id: int) -> void:
+	selected_component_id = component_id
+	_refresh_composition()
+	status_label.text = "Нажмите на визуальное поле для размещения маркера"
+
+func _on_field_pressed(normalized_position: Vector2) -> void:
+	if selected_component_id < 0:
+		status_label.text = "Сначала выберите компонент для размещения"
+		return
+	for index in range(components.size()):
+		if int(components[index].id) == selected_component_id:
+			components[index].position = normalized_position
+			visual_field.set_marker(selected_component_id, str(components[index].name), normalized_position)
+			draft_dirty = true
+			status_label.text = "Маркер перемещён · химическое состояние не изменено"
+			_refresh_composition()
+			return
+
+func _on_marker_pressed(component_id: int) -> void:
+	selected_component_id = component_id
+	_refresh_composition()
+	status_label.text = "Выбран маркер · перетащите его или нажмите новое место"
+
+func _on_reaction_changed(_value: String) -> void:
+	draft_dirty = true
+	_set_draft_status()
+
+func _on_condition_changed(_value: String) -> void:
+	draft_dirty = true
+	_set_draft_status()
+
+func _set_draft_status() -> void:
+	status_label.text = "Черновик изменён · химическая проверка не выполнена"
+	diagnostic_label.text = "Введённые значения не интерпретируются и не конвертируются. Запуск расчёта заблокирован."
+
 func _graph_tab(caption: String, mode: String) -> Button:
-	var button := _button(caption, false)
-	button.pressed.connect(func(): graph_title.text = mode)
+	var button := _button(caption, mode == active_graph)
+	button.pressed.connect(func():
+		active_graph = mode
+		match mode:
+			"concentration":
+				graph_title.text = "КОНЦЕНТРАЦИЯ · ВРЕМЯ"
+			"rate":
+				graph_title.text = "СКОРОСТЬ · ВРЕМЯ"
+			"temperature":
+				graph_title.text = "ТЕМПЕРАТУРА · ВРЕМЯ"
+	)
 	return button
+
+func _new_experiment() -> void:
+	components.clear()
+	selected_component_id = -1
+	next_component_id = 1
+	experiment_name = "Новый эксперимент"
+	draft_dirty = false
+	reaction_input.text = ""
+	pressure_input.text = ""
+	volume_input.text = ""
+	visual_field.clear_markers()
+	_refresh_composition()
+	diagnostic_label.text = "Создан пустой черновик. Расчёт не запускался."
+	status_label.text = "Создан новый эксперимент"
+
+func _show_save_notice() -> void:
+	status_label.text = "Сохранение отключено до утверждения формата файла эксперимента"
+	diagnostic_label.text = "Сейчас данные существуют только в памяти текущего окна. Файловое сохранение будет добавлено после согласования схемы и миграций."
 
 func _panel(color: Color, border_width: int) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -227,20 +466,20 @@ func _label(text_value: String, font_size: int, color: Color) -> Label:
 	return label
 
 func _section(text_value: String) -> Label:
-	return _label(text_value, 11, MUTED)
+	return _label(text_value, 10, MUTED)
 
 func _button(caption: String, primary: bool) -> Button:
 	var button := Button.new()
 	button.text = caption
-	button.custom_minimum_size.y = 34
-	button.add_theme_font_size_override("font_size", 12)
+	button.custom_minimum_size.y = 32
+	button.add_theme_font_size_override("font_size", 11)
 	var style := StyleBoxFlat.new()
 	style.bg_color = ACCENT if primary else PANEL_ALT
 	style.border_color = ACCENT if primary else BORDER
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(5)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
+	style.content_margin_left = 9
+	style.content_margin_right = 9
 	button.add_theme_stylebox_override("normal", style)
 	button.add_theme_color_override("font_color", Color("#071510") if primary else FG)
 	button.add_theme_color_override("font_disabled_color", MUTED)
@@ -249,28 +488,19 @@ func _button(caption: String, primary: bool) -> Button:
 func _empty_card(title_text: String, body_text: String) -> Control:
 	var panel := _panel(PANEL_ALT, 1)
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
-	panel.add_child(_pad(box, 12, 12, 12, 12))
-	box.add_child(_label(title_text, 13, FG))
-	var body := _label(body_text, 11, MUTED)
+	box.add_theme_constant_override("separation", 5)
+	panel.add_child(_pad(box, 10, 10, 10, 10))
+	box.add_child(_label(title_text, 12, FG))
+	var body := _label(body_text, 10, MUTED)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(body)
 	return panel
 
-func _value_row(caption: String, value: String) -> Control:
-	var row := HBoxContainer.new()
-	row.add_child(_label(caption, 11, MUTED))
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spacer)
-	row.add_child(_label(value, 12, FG))
-	return row
-
 func _status_row(caption: String, value: String) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
-	box.add_child(_label(caption, 11, MUTED))
-	box.add_child(_label(value, 12, WARNING))
+	box.add_child(_label(caption, 10, MUTED))
+	box.add_child(_label(value, 11, WARNING))
 	return box
 
 func _separator() -> Control:
