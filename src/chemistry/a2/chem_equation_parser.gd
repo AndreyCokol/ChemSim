@@ -23,7 +23,7 @@ const MAX_GROUP_DEPTH := 64
 const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": "REVERSIBLE"}
 # Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
 const SIMPLE_ION_ALIASES := [
-	"H+", "H-", "OH-", "NH4+", "Ag+", "Ag-", "Cl-", "Na+", "K+",
+	"H+", "OH-", "NH4+", "Ag+", "Cl-", "Na+", "K+",
 	"Li+", "NO3-", "NO2-", "HCO3-", "CH3COO-"
 ]
 
