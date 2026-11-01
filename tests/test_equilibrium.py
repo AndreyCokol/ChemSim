@@ -124,5 +124,16 @@ class GasBenchmarkTests(unittest.TestCase):
         )
 
 
+    def test_gas_solver_accepts_sub_femtomole_inventory(self):
+        result = solve_no2_dimerization(1.0e-18, 0.0, 298.15, 1.0e-3, 6.73)
+        self.assertGreater(result.species_mol["N2O4"], 0.0)
+        self.assertGreater(result.species_mol["NO2"], 0.0)
+        self.assertAlmostEqual(
+            result.species_mol["NO2"] + 2.0 * result.species_mol["N2O4"],
+            1.0e-18,
+            delta=1.0e-30,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
