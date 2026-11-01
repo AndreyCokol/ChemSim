@@ -42,7 +42,8 @@ than presenting the output as an unqualified exact result.
 The scalar bisection validates its interval/tolerances and compares residual signs without
 multiplication, avoiding overflow and indeterminate products for infinite endpoint residuals.
 The internal gas extent solver also rejects mismatched species/stoichiometry keys and
-non-finite or zero stoichiometric coefficients.
+non-finite or zero stoichiometric coefficients. Regression tests exercise infinite endpoint
+residuals, invalid bisection bounds/tolerances, and unbracketed roots.
 
 Balance units:
 - aqueous fixtures report concentration-balance residuals in mol/L;

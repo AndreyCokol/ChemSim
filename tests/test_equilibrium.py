@@ -10,7 +10,39 @@ from chemsim.equilibrium import (
     solve_no2_dimerization,
     solve_strong_neutralization,
     solve_weak_acid,
+    _bisect,
+    EquilibriumConvergenceError,
 )
+
+
+class BisectionRobustnessTests(unittest.TestCase):
+    def test_handles_infinite_endpoint_residual(self):
+        root, iterations, residual = _bisect(
+            lambda x: float("inf") if x == 0.0 else (1.0 / x) - 1.0,
+            0.0,
+            2.0,
+        )
+        self.assertAlmostEqual(root, 1.0, places=12)
+        self.assertGreater(iterations, 0)
+        self.assertAlmostEqual(residual, 0.0, places=12)
+
+    def test_rejects_non_finite_or_reversed_bounds(self):
+        with self.assertRaises(EquilibriumInputError):
+            _bisect(lambda x: x, 0.0, float("inf"))
+        with self.assertRaises(EquilibriumInputError):
+            _bisect(lambda x: x, 2.0, 1.0)
+
+    def test_rejects_invalid_tolerances_and_iteration_limit(self):
+        with self.assertRaises(EquilibriumInputError):
+            _bisect(lambda x: x, -1.0, 1.0, x_tol=0.0)
+        with self.assertRaises(EquilibriumInputError):
+            _bisect(lambda x: x, -1.0, 1.0, f_tol=-1.0)
+        with self.assertRaises(EquilibriumInputError):
+            _bisect(lambda x: x, -1.0, 1.0, max_iter=0)
+
+    def test_rejects_unbracketed_root(self):
+        with self.assertRaises(EquilibriumConvergenceError):
+            _bisect(lambda x: x * x + 1.0, -1.0, 1.0)
 
 
 class AqueousBenchmarkTests(unittest.TestCase):
