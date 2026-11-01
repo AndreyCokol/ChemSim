@@ -1,39 +1,61 @@
 schema: spec-driven
 
 context: |
-  Project: ChemSim — a 2D desktop chemistry reaction simulator.
-  Engine target: Godot 4.x. Primary distribution target: Windows x64 desktop build.
-  Product intent: let users define chemical substances and reactions, configure
-  starting conditions, simulate concentration changes over time, and inspect results.
-  Write all product specifications, proposals, and design documents in Russian.
-  This repository starts from an empty codebase. Treat every product detail not
-  explicitly approved by the user as an assumption, not a confirmed requirement.
-  Do not start application implementation until blocking product questions are answered
-  and the user approves the MVP scope.
+  Project: ChemSim — an offline 2D desktop chemistry sandbox for a broad audience.
+  Engine target: Godot 4.x. First supported platform: Windows 10/11 x64.
+  UI language: Russian. Medium-complexity interface, primarily panels, structured
+  editors, tables, and scientific graphs rather than drag-and-drop apparatus.
+  Users create experiments by entering a substance, its amount, and a creation coordinate.
+  Users author reactions by text equation or structured component editor, and invoke
+  balancing explicitly with a separate action.
+  Domain priority: general chemistry, including ionic chemistry, acid/base pH,
+  solubility and precipitation, reversible reactions, and chemical equilibrium.
+  Users configure kinetic constants and activation energies. Temperature affects rates
+  through Arrhenius behavior. Both closed and open systems are in scope, including
+  adding reagents and removing substances during an experiment.
+  Supported amount/concentration display units: mol, mol/L, g, g/L, with dimensionally
+  valid conversions only. Mandatory graphs: concentration-time, rate-time, temperature-time.
+  Simulation controls: pause, single-step, speed multiplier, and time navigation.
+  A substance encyclopedia is required. Experiment save/load is desirable; CSV export
+  and GitHub Releases ZIP distribution are optional. The application must work offline.
+  Scientific correctness is the highest MVP priority. Never claim universal or maximum
+  chemical accuracy: define a bounded validity domain, authoritative property datasets,
+  explicit assumptions, uncertainty, and numerical validation.
+  Specifications and agent prompts are written in Russian.
+  Do not start application implementation until the five-agent contracts, scientific
+  scope limits, coordinate semantics, and acceptance criteria have been reviewed.
 
 rules:
   proposal:
     - Separate confirmed facts, assumptions, decisions, and open questions.
     - Do not silently convert an assumption into a requirement.
+    - Explicitly state scientific validity limits and excluded chemistry.
   specs:
     - Specify observable user-facing behavior, not classes, functions, or engine internals.
     - Use SHALL for normative requirements and include at least one WHEN/THEN scenario per requirement.
-    - State units, ranges, precision, and error behavior whenever they are known; mark unknowns explicitly.
+    - State units, ranges, precision, data provenance, uncertainty, and error behavior whenever known.
+    - Distinguish stoichiometric coefficients from kinetic orders.
+    - Never infer missing thermodynamic or kinetic data without labeling an estimate.
   design:
-    - Explain alternatives and trade-offs for the numerical chemistry model and simulation lifecycle.
+    - Explain alternatives and trade-offs for parsing, balancing, aqueous equilibrium,
+      kinetics, numerical integration, and simulation lifecycle.
+    - Define stable contracts between the five agent-owned subsystems.
     - Do not claim scientific accuracy without a defined domain and validation basis.
   tasks:
     - Keep tasks traceable to requirements and acceptance scenarios.
     - Separate specification/review work from implementation work.
+    - Assign every task to exactly one primary agent; list cross-agent dependencies explicitly.
     - Do not schedule implementation tasks while blocking product decisions remain unresolved.
 
 operations:
   apply:
     guidance:
-      - Read the approved OpenSpec artifacts before changing code.
-      - Do not implement behavior that contradicts the current specs.
-      - Run the available automated checks and report checks that cannot be run.
+      - Read approved OpenSpec artifacts and the assigned agent contract before changing code.
+      - Modify only the assigned subsystem and its explicitly owned tests/spec files.
+      - Do not implement behavior that contradicts current specs.
+      - Run available automated checks and report checks that cannot be run.
+      - Do not silently use fabricated chemistry constants or undocumented approximations.
   archive:
     guidance:
       - Sync implemented spec deltas before archiving.
-      - Summarize deviations from the approved design and any remaining limitations.
+      - Summarize deviations, validation evidence, scientific limitations, and remaining risks.
