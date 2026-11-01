@@ -16,7 +16,8 @@ This folder contains the first executable A2 domain slice in GDScript 4.x. It ha
 - Explicit multi-charge notation such as `Fe^3+` and `SO4^2−`.
 - One-charge aliases in the parser allowlist, including `H+`, `OH-`, `NH4+`, `Ag+`, `Cl-`, `NO3-`.
 - Reaction arrows `->`, `→`, `⇌`, `<->`.
-- Stoichiometric coefficients are stored separately from formula AST.
+- Stoichiometric coefficients are stored separately from formula AST. Fractional, zero, negative, and oversized coefficients are rejected.
+- Integer tokens are capped at 1,000,000; expanded per-element formula counts are capped at 1,000,000,000 to keep arithmetic within explicit safe bounds.
 - A reaction side uses whitespace around the plus separator: `NH4+ + Cl-`.
 
 Hydrates, square-bracket complexes, redox half-reactions, isotopes, radicals, and advanced organic notation are rejected or not implemented.
@@ -36,7 +37,7 @@ Parsing never changes coefficients and never balances implicitly. `check_balance
 
 ## Balancer guarantees and limits
 
-The current solver enumerates positive integer coefficient vectors in increasing total-sum order. It can prove a unique or ambiguous optimum when it finishes a complete minimum-sum layer. It uses integer arithmetic only.
+The current solver enumerates positive integer coefficient vectors in increasing total-sum order. It can prove a unique or ambiguous optimum when it finishes a complete minimum-sum layer. It uses integer arithmetic only and rejects malformed/out-of-contract species DTOs before search.
 
 - Default maximum coefficient sum: 64.
 - Default candidate limit: 500,000.
