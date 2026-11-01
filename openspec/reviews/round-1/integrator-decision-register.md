@@ -62,6 +62,15 @@
 | INT-37 | P1 | Equilibrium residual definition | Утвердить residual ln(Q/K) для положительных значений и обработку граничных нулевых активностей без произвольного epsilon. | A3 + A4 | Numerical validation/tolerances |
 | INT-38 | P1 | Gas pressure standard state | Зафиксировать standard pressure и dimensionless partial-pressure quotient для Kp fixtures; не смешивать Kp с activity K. | A3 + A1 | Gas equilibrium fixtures |
 | INT-39 | P1 | Equilibrium solve domain status | Ввести различимый out_of_domain/blocked status для неподходящей T/P/Ionic strength/model range; запрещена молчаливая экстраполяция. | A3 + A5 | Result validity and UX |
+| INT-40 | P0 | RateLaw rate basis and units | RateLaw обязан типизировать amount/time vs concentration/time, concentration scale, kinetic orders и вычисляемую размерность k; s^-1 не универсальна. | A4 + A1 + интегратор | Kinetic API and dimensional validation |
+| INT-41 | P0 | Kinetic orders vs stoichiometry | Кинетические порядки задаются явно и не выводятся автоматически из ReactionTerm stoichiometric coefficients. | A4 + A2 | RateLaw validity |
+| INT-42 | P1 | Arrhenius applicability | k(T) требует k_ref, T_ref, Ea, согласованных единиц R/Ea и validity interval; не смешивать с thermodynamic K(T). | A4 + A1 | Temperature-dependent kinetic parameters |
+| INT-43 | P0 | Reversible kinetic/thermodynamic consistency | Не использовать универсальное kf/kr=K; определить допустимую связь для конкретных rate laws, orders, basis и standard states. | A4 + A3 | Reversible kinetics |
+| INT-44 | P1 | Positivity and invariant policy | Запретить unconditional clipping; выбрать step rejection/constraint-aware strategy/correction только с проверкой balances и charge. | A4 | Kinetic solver reliability |
+| INT-45 | P1 | Exact-time event application | События применяются ровно на временной границе, один раз и в детерминированном порядке; общий tie-break для одинаковых timestamp остаётся INT-17. | A4 + A5 | Open systems and replay |
+| INT-46 | P1 | Solver class selection | Выбор explicit/implicit solver class и stiffness handling должен следовать из benchmark, а не предварительного выбора библиотеки. | A4 | Numerical implementation choice |
+| INT-47 | P1 | Isothermal temperature series | В MVP T(t) постоянна и явно маркирована изотермически; energy balance/thermal model вне scope. | Владелец + A4/A5 | Temperature graph semantics |
+| INT-48 | P1 | Replay determinism scope | Зафиксировать входы replay/hash и сравнение в declared tolerances; bitwise cross-platform determinism не обещать без отдельного требования. | A4 + A5 | Replay and persistence |
 
 ## 3. Набор DTO для последующего согласования
 
