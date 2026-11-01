@@ -54,3 +54,26 @@
 - data: uncertainty and significant digits inherited from source.
 
 Каждый fixture должен хранить ожидаемые результаты с версиями исходных данных и формулой их получения.
+
+
+## Утверждённые сценарии владельца (2026-11-02)
+
+Ниже зафиксирован состав сценариев. Это **не численные fixtures**: ожидаемые числа, константы и допуски не утверждены, пока не подтверждены источники и условия.
+
+### Водные сценарии
+| ID | Сценарий | Что проверяется | Обязательные данные для fixture |
+|---|---|---|---|
+| AQ-01 | CH3COOH ⇌ H+ + CH3COO− | Слабая кислота, Ka, speciation, pH, mass/charge balance | C0, V, T, Ka basis/standard state, activity assumption, source/version, uncertainty |
+| AQ-02 | HCl + NaOH → NaCl + H2O | Сильная кислота/основание, нейтрализация, limiting reagent, pH after reaction | Initial amounts/concentrations, V, T, strong-electrolyte assumptions, source |
+| AQ-03 | AgCl(s) ⇌ Ag+ + Cl− | Ksp, saturation, solubility, ionic balance | Ksp basis, T, medium/activity model, initial totals, source/version |
+| AQ-04 | NH3 + H2O ⇌ NH4+ + OH− | Weak base, Kb, speciation, pH, balances | C0, V, T, Kb basis/standard state, activity assumption, source |
+| AQ-05 | AgNO3 + NaCl → AgCl↓ + NaNO3 | Ion mixing, precipitation extent, limiting reagent, spectator ions | Initial amounts, V, T, Ksp basis, activity assumption, source |
+
+### Газовые сценарии
+| ID | Сценарий | Что проверяется | Обязательные данные для fixture |
+|---|---|---|---|
+| GAS-01 | 2 NO2(g) ⇌ N2O4(g) | Ideal-gas equilibrium, pressure basis, Δn, Kp convention | T, P or V/n, Kp(T), standard pressure, source/version, uncertainty |
+| GAS-02 | H2(g) + I2(g) ⇌ 2 HI(g) | Ideal-gas equilibrium, pressure/concentration relation, Δn=0 | T, P or V/n, K basis and standard state, source/version, uncertainty |
+
+### Gate для численного fixture
+Fixture может стать исполняемым только после того, как заполнены все обязательные входы, зафиксированы первичный источник/версия/лицензия, единицы, basis и standard state, область применимости, неопределённость, derivation expected result и индивидуальные абсолютный/относительный допуски. При отсутствии любого критического элемента fixture остаётся заблокированным или качественным. Численные значения нельзя назначать по памяти или из непроверенной вторичной страницы.
