@@ -15,7 +15,7 @@ fixed to one; callers must not use this module outside that approximation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite, isnan, log, log10, sqrt
+from math import isfinite, isnan, log, log10, nextafter, sqrt
 from typing import Callable
 
 
@@ -348,9 +348,10 @@ def _gas_equilibrium(
     def residual(extent: float) -> float:
         return log_q(extent) - log_kp
 
-    # Move one ULP into the feasible interval to avoid evaluating log(0).
-    lo = lower + max(1e-15, abs(lower) * 1e-14)
-    hi = upper - max(1e-15, abs(upper) * 1e-14)
+    # Move one representable float into the feasible interval; a fixed epsilon
+    # would incorrectly reject small but valid mole inventories.
+    lo = nextafter(lower, upper)
+    hi = nextafter(upper, lower)
     if lo > hi:
         raise EquilibriumInputError("No positive-composition interval for gas equilibrium")
     extent, iterations, f_residual = _bisect(residual, lo, hi, f_tol=1e-11)
