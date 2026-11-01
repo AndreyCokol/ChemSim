@@ -92,7 +92,8 @@ def _bisect(
         f_mid = fn(mid)
         if isnan(f_mid):
             raise EquilibriumConvergenceError("NaN encountered during equilibrium iteration")
-        if abs(f_mid) <= f_tol or (high - low) <= x_tol * max(1.0, abs(mid)):
+        interval_scale = max(abs(low), abs(high), 1e-300)
+        if abs(f_mid) <= f_tol or (high - low) <= x_tol * interval_scale:
             return mid, iteration, f_mid
         if f_low * f_mid <= 0:
             high, f_high = mid, f_mid
