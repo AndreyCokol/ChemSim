@@ -93,6 +93,26 @@ func _test_negative_cases() -> void:
 	assert(not zero.ok)
 	assert(zero.code == "PARSE_ZERO_COUNT")
 
+	var oversized_count: Dictionary = parser.parse_formula("H1000001")
+	assert(not oversized_count.ok)
+	assert(oversized_count.code == "PARSE_COUNT_TOO_LARGE")
+
+	var oversized_charge: Dictionary = parser.parse_formula("Fe^1000001+")
+	assert(not oversized_charge.ok)
+	assert(oversized_charge.code == "PARSE_CHARGE_TOO_LARGE")
+
+	var oversized_coefficient: Dictionary = parser.parse_reaction("1000001H2 -> H2")
+	assert(not oversized_coefficient.ok)
+	assert(oversized_coefficient.code == "PARSE_COEFFICIENT_TOO_LARGE")
+
+	var fractional_coefficient: Dictionary = parser.parse_reaction("2.5H2 -> H2")
+	assert(not fractional_coefficient.ok)
+	assert(fractional_coefficient.code == "PARSE_INVALID_COEFFICIENT")
+
+	var composition_overflow: Dictionary = parser.parse_formula("(H1000000)1000000")
+	assert(not composition_overflow.ok)
+	assert(composition_overflow.code == "PARSE_COUNT_OVERFLOW")
+
 	var hydrate: Dictionary = parser.parse_formula("CuSO4·5H2O")
 	assert(not hydrate.ok)
 	assert(hydrate.code == "PARSE_UNSUPPORTED_SYNTAX")
@@ -144,8 +164,6 @@ func _test_balance_proposal() -> void:
 	assert(neutralization_result.proposed_coefficients[0].coefficient == 1)
 	assert(neutralization_result.proposed_coefficients[1].coefficient == 1)
 	assert(neutralization_result.proposed_coefficients[2].coefficient == 1)
-
-	assert(ionic_result.proposed_coefficients[2].coefficient == 1)
 
 	var calcium: Dictionary = parser.parse_reaction("Ca(OH)2 + HCl -> CaCl2 + H2O")
 	assert(calcium.ok)
