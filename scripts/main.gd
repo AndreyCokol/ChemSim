@@ -22,6 +22,7 @@ var pressure_input: LineEdit
 var volume_input: LineEdit
 var diagnostic_label: Label
 var selected_component_id: int = -1
+var editing_component_id: int = -1
 var next_component_id: int = 1
 var components: Array[Dictionary] = []
 var experiment_name: String = "Новый эксперимент"
@@ -300,12 +301,35 @@ func _create_add_dialog() -> void:
 	_create_file_dialogs()
 
 func _open_add_dialog() -> void:
+	editing_component_id = -1
+	add_dialog.title = "Добавить вещество в черновик"
 	name_input.text = ""
 	formula_input.text = ""
 	amount_input.text = ""
 	amount_unit.select(0)
 	phase_input.select(0)
 	add_dialog.popup_centered()
+
+func _open_edit_dialog(component_id: int) -> void:
+	for item in components:
+		if int(item.id) != component_id:
+			continue
+		editing_component_id = component_id
+		add_dialog.title = "Изменить черновик вещества"
+		name_input.text = str(item.name)
+		formula_input.text = str(item.formula)
+		amount_input.text = str(item.amount)
+		_select_option_by_text(amount_unit, str(item.unit))
+		_select_option_by_text(phase_input, str(item.phase))
+		add_dialog.popup_centered()
+		return
+
+func _select_option_by_text(option: OptionButton, value: String) -> void:
+	for index in range(option.item_count):
+		if option.get_item_text(index) == value:
+			option.select(index)
+			return
+	option.select(option.item_count - 1)
 
 func _confirm_add_component() -> void:
 	var display_name := name_input.text.strip_edges()
@@ -315,21 +339,35 @@ func _confirm_add_component() -> void:
 		return
 	var unit := amount_unit.get_item_text(amount_unit.get_selected())
 	var phase := phase_input.get_item_text(phase_input.get_selected())
-	var item := {
-		"id": next_component_id,
-		"name": display_name if not display_name.is_empty() else formula,
-		"formula": formula,
-		"amount": amount_input.text.strip_edges(),
-		"unit": unit,
-		"phase": phase,
-		"position": Vector2(-1, -1)
-	}
-	next_component_id += 1
-	components.append(item)
+	var item_name := display_name if not display_name.is_empty() else formula
+	if editing_component_id >= 0:
+		for index in range(components.size()):
+			if int(components[index].id) == editing_component_id:
+				components[index].name = item_name
+				components[index].formula = formula
+				components[index].amount = amount_input.text.strip_edges()
+				components[index].unit = unit
+				components[index].phase = phase
+				break
+		selected_component_id = editing_component_id
+		status_label.text = "Черновик вещества обновлён: " + item_name
+	else:
+		var item := {
+			"id": next_component_id,
+			"name": item_name,
+			"formula": formula,
+			"amount": amount_input.text.strip_edges(),
+			"unit": unit,
+			"phase": phase,
+			"position": Vector2(-1, -1)
+		}
+		next_component_id += 1
+		components.append(item)
+		selected_component_id = int(item.id)
+		status_label.text = "Добавлен черновик: " + str(item.name)
+	editing_component_id = -1
 	draft_dirty = true
-	selected_component_id = int(item.id)
 	_refresh_composition()
-	status_label.text = "Добавлен черновик: " + str(item.name)
 
 func _refresh_composition() -> void:
 	if composition_list == null:
@@ -350,6 +388,9 @@ func _refresh_composition() -> void:
 		var spacer := Control.new()
 		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title_row.add_child(spacer)
+		var edit := _button("Изменить", false)
+		edit.pressed.connect(_open_edit_dialog.bind(int(item.id)))
+		title_row.add_child(edit)
 		var remove := _button("×", false)
 		remove.custom_minimum_size.x = 30
 		remove.pressed.connect(_remove_component.bind(int(item.id)))
@@ -438,6 +479,7 @@ func _graph_tab(caption: String, mode: String) -> Button:
 func _new_experiment() -> void:
 	components.clear()
 	selected_component_id = -1
+	editing_component_id = -1
 	next_component_id = 1
 	experiment_name = "Новый эксперимент"
 	reaction_input.text = ""
@@ -545,6 +587,7 @@ func _load_draft_from_path(path: String) -> void:
 			visual_field.set_marker(int(item.id), str(item.name), position)
 	next_component_id = max_id + 1
 	selected_component_id = -1
+	editing_component_id = -1
 	experiment_name = str(data.experiment_name)
 	reaction_input.text = str(data.reaction_text)
 	var conditions: Dictionary = data.conditions
