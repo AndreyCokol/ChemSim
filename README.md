@@ -40,3 +40,15 @@ godot --headless --path . --script res://tests/test_reaction_balancer.gd
 - Балансировщик учитывает атомы каждого элемента и суммарный заряд. Если пространство решений неоднозначно, нет положительного решения или не удаётся подтвердить целые коэффициенты в ограниченном диапазоне, он возвращает ошибку вместо произвольного выбора.
 - Численный RREF сейчас использует double precision и проверку остатка; это предварительная реализация, не сертифицированный exact-rational solver. Перед научно значимым использованием требуется замена/подтверждение точной рациональной арифметикой и тестирование.
 - Гидраты, комплексы, структурные формулы, редокс-полуреакции и расширенный синтаксис пока не поддерживаются.
+
+## Domain data contracts (early)
+
+The domain layer now has initial records:
+- `PropertyRecord`: value, unit, uncertainty, source, source version, conditions, validity ranges, license identifier and quality status.
+- `SubstanceRecord`: stable catalog identity and formula/composition, with phase deliberately excluded from the substance identity.
+- `SpeciesRef`: references a substance in a particular phase/context.
+- `ExperimentComponent`: experiment-local amount and optional initial state.
+
+A property is usable for scientific calculations only when it has a value, unit, source reference, license identifier and `verified` quality status. An absent or incomplete property is not replaced by an estimated default. An unknown hazard status is not equivalent to safe.
+
+These are initial GDScript domain records, not yet a complete validated persistence schema. Dataset licensing remains per-source/per-field; no broad external chemistry dataset is bundled by this change.
