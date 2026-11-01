@@ -1,6 +1,7 @@
 extends Control
 
 const VisualFieldScript = preload("res://scripts/visual_field.gd")
+const DraftCodec = preload("res://scripts/draft_codec.gd")
 const BG := Color("#0B1118")
 const PANEL := Color("#151F2A")
 const PANEL_ALT := Color("#1B2936")
@@ -476,31 +477,14 @@ func _save_draft_picker() -> void:
 	save_dialog.popup_centered_ratio(0.7)
 
 func _save_draft_to_path(path: String) -> void:
-	var serialized_components: Array[Dictionary] = []
-	for item in components:
-		var position: Vector2 = item.position
-		serialized_components.append({
-			"id": int(item.id),
-			"name": str(item.name),
-			"formula": str(item.formula),
-			"amount": str(item.amount),
-			"unit": str(item.unit),
-			"phase": str(item.phase),
-			"position": [position.x, position.y]
-		})
-	var payload := {
-		"document_type": "chemsim_ui_draft",
-		"schema_version": 1,
-		"experiment_name": experiment_name,
-		"chemistry_status": "unvalidated_draft",
-		"reaction_text": reaction_input.text,
-		"conditions": {
-			"temperature_k": temperature_input.text,
-			"pressure_raw": pressure_input.text,
-			"volume_raw": volume_input.text
-		},
-		"components": serialized_components
-	}
+	var payload: Dictionary = DraftCodec.build_payload(
+		experiment_name,
+		reaction_input.text,
+		temperature_input.text,
+		pressure_input.text,
+		volume_input.text,
+		components
+	)
 	var absolute_dir := ProjectSettings.globalize_path("user://experiments")
 	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
 	if dir_error != OK:
@@ -546,50 +530,26 @@ func _load_draft_from_path(path: String) -> void:
 		return
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
-	if not parsed is Dictionary:
-		_show_io_error("Файл не является корректным JSON-объектом.")
+	var decoded: Dictionary = DraftCodec.decode_payload(parsed)
+	if not bool(decoded.get("ok", false)):
+		_show_io_error(str(decoded.get("error", "Не удалось прочитать черновик.")) + " Исходный файл не изменён.")
 		return
-	if str(parsed.get("document_type", "")) != "chemsim_ui_draft" or int(parsed.get("schema_version", -1)) != 1:
-		_show_io_error("Неподдерживаемый формат. Исходный файл не изменён.")
-		return
-	var raw_components: Variant = parsed.get("components", [])
-	if not raw_components is Array:
-		_show_io_error("В файле отсутствует корректный список компонентов.")
-		return
-	var raw_conditions: Variant = parsed.get("conditions", {})
-	if not raw_conditions is Dictionary:
-		_show_io_error("Блок условий имеет неверный формат.")
-		return
-	components.clear()
+	var data: Dictionary = decoded.data
+	components = data.components
 	visual_field.clear_markers()
 	var max_id := 0
-	for raw_item in raw_components:
-		if not raw_item is Dictionary:
-			continue
-		var raw_position_value: Variant = raw_item.get("position", [-1.0, -1.0])
-		var raw_position: Array = raw_position_value if raw_position_value is Array else [-1.0, -1.0]
-		var position := Vector2(-1, -1)
-		if raw_position.size() >= 2:
-			position = Vector2(float(raw_position[0]), float(raw_position[1]))
-		var item := {
-			"id": int(raw_item.get("id", max_id + 1)),
-			"name": str(raw_item.get("name", "")),
-			"formula": str(raw_item.get("formula", "")),
-			"amount": str(raw_item.get("amount", "")),
-			"unit": str(raw_item.get("unit", "не задано")),
-			"phase": str(raw_item.get("phase", "Фаза не указана")),
-			"position": position
-		}
+	for item in components:
 		max_id = maxi(max_id, int(item.id))
-		components.append(item)
+		var position: Vector2 = item.position
 		if position.x >= 0.0 and position.y >= 0.0:
 			visual_field.set_marker(int(item.id), str(item.name), position)
 	next_component_id = max_id + 1
 	selected_component_id = -1
-	experiment_name = str(parsed.get("experiment_name", "Черновик"))
-	reaction_input.text = str(parsed.get("reaction_text", ""))
-	pressure_input.text = str(raw_conditions.get("pressure_raw", ""))
-	volume_input.text = str(raw_conditions.get("volume_raw", ""))
+	experiment_name = str(data.experiment_name)
+	reaction_input.text = str(data.reaction_text)
+	var conditions: Dictionary = data.conditions
+	pressure_input.text = str(conditions.get("pressure_raw", ""))
+	volume_input.text = str(conditions.get("volume_raw", ""))
 	_refresh_composition()
 	draft_dirty = false
 	status_label.text = "Черновик загружен · химическая проверка не выполнена"
