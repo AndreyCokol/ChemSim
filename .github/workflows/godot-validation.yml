@@ -24,5 +24,7 @@ jobs:
         run: godot --headless --editor --path . --quit
       - name: Run draft codec tests
         run: godot --headless --path . --script res://tests/test_draft_codec.gd
+      - name: Run draft repository tests
+        run: godot --headless --path . --script res://tests/test_draft_repository.gd
       - name: Start main scene
         run: godot --headless --path . --quit-after 3
