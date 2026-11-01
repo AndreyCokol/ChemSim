@@ -1,0 +1,30 @@
+name: Godot headless tests
+
+on:
+  pull_request:
+    branches:
+      - main
+      - openspec/review-round-1
+  push:
+    branches:
+      - main
+      - openspec/review-round-1
+      - implementation/bootstrap
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Import project and build global class cache
+        run: godot --headless --editor --path . --quit
+
+      - name: Formula parser tests
+        run: godot --headless --path . --script res://tests/test_formula_parser.gd
+
+      - name: Reaction parser and balancer tests
+        run: godot --headless --path . --script res://tests/test_reaction_balancer.gd
