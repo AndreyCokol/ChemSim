@@ -108,14 +108,22 @@ func _gui_input(event: InputEvent) -> void:
 				direction = Vector2.DOWN
 		if direction != Vector2.ZERO and selected_marker_id >= 0:
 			var step := 0.05 if event.shift_pressed else 0.01
-			for marker in markers:
-				if int(marker.id) != selected_marker_id:
-					continue
-				var next_position := _clamp_position(Vector2(marker.position) + direction * step)
-				set_marker(selected_marker_id, str(marker.label), next_position)
-				marker_moved.emit(selected_marker_id, next_position)
+			if move_marker_by(selected_marker_id, direction, step):
 				accept_event()
-				break
+
+func move_marker_by(component_id: int, direction: Vector2, step: float = 0.01) -> bool:
+	if direction == Vector2.ZERO or step <= 0.0:
+		return false
+	for marker in markers:
+		if int(marker.id) != component_id:
+			continue
+		var next_position := _clamp_position(Vector2(marker.position) + direction.normalized() * step)
+		if next_position.is_equal_approx(Vector2(marker.position)):
+			return false
+		set_marker(component_id, str(marker.label), next_position)
+		marker_moved.emit(component_id, next_position)
+		return true
+	return false
 
 func _find_marker_at(point: Vector2) -> int:
 	for marker in markers:
