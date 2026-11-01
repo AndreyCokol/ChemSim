@@ -135,6 +135,12 @@ func _test_balance_validation() -> void:
 	assert(balanced.ok)
 	assert(parser.check_balance(balanced.reaction).balanced)
 
+	var oversized_balance: Dictionary = parser.parse_reaction("H1000000000 + H1000000000 -> H2")
+	assert(oversized_balance.ok)
+	var overflow_result: Dictionary = parser.check_balance(oversized_balance.reaction)
+	assert(not overflow_result.ok)
+	assert(overflow_result.code == "BALANCE_COUNT_OVERFLOW")
+
 func _test_balance_proposal() -> void:
 	var parser = Parser.new()
 	var balancer = Balancer.new()
