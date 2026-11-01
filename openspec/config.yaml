@@ -1,11 +1,12 @@
 schema: spec-driven
 
 context: |
-  Project: ChemSim — an offline 2D desktop chemistry sandbox for a broad audience.
+  Project: ChemSim — an offline chemistry experiment sandbox for a broad audience.
   Engine target: Godot 4.x. First supported platform: Windows 10/11 x64.
-  UI language: Russian. Medium-complexity interface, primarily panels, structured
-  editors, tables, and scientific graphs rather than drag-and-drop apparatus.
-  Users create experiments by entering a substance, its amount, and a creation coordinate.
+  UI language: Russian. Main screen: flat voxel field with primitive color coding;
+  separate calculation panel; details and graphs open in separate views/windows.
+  No complex spatial/3D simulation; voxel coordinates are visual-only.
+  Users create experiments by entering a substance, its amount, and a visual-only coordinate.
   Users author reactions by text equation or structured component editor, and invoke
   balancing explicitly with a separate action.
   Domain priority: general chemistry, including ionic chemistry, acid/base pH,
@@ -59,3 +60,16 @@ operations:
     guidance:
       - Sync implemented spec deltas before archiving.
       - Summarize deviations, validation evidence, scientific limitations, and remaining risks.
+
+
+  MVP scope decisions (2026-11-02):
+  - Aqueous: dilute solutions; explicit ideal approximation or supported activity model;
+    basic acid/base, pH, Ksp/precipitation, ionic mass/charge balance.
+  - Gas: ideal gas PV=nRT and Dalton partial pressures only; no fugacity/nonideal model.
+  - Isothermal operation; constant T graph is labelled. Non-isothermal energy balance deferred.
+  - Instant ideal mixing only. Finite mixing unavailable until validated.
+  - Flows: constant and piecewise-constant schedules with start/end times.
+  - Approved benchmark scenarios: five aqueous and two gas scenarios are listed in
+    proposal.md and simulation spec; numerical fixtures still require sourced validation.
+  - Data sources require allowlist, provenance, uncertainty, applicability and license review.
+  - Hazard data completeness must be visible; missing hazard data never means safe.
