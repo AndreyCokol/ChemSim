@@ -34,7 +34,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["Ag+"], 1.335e-5, delta=2e-8)
         self.assertAlmostEqual(result.species_mol_l["Ag+"], result.species_mol_l["Cl-"], places=14)
         self.assertAlmostEqual(result.pH, 7.0, places=10)
-        self.assertEqual(result.solid_mol, 0.0)  # no initial solid inventory is fabricated
+        self.assertEqual(result.solid_mol_l, 0.0)  # no initial solid inventory is fabricated
 
     def test_w04_ammonia_buffer(self):
         result = solve_ammonia_buffer(0.02000, 0.01000, 10 ** -9.245, 1.0e-14)
@@ -49,7 +49,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         )
         self.assertAlmostEqual(result.species_mol_l["Ag+"], math.sqrt(ksp), delta=1e-10)
         self.assertAlmostEqual(result.species_mol_l["Cl-"], math.sqrt(ksp), delta=1e-10)
-        self.assertAlmostEqual(result.solid_mol, 0.01000 - math.sqrt(ksp), delta=1e-10)
+        self.assertAlmostEqual(result.solid_mol_l, 0.01000 - math.sqrt(ksp), delta=1e-10)
         self.assertLess(result.diagnostics.mass_balance_max_mol, 1e-11)
         self.assertLess(result.diagnostics.charge_balance_mol, 1e-11)
 
@@ -57,7 +57,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         result = solve_agcl_precipitation(
             1e-6, 1e-6, 1e-6, 1e-6, 10 ** -9.748, 1e-14
         )
-        self.assertEqual(result.solid_mol, 0.0)
+        self.assertEqual(result.solid_mol_l, 0.0)
 
     def test_rejects_inconsistent_spectator_totals(self):
         with self.assertRaises(EquilibriumInputError):
