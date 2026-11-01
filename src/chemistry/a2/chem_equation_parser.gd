@@ -1,0 +1,336 @@
+extends RefCounted
+class_name ChemEquationParser
+
+## Pure-domain parser for the ChemSim MVP. It does not balance or mutate input.
+const ELEMENTS := [
+	"H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+	"Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K", "Ca",
+	"Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+	"Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr",
+	"Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
+	"Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
+	"Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb",
+	"Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg",
+	"Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
+	"Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm",
+	"Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds",
+	"Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
+]
+const PHASES := {"(s)": "SOLID", "(l)": "LIQUID", "(g)": "GAS", "(aq)": "AQUEOUS"}
+const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": "REVERSIBLE"}
+# Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
+const SIMPLE_ION_ALIASES := [
+	"H+", "H-", "OH-", "NH4+", "Ag+", "Ag-", "Cl-", "Na+", "K+",
+	"Li+", "Mg2+", "Ca2+", "Zn2+", "Cu2+", "Fe2+", "Fe3+", "Al3+",
+	"NO3-", "NO2-", "HCO3-", "CH3COO-"
+]
+
+func parse_formula(source: String) -> Dictionary:
+	var original := source
+	var text := source.strip_edges()
+	if text.is_empty():
+		return _failure("PARSE_EMPTY_FORMULA", "Formula is empty.", 0, original.length())
+
+	var phase := "UNSPECIFIED"
+	for suffix in PHASES:
+		if text.ends_with(suffix):
+			phase = PHASES[suffix]
+			text = text.substr(0, text.length() - suffix.length())
+			break
+
+	var charge := 0
+	var charge_result := _extract_charge(text)
+	if not charge_result.ok:
+		return _failure(charge_result.code, charge_result.message, 0, original.length())
+	charge = charge_result.charge
+	text = charge_result.body
+
+	if text.is_empty():
+		return _failure("PARSE_EMPTY_FORMULA", "Formula body is empty.", 0, original.length())
+
+	var state := {"index": 0, "error": ""}
+	var nodes := _parse_sequence(text, state, false)
+	if not String(state.error).is_empty():
+		return _failure(String(state.error), _message_for(String(state.error)), 0, original.length())
+	if int(state.index) != text.length():
+		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", int(state.index), original.length())
+
+	var composition := _expand_nodes(nodes)
+	return {
+		"ok": true,
+		"formula_ast": {
+			"schema_version": 1,
+			"nodes": nodes,
+			"net_charge": charge,
+			"element_counts": composition,
+			"source_text": original
+		},
+		"phase": phase,
+		"diagnostics": []
+	}
+
+func parse_reaction(source: String) -> Dictionary:
+	var arrow_match := _find_arrow(source)
+	if not arrow_match.ok:
+		return _failure(arrow_match.code, arrow_match.message, 0, source.length())
+
+	var arrow_text: String = arrow_match.arrow
+	var arrow_pos: int = arrow_match.position
+	var left_text := source.substr(0, arrow_pos)
+	var right_text := source.substr(arrow_pos + arrow_text.length())
+	var left_terms := _split_side(left_text)
+	var right_terms := _split_side(right_text)
+	if not left_terms.ok:
+		return _failure(left_terms.code, left_terms.message, 0, arrow_pos)
+	if not right_terms.ok:
+		return _failure(right_terms.code, right_terms.message, arrow_pos + arrow_text.length(), source.length())
+	if left_terms.parts.is_empty() or right_terms.parts.is_empty():
+		return _failure("PARSE_EMPTY_SIDE", "Both reaction sides must contain at least one term.", 0, source.length())
+
+	var reactants: Array = []
+	var products: Array = []
+	var diagnostics: Array = []
+	for part in left_terms.parts:
+		var term_result := _parse_term(String(part.text), int(part.start))
+		if not term_result.ok:
+			return term_result
+		reactants.append(term_result.term)
+	for part in right_terms.parts:
+		var term_result := _parse_term(String(part.text), arrow_pos + arrow_text.length() + int(part.start))
+		if not term_result.ok:
+			return term_result
+		products.append(term_result.term)
+
+	return {
+		"ok": true,
+		"reaction": {
+			"schema_version": 1,
+			"reactants": reactants,
+			"products": products,
+			"arrow_type": ARROWS[arrow_text],
+			"source_text": source,
+			"balance_status": "NOT_CHECKED"
+		},
+		"diagnostics": diagnostics
+	}
+
+func check_balance(reaction: Dictionary) -> Dictionary:
+	var left: Dictionary = {}
+	var right: Dictionary = {}
+	var left_charge := 0
+	var right_charge := 0
+	for term in reaction.get("reactants", []):
+		var ast: Dictionary = term.species.formula_ast
+		var coefficient := int(term.stoichiometric_coefficient)
+		for element in ast.element_counts:
+			left[element] = int(left.get(element, 0)) + int(ast.element_counts[element]) * coefficient
+		left_charge += int(ast.net_charge) * coefficient
+	for term in reaction.get("products", []):
+		var ast: Dictionary = term.species.formula_ast
+		var coefficient := int(term.stoichiometric_coefficient)
+		for element in ast.element_counts:
+			right[element] = int(right.get(element, 0)) + int(ast.element_counts[element]) * coefficient
+		right_charge += int(ast.net_charge) * coefficient
+
+	var elements: Dictionary = {}
+	for element in left:
+		elements[element] = true
+	for element in right:
+		elements[element] = true
+	var residuals: Dictionary = {}
+	var balanced := true
+	for element in elements:
+		var residual := int(left.get(element, 0)) - int(right.get(element, 0))
+		residuals[element] = residual
+		if residual != 0:
+			balanced = false
+	var charge_residual := left_charge - right_charge
+	if charge_residual != 0:
+		balanced = false
+	return {
+		"ok": true,
+		"balanced": balanced,
+		"element_residuals": residuals,
+		"charge_residual": charge_residual
+	}
+
+func _parse_term(raw_text: String, global_start: int) -> Dictionary:
+	var text := raw_text.strip_edges()
+	var leading := raw_text.length() - raw_text.strip_edges().length()
+	var coefficient := 1
+	var digit_count := 0
+	while digit_count < text.length() and text.substr(digit_count, 1).is_valid_int():
+		digit_count += 1
+	if digit_count > 0:
+		var coefficient_text := text.substr(0, digit_count)
+		coefficient = int(coefficient_text)
+		if coefficient <= 0:
+			return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
+		text = text.substr(digit_count).strip_edges()
+		if text.is_empty():
+			return _failure("PARSE_EMPTY_FORMULA", "A coefficient must be followed by a formula.", global_start, global_start + raw_text.length())
+
+	var formula_result := parse_formula(text)
+	if not formula_result.ok:
+		return _failure(formula_result.code, formula_result.message, global_start + leading, global_start + raw_text.length())
+	var ast: Dictionary = formula_result.formula_ast
+	var phase: String = formula_result.phase
+	return {
+		"ok": true,
+		"term": {
+			"term_id": "term_%d" % global_start,
+			"species": {
+				"formula_ast": ast,
+				"phase": phase
+			},
+			"stoichiometric_coefficient": coefficient,
+			"source_span": {"start_offset": global_start, "end_offset": global_start + raw_text.length()}
+		}
+	}
+
+func _extract_charge(text: String) -> Dictionary:
+	if text.ends_with("+") or text.ends_with("-") or text.ends_with("−"):
+		var sign := 1 if text.ends_with("+") else -1
+		var alias := text
+		if SIMPLE_ION_ALIASES.has(alias):
+			return {"ok": true, "body": text.substr(0, text.length() - 1), "charge": sign}
+		if text.length() >= 2 and text.substr(text.length() - 2, 1).is_valid_int():
+			return {"ok": false, "code": "PARSE_AMBIGUOUS_CHARGE", "message": "Use caret notation for a multi-charge ion; this suffix is ambiguous."}
+		return {"ok": true, "body": text.substr(0, text.length() - 1), "charge": sign}
+
+	var caret := text.rfind("^")
+	if caret >= 0:
+		var suffix := text.substr(caret + 1)
+		if suffix.is_empty():
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge marker must be followed by an optional magnitude and a sign."}
+		var sign_text := suffix.substr(suffix.length() - 1, 1)
+		if sign_text != "+" and sign_text != "-" and sign_text != "−":
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge must end with + or -."}
+		var magnitude_text := suffix.substr(0, suffix.length() - 1)
+		var magnitude := 1
+		if not magnitude_text.is_empty():
+			if not magnitude_text.is_valid_int():
+				return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be a positive integer."}
+			magnitude = int(magnitude_text)
+		if magnitude <= 0:
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be positive."}
+		return {"ok": true, "body": text.substr(0, caret), "charge": magnitude if sign_text == "+" else -magnitude}
+
+	if text.contains("^"):
+		return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Malformed charge suffix."}
+	return {"ok": true, "body": text, "charge": 0}
+
+func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
+	var nodes: Array = []
+	while int(state.index) < text.length():
+		var ch := text.substr(int(state.index), 1)
+		if ch == ")":
+			if nested:
+				state.index = int(state.index) + 1
+				return nodes
+			state.error = "PARSE_UNEXPECTED_TOKEN"
+			return nodes
+		if ch == "(":
+			state.index = int(state.index) + 1
+			var children := _parse_sequence(text, state, true)
+			if not String(state.error).is_empty():
+				return nodes
+			if int(state.index) == 0 or text.substr(int(state.index) - 1, 1) != ")":
+				state.error = "PARSE_UNCLOSED_GROUP"
+				return nodes
+			var group_count := _read_count(text, state)
+			if group_count < 0:
+				return nodes
+			nodes.append({"type": "group", "children": children, "multiplier": group_count})
+			continue
+		if ch >= "A" and ch <= "Z":
+			var symbol := ch
+			state.index = int(state.index) + 1
+			if int(state.index) < text.length():
+				var next_ch := text.substr(int(state.index), 1)
+				if next_ch >= "a" and next_ch <= "z":
+					symbol += next_ch
+					state.index = int(state.index) + 1
+			if not ELEMENTS.has(symbol):
+				state.error = "PARSE_UNKNOWN_ELEMENT"
+				return nodes
+			var count := _read_count(text, state)
+			if count < 0:
+				return nodes
+			nodes.append({"type": "element", "symbol": symbol, "count": count})
+			continue
+		if ch.is_valid_int():
+			state.error = "PARSE_UNEXPECTED_TOKEN"
+			return nodes
+		state.error = "PARSE_UNSUPPORTED_SYNTAX" if ch == "·" or ch == "[" or ch == "]" else "PARSE_UNEXPECTED_TOKEN"
+		return nodes
+	if nested:
+		state.error = "PARSE_UNCLOSED_GROUP"
+	return nodes
+
+func _read_count(text: String, state: Dictionary) -> int:
+	var start := int(state.index)
+	while int(state.index) < text.length() and text.substr(int(state.index), 1).is_valid_int():
+		state.index = int(state.index) + 1
+	if int(state.index) == start:
+		return 1
+	var value := int(text.substr(start, int(state.index) - start))
+	if value <= 0:
+		state.error = "PARSE_ZERO_COUNT"
+		return -1
+	return value
+
+func _expand_nodes(nodes: Array) -> Dictionary:
+	var result: Dictionary = {}
+	for node in nodes:
+		if node.type == "element":
+			result[node.symbol] = int(result.get(node.symbol, 0)) + int(node.count)
+		else:
+			var nested: Dictionary = _expand_nodes(node.children)
+			for element in nested:
+				result[element] = int(result.get(element, 0)) + int(nested[element]) * int(node.multiplier)
+	return result
+
+func _find_arrow(source: String) -> Dictionary:
+	var found := ""
+	var found_pos := -1
+	for arrow in ARROWS:
+		var pos := source.find(arrow)
+		if pos >= 0:
+			if found_pos >= 0:
+				return {"ok": false, "code": "PARSE_MULTIPLE_ARROWS", "message": "Reaction must contain exactly one arrow."}
+			found = arrow
+			found_pos = pos
+	if found_pos < 0:
+		return {"ok": false, "code": "PARSE_MISSING_ARROW", "message": "Reaction arrow is missing."}
+	return {"ok": true, "arrow": found, "position": found_pos}
+
+func _split_side(side: String) -> Dictionary:
+	var parts: Array = []
+	var start := 0
+	for i in range(side.length()):
+		if side.substr(i, 1) != "+" or i == 0 or i == side.length() - 1:
+			continue
+		var left_ws := side.substr(i - 1, 1).strip_edges().is_empty()
+		var right_ws := side.substr(i + 1, 1).strip_edges().is_empty()
+		if left_ws and right_ws:
+			var raw := side.substr(start, i - start)
+			if raw.strip_edges().is_empty():
+				return {"ok": false, "code": "PARSE_INVALID_SEPARATOR", "message": "Empty reaction term around '+' separator."}
+			parts.append({"text": raw, "start": start})
+			start = i + 1
+	if side.substr(start).strip_edges().is_empty():
+		return {"ok": false, "code": "PARSE_EMPTY_SIDE", "message": "Reaction side is empty."}
+	parts.append({"text": side.substr(start), "start": start})
+	return {"ok": true, "parts": parts}
+
+func _failure(code: String, message: String, start: int, end: int) -> Dictionary:
+	return {"ok": false, "code": code, "message": message, "source_span": {"start_offset": start, "end_offset": end}, "diagnostics": [{"code": code, "severity": "ERROR", "message": message, "source_span": {"start_offset": start, "end_offset": end}}]}
+
+func _message_for(code: String) -> String:
+	match code:
+		"PARSE_UNKNOWN_ELEMENT": return "Unknown chemical element symbol."
+		"PARSE_UNCLOSED_GROUP": return "A parenthesis group is not closed."
+		"PARSE_ZERO_COUNT": return "Subscripts and group multipliers must be positive integers."
+		"PARSE_UNSUPPORTED_SYNTAX": return "This chemical notation is outside the MVP grammar."
+		_: return "Unexpected token in formula."
