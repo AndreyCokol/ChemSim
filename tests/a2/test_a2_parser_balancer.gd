@@ -145,4 +145,17 @@ func _test_balance_proposal() -> void:
 	var impossible: Dictionary = parser.parse_reaction("H2 -> O2")
 	assert(impossible.ok)
 	var impossible_result: Dictionary = balancer.propose_balance(impossible.reaction)
+
 	assert(impossible_result.status == "NO_POSITIVE_SOLUTION")
+
+	var nitrogen_dioxide: Dictionary = parser.parse_reaction("2NO2(g) ⇌ N2O4(g)")
+	assert(nitrogen_dioxide.ok)
+	var nitrogen_result: Dictionary = balancer.propose_balance(nitrogen_dioxide.reaction)
+	assert(nitrogen_result.status == "UNIQUE_OPTIMUM")
+	assert(nitrogen_result.proposed_coefficients[0].coefficient == 2)
+	assert(nitrogen_result.proposed_coefficients[1].coefficient == 1)
+
+	var duplicate_terms: Dictionary = parser.parse_reaction("H2 + H2 + O2 -> H2O")
+	assert(duplicate_terms.ok)
+	var duplicate_result: Dictionary = balancer.propose_balance(duplicate_terms.reaction)
+	assert(duplicate_result.status == "AMBIGUOUS_OPTIMUM")
