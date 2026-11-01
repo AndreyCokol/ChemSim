@@ -2,29 +2,30 @@ extends RefCounted
 class_name ChemReactionBalancer
 
 ## Exact bounded search for positive integer stoichiometric coefficients.
+## Identical species on the same side are collapsed into one solver variable.
 ## A search limit is never reported as proof that no solution exists.
 const DEFAULT_MAX_SUM := 64
 const DEFAULT_MAX_CANDIDATES := 500000
+const CHARGE_INVARIANT_KEY := "__NET_CHARGE__"
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
 	var reactants: Array = reaction.get("reactants", [])
 	var products: Array = reaction.get("products", [])
 	if reactants.is_empty() or products.is_empty():
 		return _result("INVALID_INPUT", [], "Reaction must have non-empty sides.")
-	if max_sum < reactants.size() + products.size() or max_candidates <= 0:
-		return _result("INVALID_INPUT", [], "Search limits are invalid.")
+	if max_candidates <= 0:
+		return _result("INVALID_INPUT", [], "Candidate limit must be positive.")
 
 	var terms: Array = []
 	var sides: Array = []
-	for term in reactants:
-		terms.append(term)
-		sides.append(1)
-	for term in products:
-		terms.append(term)
-		sides.append(-1)
+	var source_term_ids: Array = []
+	_append_aggregated_terms(reactants, 1, terms, sides, source_term_ids)
+	_append_aggregated_terms(products, -1, terms, sides, source_term_ids)
+	if max_sum < terms.size():
+		return _result("INVALID_INPUT", [], "Maximum coefficient sum is smaller than the number of distinct species terms.")
 
 	if _has_structural_impossibility(terms, sides):
-		return _result("NO_POSITIVE_SOLUTION", [], "At least one element occurs on only one side of the reaction.")
+		return _result("NO_POSITIVE_SOLUTION", [], "At least one atom or net-charge invariant occurs on only one side of the reaction.")
 
 	var context := {
 		"terms": terms,
@@ -55,12 +56,13 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 			"proposed_coefficients": [],
 			"method": "BOUNDED_POSITIVE_INTEGER_ENUMERATION",
 			"optimization": {
-				"objective": "MINIMIZE_SUM_OF_COEFFICIENTS",
+				"objective": "MINIMIZE_SUM_OF_DISTINCT_SPECIES_COEFFICIENTS",
 				"objective_value": minimum_sum,
 				"optimality_proven": true,
 				"uniqueness_proven": false
 			},
 			"alternative_solutions": context.solutions,
+			"solver_terms": _solver_term_metadata(terms, sides, source_term_ids),
 			"diagnostics": [{"code": "BALANCE_AMBIGUOUS_OPTIMUM", "severity": "WARNING", "message": "Multiple positive integer solutions share the minimum coefficient sum."}]
 		}
 
@@ -69,6 +71,7 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 	for i in range(terms.size()):
 		coefficient_records.append({
 			"term_id": terms[i].get("term_id", "term_%d" % i),
+			"source_term_ids": source_term_ids[i],
 			"coefficient": int(solution[i])
 		})
 	var invariant := _verify_solution(terms, sides, solution)
@@ -80,14 +83,52 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		"proposed_coefficients": coefficient_records,
 		"method": "BOUNDED_POSITIVE_INTEGER_ENUMERATION",
 		"optimization": {
-			"objective": "MINIMIZE_SUM_OF_COEFFICIENTS",
+			"objective": "MINIMIZE_SUM_OF_DISTINCT_SPECIES_COEFFICIENTS",
 			"objective_value": minimum_sum,
 			"optimality_proven": true,
 			"uniqueness_proven": true
 		},
+		"solver_terms": _solver_term_metadata(terms, sides, source_term_ids),
 		"invariant_checks": invariant,
 		"diagnostics": []
 	}
+
+func _append_aggregated_terms(input_terms: Array, side: int, terms: Array, sides: Array, source_term_ids: Array) -> void:
+	var key_to_index: Dictionary = {}
+	for term in input_terms:
+		if not term is Dictionary or not term.get("species") is Dictionary:
+			continue
+		var species: Dictionary = term.species
+		var ast: Dictionary = species.get("formula_ast", {})
+		var key := _species_key(ast, String(species.get("phase", "UNSPECIFIED")))
+		var side_key := str(side) + ":" + key
+		if key_to_index.has(side_key):
+			var existing_index: int = int(key_to_index[side_key])
+			source_term_ids[existing_index].append(String(term.get("term_id", "term_%d" % existing_index)))
+			continue
+		var new_index := terms.size()
+		key_to_index[side_key] = new_index
+		terms.append(term)
+		sides.append(side)
+		source_term_ids.append([String(term.get("term_id", "term_%d" % new_index))])
+
+func _species_key(ast: Dictionary, phase: String) -> String:
+	var elements: Array = ast.get("element_counts", {}).keys()
+	elements.sort()
+	var composition_parts := PackedStringArray()
+	for element in elements:
+		composition_parts.append("%s:%d" % [String(element), int(ast.element_counts[element])])
+	return "%s|q:%d|phase:%s" % [";".join(composition_parts), int(ast.get("net_charge", 0)), phase]
+
+func _solver_term_metadata(terms: Array, sides: Array, source_term_ids: Array) -> Array:
+	var metadata: Array = []
+	for i in range(terms.size()):
+		metadata.append({
+			"side": "REACTANT" if int(sides[i]) > 0 else "PRODUCT",
+			"source_term_ids": source_term_ids[i],
+			"phase": String(terms[i].species.get("phase", "UNSPECIFIED"))
+		})
+	return metadata
 
 func _enumerate_compositions(position: int, remaining: int, current: Array, context: Dictionary) -> void:
 	if bool(context.limit_hit) or context.solutions.size() > 1:
@@ -152,20 +193,29 @@ func _verify_solution(terms: Array, sides: Array, coefficients: Array) -> Dictio
 	}
 
 func _has_structural_impossibility(terms: Array, sides: Array) -> bool:
-	var element_sides: Dictionary = {}
+	var invariant_sides: Dictionary = {}
 	for i in range(terms.size()):
 		var ast: Dictionary = terms[i].species.formula_ast
 		for element in ast.element_counts:
-			if not element_sides.has(element):
-				element_sides[element] = {"left": false, "right": false}
-			var flags: Dictionary = element_sides[element]
+			if not invariant_sides.has(element):
+				invariant_sides[element] = {"left": false, "right": false}
+			var flags: Dictionary = invariant_sides[element]
 			if int(sides[i]) > 0:
 				flags["left"] = true
 			else:
 				flags["right"] = true
-			element_sides[element] = flags
-	for element in element_sides:
-		var occurrence: Dictionary = element_sides[element]
+			invariant_sides[element] = flags
+		if int(ast.get("net_charge", 0)) != 0:
+			if not invariant_sides.has(CHARGE_INVARIANT_KEY):
+				invariant_sides[CHARGE_INVARIANT_KEY] = {"left": false, "right": false}
+			var charge_flags: Dictionary = invariant_sides[CHARGE_INVARIANT_KEY]
+			if int(sides[i]) > 0:
+				charge_flags["left"] = true
+			else:
+				charge_flags["right"] = true
+			invariant_sides[CHARGE_INVARIANT_KEY] = charge_flags
+	for invariant in invariant_sides:
+		var occurrence: Dictionary = invariant_sides[invariant]
 		if bool(occurrence["left"]) != bool(occurrence["right"]):
 			return true
 	return false
@@ -177,7 +227,7 @@ func _result(status: String, coefficients: Array, message: String) -> Dictionary
 		"proposed_coefficients": coefficients,
 		"method": "BOUNDED_POSITIVE_INTEGER_ENUMERATION",
 		"optimization": {
-			"objective": "MINIMIZE_SUM_OF_COEFFICIENTS",
+			"objective": "MINIMIZE_SUM_OF_DISTINCT_SPECIES_COEFFICIENTS",
 			"optimality_proven": false,
 			"uniqueness_proven": false
 		},
