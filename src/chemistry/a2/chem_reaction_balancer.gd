@@ -27,7 +27,7 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		return _result("INVALID_INPUT", [], "Maximum coefficient sum is smaller than the number of distinct species terms.")
 
 	if _has_structural_impossibility(terms, sides):
-		return _result("NO_POSITIVE_SOLUTION", [], "At least one atom or net-charge invariant occurs on only one side of the reaction.")
+		return _result("NO_POSITIVE_SOLUTION", [], "At least one element occurs on only one side of the reaction.")
 
 	var context := {
 		"terms": terms,
@@ -104,7 +104,12 @@ func _is_valid_term(term: Variant) -> bool:
 	var ast: Variant = species.get("formula_ast")
 	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
 		return false
-	return ast.has("net_charge")
+	if typeof(ast.get("net_charge")) != TYPE_INT or ast.element_counts.is_empty():
+		return false
+	for element in ast.element_counts:
+		if typeof(element) != TYPE_STRING or typeof(ast.element_counts[element]) != TYPE_INT or int(ast.element_counts[element]) <= 0:
+			return false
+	return true
 
 func _append_aggregated_terms(input_terms: Array, side: int, terms: Array, sides: Array, source_term_ids: Array) -> void:
 	var key_to_index: Dictionary = {}
