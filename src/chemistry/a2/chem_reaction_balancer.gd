@@ -124,12 +124,9 @@ func _append_aggregated_terms(input_terms: Array, side: int, terms: Array, sides
 		source_term_ids.append([String(term.get("term_id", "term_%d" % new_index))])
 
 func _species_key(ast: Dictionary, phase: String) -> String:
-	var elements: Array = ast.get("element_counts", {}).keys()
-	elements.sort()
-	var composition_parts := PackedStringArray()
-	for element in elements:
-		composition_parts.append("%s:%d" % [String(element), int(ast.element_counts[element])])
-	return "%s|q:%d|phase:%s" % [";".join(composition_parts), int(ast.get("net_charge", 0)), phase]
+	# Elemental composition alone is insufficient: isomers can share a formula.
+	# Merge only identical source formula notation and phase in this MVP parser.
+	return "%s|q:%d|phase:%s" % [String(ast.get("source_text", "")), int(ast.get("net_charge", 0)), phase]
 
 func _solver_term_metadata(terms: Array, sides: Array, source_term_ids: Array) -> Array:
 	var metadata: Array = []
