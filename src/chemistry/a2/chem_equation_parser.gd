@@ -197,15 +197,8 @@ func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 	}
 
 func _extract_charge(text: String) -> Dictionary:
-	if text.ends_with("+") or text.ends_with("-") or text.ends_with("−"):
-		var sign := 1 if text.ends_with("+") else -1
-		var alias := text
-		if SIMPLE_ION_ALIASES.has(alias):
-			return {"ok": true, "body": text.substr(0, text.length() - 1), "charge": sign}
-		if text.length() >= 2 and text.substr(text.length() - 2, 1).is_valid_int():
-			return {"ok": false, "code": "PARSE_AMBIGUOUS_CHARGE", "message": "Use caret notation for a multi-charge ion; this suffix is ambiguous."}
-		return {"ok": true, "body": text.substr(0, text.length() - 1), "charge": sign}
-
+	# Caret notation has priority: Fe^3+ and SO4^2− must not be mistaken
+	# for an ambiguous simple-charge suffix after a subscript.
 	var caret := text.rfind("^")
 	if caret >= 0:
 		var suffix := text.substr(caret + 1)
@@ -224,8 +217,14 @@ func _extract_charge(text: String) -> Dictionary:
 			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be positive."}
 		return {"ok": true, "body": text.substr(0, caret), "charge": magnitude if sign_text == "+" else -magnitude}
 
-	if text.contains("^"):
-		return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Malformed charge suffix."}
+	if text.ends_with("+") or text.ends_with("-") or text.ends_with("−"):
+		var sign := 1 if text.ends_with("+") else -1
+		if SIMPLE_ION_ALIASES.has(text):
+			return {"ok": true, "body": text.substr(0, text.length() - 1), "charge": sign}
+		if text.length() >= 2 and text.substr(text.length() - 2, 1).is_valid_int():
+			return {"ok": false, "code": "PARSE_AMBIGUOUS_CHARGE", "message": "Use caret notation for a multi-charge ion; this suffix is ambiguous."}
+		return {"ok": true, "body": text.substr(0, text.length() - 1), "charge": sign}
+
 	return {"ok": true, "body": text, "charge": 0}
 
 func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
