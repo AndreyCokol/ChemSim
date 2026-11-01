@@ -11,6 +11,7 @@ func _initialize() -> void:
 func _run() -> void:
 	_test_balance("H2 + O2 -> H2O", [2, 1, 2])
 	_test_balance("Fe + O2 -> Fe2O3", [4, 3, 2])
+	_test_balance("C2H6 + O2 -> CO2 + H2O", [2, 7, 4, 6])
 	_test_balance("H+ + OH- -> H2O", [1, 1, 1])
 	_test_balance("2 H2 + O2 -> 2 H2O", [2, 1, 2])
 	_test_parse_invalid("H2 + -> H2O", "REACTION_EMPTY_TERM")
