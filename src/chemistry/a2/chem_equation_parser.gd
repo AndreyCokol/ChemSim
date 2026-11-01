@@ -22,6 +22,7 @@ const MAX_REACTION_LENGTH := 16384
 const MAX_GROUP_DEPTH := 64
 const MAX_INTEGER_TOKEN := 1000000
 const MAX_COMPOSITION_COUNT := 1000000000
+const MAX_BALANCE_TOTAL := 1000000000000000000
 const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": "REVERSIBLE"}
 # Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
 const SIMPLE_ION_ALIASES := [
@@ -141,14 +142,26 @@ func check_balance(reaction: Dictionary) -> Dictionary:
 		var ast: Dictionary = term.species.formula_ast
 		var coefficient := int(term.stoichiometric_coefficient)
 		for element in ast.element_counts:
-			left[element] = int(left.get(element, 0)) + int(ast.element_counts[element]) * coefficient
-		left_charge += int(ast.net_charge) * coefficient
+			var addition := int(ast.element_counts[element]) * coefficient
+			if addition > MAX_BALANCE_TOTAL or int(left.get(element, 0)) > MAX_BALANCE_TOTAL - addition:
+				return {"ok": false, "balanced": false, "code": "BALANCE_COUNT_OVERFLOW"}
+			left[element] = int(left.get(element, 0)) + addition
+		var charge_addition := int(ast.net_charge) * coefficient
+		if abs(charge_addition) > MAX_BALANCE_TOTAL or abs(left_charge) > MAX_BALANCE_TOTAL - abs(charge_addition):
+			return {"ok": false, "balanced": false, "code": "BALANCE_CHARGE_OVERFLOW"}
+		left_charge += charge_addition
 	for term in reaction.get("products", []):
 		var ast: Dictionary = term.species.formula_ast
 		var coefficient := int(term.stoichiometric_coefficient)
 		for element in ast.element_counts:
-			right[element] = int(right.get(element, 0)) + int(ast.element_counts[element]) * coefficient
-		right_charge += int(ast.net_charge) * coefficient
+			var addition := int(ast.element_counts[element]) * coefficient
+			if addition > MAX_BALANCE_TOTAL or int(right.get(element, 0)) > MAX_BALANCE_TOTAL - addition:
+				return {"ok": false, "balanced": false, "code": "BALANCE_COUNT_OVERFLOW"}
+			right[element] = int(right.get(element, 0)) + addition
+		var charge_addition := int(ast.net_charge) * coefficient
+		if abs(charge_addition) > MAX_BALANCE_TOTAL or abs(right_charge) > MAX_BALANCE_TOTAL - abs(charge_addition):
+			return {"ok": false, "balanced": false, "code": "BALANCE_CHARGE_OVERFLOW"}
+		right_charge += charge_addition
 
 	var elements: Dictionary = {}
 	for element in left:
