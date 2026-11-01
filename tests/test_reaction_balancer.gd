@@ -17,6 +17,8 @@ func _run() -> void:
 	_test_parse_invalid("H2 + O2", "REACTION_ARROW_REQUIRED")
 	_test_parse_invalid("H2 ->", "REACTION_EMPTY_SIDE")
 	_test_parse_invalid("H2 + O2 -> H2O -> H2O", "REACTION_MULTIPLE_ARROWS")
+	_test_parse_invalid("H2 <-> O2 -> H2O", "REACTION_MULTIPLE_ARROWS")
+	_test_parse_invalid("H2 + O2 -> H2O <-> H2O", "REACTION_MULTIPLE_ARROWS")
 	_test_balance_status("H2 + O2 -> H2", "no_positive_solution")
 	_test_balance_status("H2 + O2 -> H2O + H2O", "ambiguous")
 
