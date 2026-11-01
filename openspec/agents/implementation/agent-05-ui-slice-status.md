@@ -9,11 +9,11 @@ PR: #3 (draft, not merged)
 - Godot 4.x project entry point and Russian-language experiment workspace.
 - Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
 - Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
-- Separate local draft repository restricted to `user://`, with temporary-file write, backup/restore replacement and round-trip/security tests.
+- Separate local draft repository restricted to normalized paths inside `user://`; parent traversal, mixed-separator traversal and the user-data root are rejected. Writes use a temporary file and backup/restore replacement, with round-trip/security tests.
 - Presentation-only placement and dragging of component markers. Normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
-- Versioned local UI-draft document (`chemsim_ui_draft`, schema version 1), with codec validation, round-trip tests, and rejection of unsupported schema versions / duplicate IDs.
+- Versioned local UI-draft document (`chemsim_ui_draft`, schema version 1), with codec validation, round-trip tests, and rejection of unsupported schema versions, duplicate IDs, non-finite/out-of-range marker coordinates and partial unplaced-marker sentinels.
 - Atomic-style replacement using a temporary file and backup/restore path.
 - Headless Godot import/startup CI, draft-codec tests and draft-repository round-trip/security tests.
 
@@ -37,7 +37,7 @@ PR: #3 (draft, not merged)
 ## Validation status
 
 - GitHub Actions successfully completed the initial scaffold import/startup checks on commit `2c1fc5935d32d7c5e0d12c73dc799c8a2a7ba042`.
-- New codec/test commits have their own GitHub Actions runs queued or in progress; do not treat them as passed until the latest head SHA has a successful run.
+- The latest path/coordinate hardening commits have a GitHub Actions PR run queued; do not treat them as passed until the latest head SHA has a successful run.
 - No local Godot executable is installed in the authoring environment.
 
 ## Approval boundary
