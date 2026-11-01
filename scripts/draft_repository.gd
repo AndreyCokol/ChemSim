@@ -4,8 +4,9 @@ class_name ChemSimDraftRepository
 const DraftCodec = preload("res://scripts/draft_codec.gd")
 
 static func save_draft(path: String, payload: Dictionary) -> Dictionary:
-	if not path.begins_with("user://"):
-		return _failure("Черновики разрешено сохранять только в пользовательской папке.")
+	if not _is_allowed_user_path(path):
+		return _failure("Черновики разрешено сохранять только внутри пользовательской папки.")
+	path = path.replace("\\", "/")
 	var absolute_path := ProjectSettings.globalize_path(path)
 	var absolute_dir := ProjectSettings.globalize_path(path.get_base_dir())
 	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
@@ -50,13 +51,25 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 
 static func load_draft(path: String) -> Dictionary:
 	if not path.begins_with("user://"):
-		return _failure("Открывать черновики разрешено только из пользовательской папки.")
+		return _failure("Открывать черновики разрешено только внутри пользовательской папки.")
+	path = path.replace("\\", "/")
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _failure("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	return DraftCodec.decode_payload(parsed)
+
+static func _is_allowed_user_path(path: String) -> bool:
+	if not path.begins_with("user://"):
+		return false
+	var relative_path := path.substr("user://".length()).replace("\\", "/")
+	if relative_path.is_empty() or relative_path.begins_with("/"):
+		return false
+	for segment in relative_path.split("/"):
+		if segment.is_empty() or segment == "." or segment == "..":
+			return false
+	return true
 
 static func _failure(message: String) -> Dictionary:
 	return {"ok": false, "error": message}
