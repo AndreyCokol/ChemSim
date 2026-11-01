@@ -166,7 +166,7 @@ func _has_structural_impossibility(terms: Array, sides: Array) -> bool:
 			element_sides[element] = flags
 	for element in element_sides:
 		var occurrence: Dictionary = element_sides[element]
-		if bool(occurrence.left) != bool(occurrence.right):
+		if bool(occurrence["left"]) != bool(occurrence["right"]):
 			return true
 	return false
 
