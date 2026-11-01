@@ -131,6 +131,14 @@ func _test_balance_proposal() -> void:
 	assert(ionic_result.proposed_coefficients[0].coefficient == 1)
 	assert(ionic_result.proposed_coefficients[1].coefficient == 1)
 
+	var neutralization: Dictionary = parser.parse_reaction("H+ + OH- -> H2O")
+	assert(neutralization.ok)
+	var neutralization_result: Dictionary = balancer.propose_balance(neutralization.reaction)
+	assert(neutralization_result.status == "UNIQUE_OPTIMUM")
+	assert(neutralization_result.proposed_coefficients[0].coefficient == 1)
+	assert(neutralization_result.proposed_coefficients[1].coefficient == 1)
+	assert(neutralization_result.proposed_coefficients[2].coefficient == 1)
+
 	assert(ionic_result.proposed_coefficients[2].coefficient == 1)
 
 	var calcium: Dictionary = parser.parse_reaction("Ca(OH)2 + HCl -> CaCl2 + H2O")
