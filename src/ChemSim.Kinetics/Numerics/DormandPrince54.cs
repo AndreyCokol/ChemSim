@@ -44,8 +44,14 @@ internal sealed class DormandPrince54
             if (++attempts > _maxSteps)
                 return new(StepStatus.MaximumStepsExceeded, y, t, accepted, rejected, evaluations);
 
-            h = Math.Min(h, endTime - t);
-            if (h < _minStep)
+            var remaining = endTime - t;
+            var isFinalStep = h >= remaining;
+            h = Math.Min(h, remaining);
+
+            // A final interval may legitimately be shorter than the configured
+            // minimum step. The minimum applies only when further subdivision
+            // would still be required.
+            if (h < _minStep && !isFinalStep)
             {
                 var status = lastRejectionWasNonPhysical
                     ? StepStatus.NonPhysicalState
@@ -65,10 +71,10 @@ internal sealed class DormandPrince54
 
             if (errorNorm <= 1d && physical)
             {
-                t += h;
-                if (t >= endTime || endTime - t <= 1e-14d * Math.Max(1d, Math.Abs(endTime)))
-                    t = endTime;
-
+                // Use the exact requested endpoint only when this trial step
+                // actually covered the remaining interval. Never snap time
+                // forward based on an absolute-time epsilon.
+                t = isFinalStep ? endTime : t + h;
                 y = step.FifthOrder;
                 accepted++;
                 lastRejectionWasNonPhysical = false;
@@ -107,19 +113,26 @@ internal sealed class DormandPrince54
 
     private static TrialStep TryStep(Func<double, double[], double[]> rhs, double t, double[] y, double h)
     {
+        var evaluations = 0;
+        double[] Eval(double time, double[] state)
+        {
+            evaluations++;
+            return Evaluate(rhs, time, state);
+        }
+
         try
         {
-            var k1 = Evaluate(rhs, t, y);
-            var k2 = Evaluate(rhs, t + h * (1d / 5d), Combine(y, h, (1d / 5d, k1)));
-            var k3 = Evaluate(rhs, t + h * (3d / 10d), Combine(y, h, (3d / 40d, k1), (9d / 40d, k2)));
-            var k4 = Evaluate(rhs, t + h * (4d / 5d), Combine(y, h, (44d / 45d, k1), (-56d / 15d, k2), (32d / 9d, k3)));
-            var k5 = Evaluate(rhs, t + h * (8d / 9d), Combine(y, h,
+            var k1 = Eval(t, y);
+            var k2 = Eval(t + h * (1d / 5d), Combine(y, h, (1d / 5d, k1)));
+            var k3 = Eval(t + h * (3d / 10d), Combine(y, h, (3d / 40d, k1), (9d / 40d, k2)));
+            var k4 = Eval(t + h * (4d / 5d), Combine(y, h, (44d / 45d, k1), (-56d / 15d, k2), (32d / 9d, k3)));
+            var k5 = Eval(t + h * (8d / 9d), Combine(y, h,
                 (19372d / 6561d, k1), (-25360d / 2187d, k2), (64448d / 6561d, k3), (-212d / 729d, k4)));
-            var k6 = Evaluate(rhs, t + h, Combine(y, h,
+            var k6 = Eval(t + h, Combine(y, h,
                 (9017d / 3168d, k1), (-355d / 33d, k2), (46732d / 5247d, k3), (49d / 176d, k4), (-5103d / 18656d, k5)));
             var y5 = Combine(y, h,
                 (35d / 384d, k1), (500d / 1113d, k3), (125d / 192d, k4), (-2187d / 6784d, k5), (11d / 84d, k6));
-            var k7 = Evaluate(rhs, t + h, y5);
+            var k7 = Eval(t + h, y5);
             var y4 = Combine(y, h,
                 (5179d / 57600d, k1), (7571d / 16695d, k3), (393d / 640d, k4),
                 (-92097d / 339200d, k5), (187d / 2100d, k6), (1d / 40d, k7));
@@ -132,11 +145,11 @@ internal sealed class DormandPrince54
                 nonFinite |= !double.IsFinite(y5[i]) || !double.IsFinite(error[i]);
             }
 
-            return new(y5, error, 7, nonFinite, false);
+            return new(y5, error, evaluations, nonFinite, false);
         }
         catch (NonPhysicalStageException)
         {
-            return new((double[])y.Clone(), new double[y.Length], 7, false, true);
+            return new((double[])y.Clone(), new double[y.Length], evaluations, false, true);
         }
     }
 
