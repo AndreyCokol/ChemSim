@@ -13,9 +13,7 @@ func parse(input: String) -> ReactionParseResult:
 	if source.contains("<->"):
 		arrow = "<->"
 		arrow_index = source.find("<->")
-	if source.contains("->"):
-		if not arrow.is_empty():
-			return ReactionParseResult.failure("REACTION_MULTIPLE_ARROWS", "В уравнении найдено несколько типов стрелок.")
+	elif source.contains("->"):
 		arrow = "->"
 		arrow_index = source.find("->")
 	if arrow.is_empty():
@@ -68,4 +66,5 @@ func _parse_side(side_text: String) -> ReactionParseResult:
 			"net_charge": parsed.net_charge,
 			"phase": parsed.phase
 		})
-	return ReactionParseResult.success("", terms, [])
+	var empty_side: Array[Dictionary] = []
+	return ReactionParseResult.success("", terms, empty_side)
