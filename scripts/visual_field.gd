@@ -1,14 +1,55 @@
 extends Control
 class_name ChemSimVisualField
 
+signal field_pressed(normalized_position: Vector2)
+signal marker_pressed(component_id: int)
+
 const GRID_STEP := 32
 const BACKGROUND := Color("#101923")
 const GRID_COLOR := Color("#263746")
 const TEXT_COLOR := Color("#8FA3B5")
+const MARKER_COLOR := Color("#62B6A5")
+const SELECTED_COLOR := Color("#D8A85B")
+
+var markers: Array[Dictionary] = []
+var selected_marker_id: int = -1
+var dragging_marker_id: int = -1
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(480, 320)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	queue_redraw()
+
+func set_marker(component_id: int, label: String, normalized_position: Vector2) -> void:
+	for index in range(markers.size()):
+		if int(markers[index].id) == component_id:
+			markers[index].label = label
+			markers[index].position = _clamp_position(normalized_position)
+			queue_redraw()
+			return
+	markers.append({
+		"id": component_id,
+		"label": label,
+		"position": _clamp_position(normalized_position)
+	})
+	queue_redraw()
+
+func remove_marker(component_id: int) -> void:
+	for index in range(markers.size() - 1, -1, -1):
+		if int(markers[index].id) == component_id:
+			markers.remove_at(index)
+	if selected_marker_id == component_id:
+		selected_marker_id = -1
+	queue_redraw()
+
+func clear_markers() -> void:
+	markers.clear()
+	selected_marker_id = -1
+	dragging_marker_id = -1
+	queue_redraw()
+
+func _clamp_position(value: Vector2) -> Vector2:
+	return Vector2(clampf(value.x, 0.03, 0.97), clampf(value.y, 0.05, 0.95))
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), BACKGROUND, true)
@@ -20,6 +61,50 @@ func _draw() -> void:
 	while y <= size.y:
 		draw_line(Vector2(0, y), Vector2(size.x, y), GRID_COLOR, 1.0)
 		y += GRID_STEP
-	var center := size * 0.5
-	draw_circle(center, 4.0, Color("#607D91"))
-	draw_string(ThemeDB.fallback_font, center + Vector2(-100, 30), "Поле эксперимента пока пусто", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, TEXT_COLOR)
+	if markers.is_empty():
+		var center := size * 0.5
+		draw_circle(center, 4.0, Color("#607D91"))
+		draw_string(ThemeDB.fallback_font, center + Vector2(-105, 28), "Поле эксперимента пока пусто", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, TEXT_COLOR)
+		return
+	for marker in markers:
+		var position: Vector2 = Vector2(marker.position) * size
+		var component_id := int(marker.id)
+		var color := SELECTED_COLOR if component_id == selected_marker_id else MARKER_COLOR
+		draw_circle(position, 13.0, Color(color, 0.16))
+		draw_arc(position, 13.0, 0.0, TAU, 32, color, 2.0)
+		draw_circle(position, 4.0, color)
+		draw_string(ThemeDB.fallback_font, position + Vector2(18, 4), str(marker.label), HORIZONTAL_ALIGNMENT_LEFT, 180, 12, TEXT_COLOR)
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			var hit_id := _find_marker_at(event.position)
+			if hit_id >= 0:
+				selected_marker_id = hit_id
+				dragging_marker_id = hit_id
+				marker_pressed.emit(hit_id)
+				queue_redraw()
+			else:
+				field_pressed.emit(_to_normalized(event.position))
+		else:
+			dragging_marker_id = -1
+	elif event is InputEventMouseMotion and dragging_marker_id >= 0:
+		set_marker(dragging_marker_id, _marker_label(dragging_marker_id), _to_normalized(event.position))
+
+func _find_marker_at(point: Vector2) -> int:
+	for marker in markers:
+		var marker_position: Vector2 = Vector2(marker.position) * size
+		if marker_position.distance_to(point) <= 17.0:
+			return int(marker.id)
+	return -1
+
+func _marker_label(component_id: int) -> String:
+	for marker in markers:
+		if int(marker.id) == component_id:
+			return str(marker.label)
+	return "?"
+
+func _to_normalized(point: Vector2) -> Vector2:
+	if size.x <= 0.0 or size.y <= 0.0:
+		return Vector2(0.5, 0.5)
+	return _clamp_position(Vector2(point.x / size.x, point.y / size.y))
