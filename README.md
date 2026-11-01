@@ -22,7 +22,7 @@ The current A5 branch contains an interactive presentation/application shell:
 
 ## Validation
 
-A GitHub Actions workflow runs a headless editor import and application startup check on pull requests and pushes.
+A GitHub Actions workflow runs a headless editor import, draft codec tests, local repository round-trip/security tests and application startup check on pull requests and pushes.
 
 ## Architecture boundaries
 
