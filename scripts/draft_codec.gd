@@ -60,8 +60,8 @@ static func decode_payload(payload: Variant) -> Dictionary:
 		var raw_position: Variant = raw_item.get("position", [-1.0, -1.0])
 		if not raw_position is Array or raw_position.size() != 2:
 			return _failure("Координаты компонента имеют неверный формат.")
-		if not _is_number(raw_position[0]) or not _is_number(raw_position[1]):
-			return _failure("Координаты компонента должны быть числами.")
+		if not _is_valid_position(raw_position):
+			return _failure("Координаты должны быть конечными числами от 0 до 1 либо парой -1 для неразмещённого маркера.")
 		var component_id := int(raw_item.get("id", 0))
 		if component_id <= 0 or seen_ids.has(component_id):
 			return _failure("Идентификаторы компонентов должны быть положительными и уникальными.")
@@ -88,6 +88,17 @@ static func decode_payload(payload: Variant) -> Dictionary:
 
 static func _is_number(value: Variant) -> bool:
 	return typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT
+
+static func _is_valid_position(position: Array) -> bool:
+	if not _is_number(position[0]) or not _is_number(position[1]):
+		return false
+	var x := float(position[0])
+	var y := float(position[1])
+	if not is_finite(x) or not is_finite(y):
+		return false
+	var is_unplaced := is_equal_approx(x, -1.0) and is_equal_approx(y, -1.0)
+	var is_normalized := x >= 0.0 and x <= 1.0 and y >= 0.0 and y <= 1.0
+	return is_unplaced or is_normalized
 
 static func _failure(message: String) -> Dictionary:
 	return {"ok": false, "error": message}
