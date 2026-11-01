@@ -14,6 +14,7 @@ const DANGER := Color("#D97878")
 
 var status_label: Label
 var composition_list: VBoxContainer
+var experiment_name_input: LineEdit
 var visual_field
 var graph_title: Label
 var reaction_input: LineEdit
@@ -36,6 +37,8 @@ var amount_unit: OptionButton
 var phase_input: OptionButton
 var open_dialog: FileDialog
 var save_dialog: FileDialog
+var discard_dialog: ConfirmationDialog
+var pending_open_path: String = ""
 
 func _ready() -> void:
 	_build_ui()
@@ -68,12 +71,18 @@ func _header() -> Control:
 	panel.add_child(_pad(row, 18, 12, 18, 12))
 	row.add_child(_label("ChemSim", 23, FG))
 	row.add_child(_label("ЛАБОРАТОРИЯ ОБЩЕЙ ХИМИИ", 10, MUTED))
+	experiment_name_input = LineEdit.new()
+	experiment_name_input.placeholder_text = "Название эксперимента"
+	experiment_name_input.text = experiment_name
+	experiment_name_input.custom_minimum_size.x = 190
+	experiment_name_input.text_changed.connect(_on_experiment_name_changed)
+	row.add_child(experiment_name_input)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 	row.add_child(_label("ИЗОТЕРМИЧЕСКАЯ МОДЕЛЬ", 10, ACCENT))
 	var new_button := _button("＋ Новый эксперимент", true)
-	new_button.pressed.connect(_new_experiment)
+	new_button.pressed.connect(_request_new_experiment)
 	row.add_child(new_button)
 	var open_button := _button("Открыть черновик", false)
 	open_button.pressed.connect(_open_draft_picker)
@@ -298,6 +307,11 @@ func _create_add_dialog() -> void:
 	phase_input.add_item("Твёрдое")
 	form.add_child(phase_input)
 	add_dialog.confirmed.connect(_confirm_add_component)
+	discard_dialog = ConfirmationDialog.new()
+	discard_dialog.title = "Несохранённые изменения"
+	discard_dialog.dialog_text = "Текущий черновик изменён. Продолжить без сохранения?"
+	discard_dialog.confirmed.connect(_confirm_discard_pending_action)
+	add_child(discard_dialog)
 	_create_file_dialogs()
 
 func _open_add_dialog() -> void:
@@ -450,6 +464,11 @@ func _on_marker_moved(component_id: int, normalized_position: Vector2) -> void:
 			draft_dirty = true
 			return
 
+func _on_experiment_name_changed(value: String) -> void:
+	experiment_name = value
+	draft_dirty = true
+	_set_draft_status()
+
 func _on_reaction_changed(_value: String) -> void:
 	draft_dirty = true
 	_set_draft_status()
@@ -476,12 +495,20 @@ func _graph_tab(caption: String, mode: String) -> Button:
 	)
 	return button
 
+func _request_new_experiment() -> void:
+	pending_open_path = ""
+	if draft_dirty:
+		discard_dialog.popup_centered()
+		return
+	_new_experiment()
+
 func _new_experiment() -> void:
 	components.clear()
 	selected_component_id = -1
 	editing_component_id = -1
 	next_component_id = 1
 	experiment_name = "Новый эксперимент"
+	experiment_name_input.text = experiment_name
 	reaction_input.text = ""
 	pressure_input.text = ""
 	volume_input.text = ""
@@ -499,7 +526,7 @@ func _create_file_dialogs() -> void:
 	open_dialog.access = FileDialog.ACCESS_USERDATA
 	open_dialog.current_dir = "user://experiments"
 	open_dialog.add_filter("*.chemsim.json", "Черновик ChemSim (JSON)")
-	open_dialog.file_selected.connect(_load_draft_from_path)
+	open_dialog.file_selected.connect(_request_load_draft)
 	add_child(open_dialog)
 
 	save_dialog = FileDialog.new()
@@ -514,6 +541,20 @@ func _create_file_dialogs() -> void:
 
 func _open_draft_picker() -> void:
 	open_dialog.popup_centered_ratio(0.7)
+
+func _request_load_draft(path: String) -> void:
+	pending_open_path = path
+	if draft_dirty:
+		discard_dialog.popup_centered()
+		return
+	_load_draft_from_path(path)
+
+func _confirm_discard_pending_action() -> void:
+	if pending_open_path.is_empty():
+		_new_experiment()
+	else:
+		_load_draft_from_path(pending_open_path)
+	pending_open_path = ""
 
 func _save_draft_picker() -> void:
 	save_dialog.popup_centered_ratio(0.7)
@@ -589,6 +630,7 @@ func _load_draft_from_path(path: String) -> void:
 	selected_component_id = -1
 	editing_component_id = -1
 	experiment_name = str(data.experiment_name)
+	experiment_name_input.text = experiment_name
 	reaction_input.text = str(data.reaction_text)
 	var conditions: Dictionary = data.conditions
 	pressure_input.text = str(conditions.get("pressure_raw", ""))
