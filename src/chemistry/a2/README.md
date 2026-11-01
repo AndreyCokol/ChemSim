@@ -42,7 +42,7 @@ The current solver enumerates positive integer coefficient vectors in increasing
 - Default candidate limit: 500,000.
 - A structurally impossible element balance returns `NO_POSITIVE_SOLUTION`.
 - If the configured bound is exhausted, the result is `SEARCH_LIMIT_EXCEEDED`, never a false claim of no solution.
-- Duplicate identical terms are not yet canonicalized into a shared solver variable; some duplicate-term inputs may therefore be reported ambiguous.
+- Identical species with the same phase are aggregated per reaction side into one solver variable. The proposal returns the aggregate coefficient and all contributing `source_term_ids`; it deliberately does not invent a distribution across duplicate source terms. Different phases remain distinct species. The objective is the sum of coefficients over distinct species terms.
 
 This is an initial bounded solver, not a general-purpose ILP implementation. Limits and duplicate-term semantics need benchmark-driven refinement before production use.
 
