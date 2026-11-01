@@ -61,7 +61,8 @@ func parse(input: String) -> FormulaParseResult:
 
 	if _source.is_empty():
 		return FormulaParseResult.failure("PARSER_INVALID_FORMULA", "После выделения заряда формула оказалась пустой.")
-	if not _source[0].to_upper() == _source[0] or not _source[0].is_valid_ascii_identifier():
+	var first_character := _source.substr(0, 1)
+	if first_character < "A" or first_character > "Z":
 		return FormulaParseResult.failure("PARSER_UNSUPPORTED_SYNTAX", "Формула должна начинаться с символа химического элемента.")
 
 	var counts := _parse_group(false)
