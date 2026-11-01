@@ -124,6 +124,12 @@ func _test_balance_proposal() -> void:
 	assert(result.proposed_coefficients[1].coefficient == 1)
 	assert(result.proposed_coefficients[2].coefficient == 2)
 
+	var limited: Dictionary = balancer.propose_balance(parsed.reaction, 64, 1)
+	assert(limited.status == "SEARCH_LIMIT_EXCEEDED")
+
+	var malformed: Dictionary = balancer.propose_balance({"reactants": [{}], "products": [{}]})
+	assert(malformed.status == "INVALID_INPUT")
+
 	var ionic: Dictionary = parser.parse_reaction("Ag+ + Cl- -> AgCl(s)")
 	assert(ionic.ok)
 	var ionic_result: Dictionary = balancer.propose_balance(ionic.reaction)
