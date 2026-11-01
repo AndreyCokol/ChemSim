@@ -1,6 +1,9 @@
 name: A3 equilibrium tests
 
 on:
+  push:
+    branches:
+      - "agent/a3-equilibrium-implementation"
   pull_request:
     paths:
       - "src/chemsim/**"
