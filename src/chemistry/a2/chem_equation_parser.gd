@@ -182,8 +182,8 @@ func serialize_formula(formula_ast: Dictionary, phase: String = "UNSPECIFIED") -
 	return output
 
 func serialize_reaction(reaction: Dictionary) -> String:
-	var left: Array[String] = []
-	var right: Array[String] = []
+	var left := PackedStringArray()
+	var right := PackedStringArray()
 	for term in reaction.get("reactants", []):
 		var coefficient := int(term.get("stoichiometric_coefficient", 1))
 		var ast: Dictionary = term.species.formula_ast
