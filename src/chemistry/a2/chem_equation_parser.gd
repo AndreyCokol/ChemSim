@@ -405,8 +405,15 @@ func _is_valid_reaction_term(term: Variant) -> bool:
 	var ast: Variant = species.get("formula_ast")
 	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
 		return false
-	if typeof(ast.get("net_charge")) != TYPE_INT:
+	if typeof(ast.get("net_charge")) != TYPE_INT or abs(int(ast.net_charge)) > MAX_INTEGER_TOKEN:
 		return false
+	if ast.element_counts.is_empty():
+		return false
+	for element in ast.element_counts:
+		if typeof(element) != TYPE_STRING or typeof(ast.element_counts[element]) != TYPE_INT:
+			return false
+		if int(ast.element_counts[element]) <= 0 or int(ast.element_counts[element]) > MAX_COMPOSITION_COUNT:
+			return false
 	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
 	if typeof(coefficient) != TYPE_INT or int(coefficient) <= 0 or int(coefficient) > MAX_INTEGER_TOKEN:
 		return false
