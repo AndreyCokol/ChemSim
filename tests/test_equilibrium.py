@@ -21,6 +21,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["H+"], result.species_mol_l["A-"] + result.species_mol_l["OH-"], places=11)
         self.assertAlmostEqual(result.pH, 3.387, delta=0.01)
         self.assertGreater(result.diagnostics.iterations, 0)
+        self.assertEqual(result.diagnostics.reliability_status, "idealized_approximation")
 
     def test_w02_strong_neutralization(self):
         result = solve_strong_neutralization(0.01000, 0.01000, 1.0e-14)
@@ -91,6 +92,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
 class GasBenchmarkTests(unittest.TestCase):
     def test_g01_no2_dimerization(self):
         result = solve_no2_dimerization(0.010, 0.0, 298.15, 1.0e-3, 6.73)
+        self.assertEqual(result.diagnostics.reliability_status, "idealized_approximation")
         self.assertGreater(result.species_mol["N2O4"], 0.0)
         self.assertGreater(result.species_mol["NO2"], 0.0)
         self.assertAlmostEqual(

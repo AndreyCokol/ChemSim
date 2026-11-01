@@ -33,7 +33,18 @@ From the repository root:
 ## Numerical diagnostics
 
 Each result carries the solver residual, iteration count, component-balance residual,
-charge-balance residual, method, activity model, and an explicit balance unit:
+charge-balance residual, method, activity model, reliability status, and an explicit balance unit.
+The current fixtures always report `idealized_approximation`: constants are supplied by the
+caller, provenance is not yet attached to individual constants, and ideal activity/gas
+models are not experimental validation. Downstream UI must preserve this status rather
+than presenting the output as an unqualified exact result.
+
+The scalar bisection validates its interval/tolerances and compares residual signs without
+multiplication, avoiding overflow and indeterminate products for infinite endpoint residuals.
+The internal gas extent solver also rejects mismatched species/stoichiometry keys and
+non-finite or zero stoichiometric coefficients.
+
+Balance units:
 - aqueous fixtures report concentration-balance residuals in mol/L;
 - gas fixtures report extent-update residuals in mol.
 

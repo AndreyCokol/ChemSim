@@ -41,6 +41,7 @@ class SolverDiagnostics:
     method: str
     balance_unit: str
     activity_model: str = "ideal_dilute_gamma_equals_1"
+    reliability_status: str = "idealized_approximation"
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,12 @@ def _bisect(
     max_iter: int = 250,
 ) -> tuple[float, int, float]:
     """Bisection with endpoint handling; fn must be monotone on [low, high]."""
+    if not isfinite(low) or not isfinite(high) or low > high:
+        raise EquilibriumInputError("Bisection bounds must be finite and ordered")
+    if not isfinite(x_tol) or x_tol <= 0 or not isfinite(f_tol) or f_tol < 0:
+        raise EquilibriumInputError("Bisection tolerances must be finite and non-negative")
+    if max_iter < 1:
+        raise EquilibriumInputError("max_iter must be at least one")
     f_low = fn(low)
     f_high = fn(high)
     if isnan(f_low) or isnan(f_high):
@@ -95,7 +102,9 @@ def _bisect(
         interval_scale = max(abs(low), abs(high), 1e-300)
         if abs(f_mid) <= f_tol or (high - low) <= x_tol * interval_scale:
             return mid, iteration, f_mid
-        if f_low * f_mid <= 0:
+        # Compare signs directly instead of multiplying residuals: products can
+        # overflow for large residuals and are undefined for inf * 0.
+        if (f_low <= 0 <= f_mid) or (f_mid <= 0 <= f_low):
             high, f_high = mid, f_mid
         else:
             low, f_low = mid, f_mid
@@ -305,6 +314,10 @@ def _gas_equilibrium(
 ) -> GasResult:
     _positive("temperature_k", temperature_k)
     _positive("volume_m3", volume_m3)
+    if not species_initial or set(species_initial) != set(stoichiometry):
+        raise EquilibriumInputError("Initial amounts and stoichiometry must define the same non-empty species set")
+    if any(not isfinite(value) or value == 0 for value in stoichiometry.values()):
+        raise EquilibriumInputError("Stoichiometric coefficients must be finite and non-zero")
     if not isfinite(log_kp):
         raise EquilibriumInputError("log_kp must be finite")
     for name, amount in species_initial.items():
