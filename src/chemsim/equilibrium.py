@@ -222,7 +222,7 @@ def solve_ammonia_buffer(
     return AqueousResult(
         {"NH3": nh3, "NH4+": nh4, "H+": h, "OH-": oh, "Cl-": chloride_mol_l},
         -log10(h),
-        SolverDiagnostics(iterations, residual, mass_error, charge_error, "log-space bisection"),
+        SolverDiagnostics(iterations, residual, mass_error, charge_error, "log-space bisection", "mol/L"),
     )
 
 
