@@ -17,8 +17,30 @@ var valid_pressure_range_pa: Array[float] = []
 var quality_status: String = "unknown"
 var notes: String = ""
 
+func is_valid() -> bool:
+	if property_id.is_empty() or unit.is_empty():
+		return false
+	if quality_status not in ["unknown", "provisional", "verified", "rejected"]:
+		return false
+	if value != null and typeof(value) not in [TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_BOOL]:
+		return false
+	if typeof(value) in [TYPE_INT, TYPE_FLOAT] and not is_finite(float(value)):
+		return false
+	if uncertainty != null and (typeof(uncertainty) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(uncertainty)) or float(uncertainty) < 0.0):
+		return false
+	if not _valid_range(valid_temperature_range_k) or not _valid_range(valid_pressure_range_pa):
+		return false
+	return true
+
 func is_usable() -> bool:
-	return not property_id.is_empty() and value != null and not unit.is_empty() and not source_reference.is_empty() and not license_identifier.is_empty() and quality_status == "verified"
+	return is_valid() and value != null and not source_reference.is_empty() and not license_identifier.is_empty() and quality_status == "verified"
+
+func _valid_range(bounds: Array[float]) -> bool:
+	if bounds.is_empty():
+		return true
+	if bounds.size() != 2:
+		return false
+	return is_finite(bounds[0]) and is_finite(bounds[1]) and bounds[0] >= 0.0 and bounds[1] >= bounds[0]
 
 func to_dictionary() -> Dictionary:
 	return {
