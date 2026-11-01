@@ -47,7 +47,7 @@ class AqueousResult:
     species_mol_l: dict[str, float]
     pH: float
     diagnostics: SolverDiagnostics
-    solid_mol: float = 0.0
+    solid_mol_l: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -286,7 +286,7 @@ def solve_agcl_precipitation(
             iterations, residual, max(ag_balance, cl_balance), abs(charge),
             "active-set + bisection" if solid > 0 else "inactive-solid check",
         ),
-        solid_mol=solid,
+        solid_mol_l=solid,
     )
 
 
