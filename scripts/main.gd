@@ -54,10 +54,18 @@ func _build_ui() -> void:
 	add_child(page)
 	page.add_child(_header())
 
+	var body_scroll := ScrollContainer.new()
+	body_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(body_scroll)
+
 	var body := HBoxContainer.new()
+	body.custom_minimum_size.x = 1120
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 0)
-	page.add_child(body)
+	body_scroll.add_child(body)
 	body.add_child(_left_panel())
 	body.add_child(_center_panel())
 	body.add_child(_right_panel())
