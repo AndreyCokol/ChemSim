@@ -11,14 +11,18 @@ context: |
   balancing explicitly with a separate action.
   Domain priority: general chemistry, including ionic chemistry, acid/base pH,
   solubility and precipitation, reversible reactions, and chemical equilibrium.
-  Users configure kinetic constants and activation energies. Temperature affects rates
-  through Arrhenius behavior. Both closed and open systems are in scope, including
-  adding reagents and removing substances during an experiment.
+  MVP is isothermal. Arrhenius k(T) is used only with verified kinetic parameters;
+  equilibrium K(T) requires applicable thermodynamic data. Closed/open systems support
+  discrete add/remove events and constant or piecewise-constant continuous flows.
+  Aqueous scope is dilute solutions with explicit ideal/activity model, basic acid/base,
+  pH, Ksp and ionic mass/charge balance. Gas scope is ideal gas PV=nRT and Dalton law;
+  nonideal gases/fugacity are excluded. Instant ideal mixing only; finite mixing deferred.
   Supported amount/concentration display units: mol, mol/L, g, g/L, with dimensionally
   valid conversions only. Mandatory graphs: concentration-time, rate-time, temperature-time.
   Simulation controls: pause, single-step, speed multiplier, and time navigation.
-  A substance encyclopedia is required. Experiment save/load is desirable; CSV export
-  and GitHub Releases ZIP distribution are optional. The application must work offline.
+  A substance encyclopedia is required, including hazard source/completeness; missing
+  hazard data never means safe. Experiment save/load is desirable; CSV export and
+  GitHub Releases ZIP distribution are optional. The application must work offline.
   Scientific correctness is the highest MVP priority. Never claim universal or maximum
   chemical accuracy: define a bounded validity domain, authoritative property datasets,
   explicit assumptions, uncertainty, and numerical validation.
