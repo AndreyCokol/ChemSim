@@ -127,6 +127,9 @@ func _test_balance_validation() -> void:
 	assert(unbalanced.ok)
 	var check: Dictionary = parser.check_balance(unbalanced.reaction)
 	assert(not check.balanced)
+	var malformed_check: Dictionary = parser.check_balance({"reactants": [{}], "products": [{}]})
+	assert(not malformed_check.ok)
+	assert(malformed_check.code == "BALANCE_INVALID_TERM")
 
 	var balanced: Dictionary = parser.parse_reaction("2H2 + O2 -> 2H2O")
 	assert(balanced.ok)
