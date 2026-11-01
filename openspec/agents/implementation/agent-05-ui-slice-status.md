@@ -8,12 +8,14 @@ PR: #3 (draft, not merged)
 
 - Godot 4.x project entry point and Russian-language experiment workspace.
 - Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
+- Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
+- Separate local draft repository restricted to `user://`, with temporary-file write, backup/restore replacement and round-trip/security tests.
 - Presentation-only placement and dragging of component markers. Normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
 - Versioned local UI-draft document (`chemsim_ui_draft`, schema version 1), with codec validation, round-trip tests, and rejection of unsupported schema versions / duplicate IDs.
 - Atomic-style replacement using a temporary file and backup/restore path.
-- Headless Godot import/startup CI and draft-codec test step.
+- Headless Godot import/startup CI, draft-codec tests and draft-repository round-trip/security tests.
 
 ## Explicitly not implemented
 
