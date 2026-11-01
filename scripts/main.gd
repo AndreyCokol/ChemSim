@@ -325,11 +325,11 @@ func _open_edit_dialog(component_id: int) -> void:
 		return
 
 func _select_option_by_text(option: OptionButton, value: String) -> void:
-	for index in range(option.item_count):
+	for index in range(option.get_item_count()):
 		if option.get_item_text(index) == value:
 			option.select(index)
 			return
-	option.select(option.item_count - 1)
+	option.select(option.get_item_count() - 1)
 
 func _confirm_add_component() -> void:
 	var display_name := name_input.text.strip_edges()
