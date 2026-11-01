@@ -17,6 +17,9 @@ const ELEMENTS := [
 	"Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
 ]
 const PHASES := {"(s)": "SOLID", "(l)": "LIQUID", "(g)": "GAS", "(aq)": "AQUEOUS"}
+const MAX_FORMULA_LENGTH := 4096
+const MAX_REACTION_LENGTH := 16384
+const MAX_GROUP_DEPTH := 64
 const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": "REVERSIBLE"}
 # Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
 const SIMPLE_ION_ALIASES := [
@@ -26,6 +29,8 @@ const SIMPLE_ION_ALIASES := [
 
 func parse_formula(source: String) -> Dictionary:
 	var original := source
+	if source.length() > MAX_FORMULA_LENGTH:
+		return _failure("PARSE_FORMULA_TOO_LONG", "Formula exceeds the configured length limit.", 0, source.length())
 	var text := source.strip_edges()
 	if text.is_empty():
 		return _failure("PARSE_EMPTY_FORMULA", "Formula is empty.", 0, original.length())
@@ -47,7 +52,7 @@ func parse_formula(source: String) -> Dictionary:
 	if text.is_empty():
 		return _failure("PARSE_EMPTY_FORMULA", "Formula body is empty.", 0, original.length())
 
-	var state := {"index": 0, "error": ""}
+	var state := {"index": 0, "error": "", "depth": 0}
 	var nodes := _parse_sequence(text, state, false)
 	if not String(state.error).is_empty():
 		return _failure(String(state.error), _message_for(String(state.error)), 0, original.length())
@@ -69,6 +74,8 @@ func parse_formula(source: String) -> Dictionary:
 	}
 
 func parse_reaction(source: String) -> Dictionary:
+	if source.length() > MAX_REACTION_LENGTH:
+		return _failure("PARSE_REACTION_TOO_LONG", "Reaction exceeds the configured length limit.", 0, source.length())
 	var arrow_match := _find_arrow(source)
 	if not arrow_match.ok:
 		return _failure(arrow_match.code, arrow_match.message, 0, source.length())
@@ -155,6 +162,8 @@ func check_balance(reaction: Dictionary) -> Dictionary:
 
 func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 	var text := raw_text.strip_edges()
+	if text.begins_with("-") or text.begins_with("+") or text.begins_with("."):
+		return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
 	var leading := raw_text.length() - raw_text.strip_edges().length()
 	var coefficient := 1
 	var digit_count := 0
@@ -230,8 +239,13 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			state.error = "PARSE_UNEXPECTED_TOKEN"
 			return nodes
 		if ch == "(":
+			state.depth = int(state.depth) + 1
+			if int(state.depth) > MAX_GROUP_DEPTH:
+				state.error = "PARSE_NESTING_LIMIT"
+				return nodes
 			state.index = int(state.index) + 1
 			var children := _parse_sequence(text, state, true)
+			state.depth = int(state.depth) - 1
 			if not String(state.error).is_empty():
 				return nodes
 			if int(state.index) == 0 or text.substr(int(state.index) - 1, 1) != ")":
@@ -342,5 +356,8 @@ func _message_for(code: String) -> String:
 		"PARSE_UNKNOWN_ELEMENT": return "Unknown chemical element symbol."
 		"PARSE_UNCLOSED_GROUP": return "A parenthesis group is not closed."
 		"PARSE_ZERO_COUNT": return "Subscripts and group multipliers must be positive integers."
+		"PARSE_EMPTY_GROUP": return "Empty parenthesis groups are not allowed."
+		"PARSE_NESTING_LIMIT": return "Formula nesting exceeds the configured limit."
+		"PARSE_FORMULA_TOO_LONG": return "Formula exceeds the configured length limit."
 		"PARSE_UNSUPPORTED_SYNTAX": return "This chemical notation is outside the MVP grammar."
 		_: return "Unexpected token in formula."
