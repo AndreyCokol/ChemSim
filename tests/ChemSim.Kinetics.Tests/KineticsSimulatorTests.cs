@@ -143,4 +143,81 @@ public sealed class KineticsSimulatorTests
 
         Assert.Equal(SimulationStatus.InvalidInput, result.Status);
     }
+    [Fact]
+    public void Integrator_DoesNotTruncateIntervalAtLargeAbsoluteTime()
+    {
+        const double startTime = 1_000_000_000_000d;
+        const double endTime = startTime + 0.01d;
+        var duration = endTime - startTime;
+
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(1d, 0d))
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = startTime,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 0.02d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-10,
+                AbsoluteToleranceMol = 1e-12,
+                InitialStepSeconds = 0.001d,
+                MinimumStepSeconds = 1e-8,
+                MaximumStepSeconds = 0.001d
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        Assert.Equal(endTime, result.Samples[^1].TimeSeconds);
+        Assert.InRange(Math.Abs(result.Samples[^1].AmountsMol["A"] - Math.Exp(-duration)), 0d, 2e-9);
+        Assert.True(result.Diagnostics.AcceptedSteps > 1);
+    }
+
+    [Fact]
+    public void Integrator_AllowsFinalIntervalShorterThanMinimumStep()
+    {
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(1d, 0d))
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 0.005d,
+            OutputIntervalSeconds = 0.01d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-8,
+                AbsoluteToleranceMol = 1e-11,
+                InitialStepSeconds = 0.01d,
+                MinimumStepSeconds = 0.01d,
+                MaximumStepSeconds = 0.01d
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        Assert.Equal(0.005d, result.Samples[^1].TimeSeconds);
+        Assert.InRange(Math.Abs(result.Samples[^1].AmountsMol["A"] - Math.Exp(-0.005d)), 0d, 2e-8);
+    }
+
 }
