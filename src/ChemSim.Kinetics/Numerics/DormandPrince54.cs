@@ -45,13 +45,17 @@ internal sealed class DormandPrince54
                 return new(StepStatus.MaximumStepsExceeded, y, t, accepted, rejected, evaluations);
 
             var remaining = endTime - t;
-            var isFinalStep = h >= remaining;
-            h = Math.Min(h, remaining);
+            var candidateStep = Math.Min(h, remaining);
+            var nextTime = candidateStep >= remaining ? endTime : t + candidateStep;
+            var stepSize = nextTime - t;
+            var isFinalStep = nextTime >= endTime;
 
-            // A final interval may legitimately be shorter than the configured
-            // minimum step. The minimum applies only when further subdivision
-            // would still be required.
-            if (h < _minStep && !isFinalStep)
+            // Derive the numerical step from the representable time increment.
+            // At large absolute times, t + h may round to a different increment
+            // than h itself; using stepSize keeps integrated duration aligned
+            // with the actual time coordinate and guarantees forward progress.
+            if (!double.IsFinite(stepSize) || stepSize <= 0d ||
+                (stepSize < _minStep && !isFinalStep))
             {
                 var status = lastRejectionWasNonPhysical
                     ? StepStatus.NonPhysicalState
@@ -59,7 +63,7 @@ internal sealed class DormandPrince54
                 return new(status, y, t, accepted, rejected, evaluations);
             }
 
-            var step = TryStep(rhs, t, y, h);
+            var step = TryStep(rhs, t, y, stepSize);
             evaluations += step.Evaluations;
 
             if (step.HasNonFiniteValues)
@@ -74,7 +78,7 @@ internal sealed class DormandPrince54
                 // Use the exact requested endpoint only when this trial step
                 // actually covered the remaining interval. Never snap time
                 // forward based on an absolute-time epsilon.
-                t = isFinalStep ? endTime : t + h;
+                t = nextTime;
                 y = step.FifthOrder;
                 accepted++;
                 lastRejectionWasNonPhysical = false;
@@ -91,7 +95,7 @@ internal sealed class DormandPrince54
                 var factor = !physical
                     ? 0.2d
                     : Math.Clamp(0.9d * Math.Pow(Math.Max(errorNorm, 1e-16d), -0.2d), 0.1d, 0.5d);
-                h *= factor;
+                h = stepSize * factor;
             }
         }
 
