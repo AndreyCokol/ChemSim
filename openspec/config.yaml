@@ -1,0 +1,39 @@
+schema: spec-driven
+
+context: |
+  Project: ChemSim — a 2D desktop chemistry reaction simulator.
+  Engine target: Godot 4.x. Primary distribution target: Windows x64 desktop build.
+  Product intent: let users define chemical substances and reactions, configure
+  starting conditions, simulate concentration changes over time, and inspect results.
+  Write all product specifications, proposals, and design documents in Russian.
+  This repository starts from an empty codebase. Treat every product detail not
+  explicitly approved by the user as an assumption, not a confirmed requirement.
+  Do not start application implementation until blocking product questions are answered
+  and the user approves the MVP scope.
+
+rules:
+  proposal:
+    - Separate confirmed facts, assumptions, decisions, and open questions.
+    - Do not silently convert an assumption into a requirement.
+  specs:
+    - Specify observable user-facing behavior, not classes, functions, or engine internals.
+    - Use SHALL for normative requirements and include at least one WHEN/THEN scenario per requirement.
+    - State units, ranges, precision, and error behavior whenever they are known; mark unknowns explicitly.
+  design:
+    - Explain alternatives and trade-offs for the numerical chemistry model and simulation lifecycle.
+    - Do not claim scientific accuracy without a defined domain and validation basis.
+  tasks:
+    - Keep tasks traceable to requirements and acceptance scenarios.
+    - Separate specification/review work from implementation work.
+    - Do not schedule implementation tasks while blocking product decisions remain unresolved.
+
+operations:
+  apply:
+    guidance:
+      - Read the approved OpenSpec artifacts before changing code.
+      - Do not implement behavior that contradicts the current specs.
+      - Run the available automated checks and report checks that cannot be run.
+  archive:
+    guidance:
+      - Sync implemented spec deltas before archiving.
+      - Summarize deviations from the approved design and any remaining limitations.
