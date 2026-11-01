@@ -548,6 +548,7 @@ func _request_load_draft(path: String) -> void:
 		discard_dialog.popup_centered()
 		return
 	_load_draft_from_path(path)
+	pending_open_path = ""
 
 func _confirm_discard_pending_action() -> void:
 	if pending_open_path.is_empty():
