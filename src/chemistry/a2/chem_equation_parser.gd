@@ -20,6 +20,8 @@ const PHASES := {"(s)": "SOLID", "(l)": "LIQUID", "(g)": "GAS", "(aq)": "AQUEOUS
 const MAX_FORMULA_LENGTH := 4096
 const MAX_REACTION_LENGTH := 16384
 const MAX_GROUP_DEPTH := 64
+const MAX_INTEGER_TOKEN := 1000000
+const MAX_COMPOSITION_COUNT := 1000000000
 const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": "REVERSIBLE"}
 # Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
 const SIMPLE_ION_ALIASES := [
@@ -59,7 +61,10 @@ func parse_formula(source: String) -> Dictionary:
 	if int(state.index) != text.length():
 		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", int(state.index), original.length())
 
-	var composition := _expand_nodes(nodes)
+	var expansion_state := {"overflow": false}
+	var composition := _expand_nodes(nodes, expansion_state)
+	if bool(expansion_state.overflow):
+		return _failure("PARSE_COUNT_OVERFLOW", "Expanded element count exceeds the configured safe limit.", 0, original.length())
 	return {
 		"ok": true,
 		"formula_ast": {
@@ -121,6 +126,13 @@ func parse_reaction(source: String) -> Dictionary:
 	}
 
 func check_balance(reaction: Dictionary) -> Dictionary:
+	if typeof(reaction.get("reactants")) != TYPE_ARRAY or typeof(reaction.get("products")) != TYPE_ARRAY:
+		return {"ok": false, "balanced": false, "code": "BALANCE_INVALID_REACTION"}
+	if reaction.reactants.is_empty() or reaction.products.is_empty():
+		return {"ok": false, "balanced": false, "code": "BALANCE_EMPTY_SIDE"}
+	for term in reaction.reactants + reaction.products:
+		if not _is_valid_reaction_term(term):
+			return {"ok": false, "balanced": false, "code": "BALANCE_INVALID_TERM"}
 	var left: Dictionary = {}
 	var right: Dictionary = {}
 	var left_charge := 0
@@ -220,7 +232,12 @@ func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 		digit_count += 1
 	if digit_count > 0:
 		var coefficient_text := text.substr(0, digit_count)
-		coefficient = int(coefficient_text)
+		var parsed_coefficient := _parse_bounded_integer(coefficient_text, MAX_INTEGER_TOKEN)
+		if parsed_coefficient < 0:
+			return _failure("PARSE_COEFFICIENT_TOO_LARGE", "Stoichiometric coefficient exceeds the configured safe limit.", global_start, global_start + raw_text.length())
+		coefficient = parsed_coefficient
+		if digit_count < text.length() and text.substr(digit_count, 1) == ".":
+			return _failure("PARSE_INVALID_COEFFICIENT", "Fractional stoichiometric coefficients are not supported.", global_start, global_start + raw_text.length())
 		if coefficient <= 0:
 			return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
 		text = text.substr(digit_count).strip_edges()
@@ -338,22 +355,62 @@ func _read_count(text: String, state: Dictionary) -> int:
 		state.index = int(state.index) + 1
 	if int(state.index) == start:
 		return 1
-	var value := int(text.substr(start, int(state.index) - start))
-	if value <= 0:
+	var value := _parse_bounded_integer(text.substr(start, int(state.index) - start), MAX_INTEGER_TOKEN)
+	if value < 0:
+		state.error = "PARSE_COUNT_TOO_LARGE"
+		return -1
+	if value == 0:
 		state.error = "PARSE_ZERO_COUNT"
 		return -1
 	return value
 
-func _expand_nodes(nodes: Array) -> Dictionary:
+func _parse_bounded_integer(digits: String, limit: int) -> int:
+	var value := 0
+	for i in range(digits.length()):
+		var digit := int(digits.substr(i, 1))
+		if value > int((limit - digit) / 10):
+			return -1
+		value = value * 10 + digit
+	return value
+
+func _expand_nodes(nodes: Array, state: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for node in nodes:
 		if node.type == "element":
-			result[node.symbol] = int(result.get(node.symbol, 0)) + int(node.count)
+			var symbol := String(node.symbol)
+			var addition := int(node.count)
+			var total := int(result.get(symbol, 0)) + addition
+			if total > MAX_COMPOSITION_COUNT:
+				state.overflow = true
+				return {}
+			result[symbol] = total
 		else:
-			var nested: Dictionary = _expand_nodes(node.children)
+			var nested: Dictionary = _expand_nodes(node.children, state)
+			if bool(state.overflow):
+				return {}
 			for element in nested:
-				result[element] = int(result.get(element, 0)) + int(nested[element]) * int(node.multiplier)
+				var multiplied := int(nested[element]) * int(node.multiplier)
+				if multiplied > MAX_COMPOSITION_COUNT or int(result.get(element, 0)) > MAX_COMPOSITION_COUNT - multiplied:
+					state.overflow = true
+					return {}
+				result[element] = int(result.get(element, 0)) + multiplied
 	return result
+
+func _is_valid_reaction_term(term: Variant) -> bool:
+	if typeof(term) != TYPE_DICTIONARY:
+		return false
+	var species: Variant = term.get("species")
+	if typeof(species) != TYPE_DICTIONARY:
+		return false
+	var ast: Variant = species.get("formula_ast")
+	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
+		return false
+	if typeof(ast.get("net_charge")) != TYPE_INT:
+		return false
+	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
+	if typeof(coefficient) != TYPE_INT or int(coefficient) <= 0 or int(coefficient) > MAX_INTEGER_TOKEN:
+		return false
+	return true
 
 func _find_arrow(source: String) -> Dictionary:
 	var found := ""
@@ -406,6 +463,8 @@ func _message_for(code: String) -> String:
 		"PARSE_ZERO_COUNT": return "Subscripts and group multipliers must be positive integers."
 		"PARSE_EMPTY_GROUP": return "Empty parenthesis groups are not allowed."
 		"PARSE_NESTING_LIMIT": return "Formula nesting exceeds the configured limit."
+		"PARSE_COUNT_TOO_LARGE": return "Subscript or group multiplier exceeds the configured safe limit."
+		"PARSE_COUNT_OVERFLOW": return "Expanded element count exceeds the configured safe limit."
 		"PARSE_FORMULA_TOO_LONG": return "Formula exceeds the configured length limit."
 		"PARSE_UNSUPPORTED_SYNTAX": return "This chemical notation is outside the MVP grammar."
 		_: return "Unexpected token in formula."
