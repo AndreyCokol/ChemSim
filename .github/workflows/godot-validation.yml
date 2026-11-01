@@ -10,7 +10,6 @@ on:
   push:
     branches:
       - main
-      - feat/godot-workspace-scaffold
 
 jobs:
   headless-validation:
