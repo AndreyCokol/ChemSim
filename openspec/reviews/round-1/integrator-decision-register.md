@@ -56,6 +56,12 @@
 | INT-31 | P1 | Species по обе стороны | Определить политику одинакового SpeciesRef на reactant и product side (допуск промежуточных/каталитических случаев либо validation error). | A2 + A4 | Reaction validation and kinetics |
 | INT-32 | P1 | Неуказанная фаза | Разрешить parse/catalog записи без phase, но требовать phase для моделей, где она обязательна; parser phase не угадывает. | A1 + A2 + A3 | Catalog, equilibrium and reaction validation |
 | INT-33 | P1 | BalanceResult mutability | Утвердить immutable input Reaction + отдельный BalanceResult; применение коэффициентов создаёт новую Reaction revision. | Интегратор + A2/A5 | Editing, persistence, kinetic references |
+| INT-34 | P1 | pH result typing | Развести thermodynamic activity-based pH, ideal concentration approximation и unavailable; передавать basis/model/version и исходную H+ activity/concentration. | A3 + A5 + владелец | Scientifically correct pH display |
+| INT-35 | P1 | Aqueous ionic-strength domain | Для каждой activity model хранить собственный validity domain; ограничение I < 0.10 mol kg−1 из A3 review относится к конкретной IUPAC форме, не универсально. | A3 + A1 | Activity model applicability gate |
+| INT-36 | P1 | Precipitation complementarity | Утвердить совместные mass/charge balances, nonnegative solid amount и saturation/phase appearance conditions; Qsp/Ksp alone недостаточно. | A3 + интегратор | Ksp solver formulation |
+| INT-37 | P1 | Equilibrium residual definition | Утвердить residual ln(Q/K) для положительных значений и обработку граничных нулевых активностей без произвольного epsilon. | A3 + A4 | Numerical validation/tolerances |
+| INT-38 | P1 | Gas pressure standard state | Зафиксировать standard pressure и dimensionless partial-pressure quotient для Kp fixtures; не смешивать Kp с activity K. | A3 + A1 | Gas equilibrium fixtures |
+| INT-39 | P1 | Equilibrium solve domain status | Ввести различимый out_of_domain/blocked status для неподходящей T/P/Ionic strength/model range; запрещена молчаливая экстраполяция. | A3 + A5 | Result validity and UX |
 
 ## 3. Набор DTO для последующего согласования
 
