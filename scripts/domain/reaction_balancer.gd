@@ -152,8 +152,10 @@ func _verify_integer_balance(coefficients: Array[int], matrix: Array[Array]) -> 
 	for row in matrix:
 		var total := 0
 		for column in range(coefficients.size()):
-			var term := int(row[column].n) * coefficients[column]
 			if not _within_safe(int(row[column].n), coefficients[column]):
+				return false
+			var term := int(row[column].n) * coefficients[column]
+			if abs(total) > MAX_SAFE_INTEGER - abs(term):
 				return false
 			total += term
 		if total != 0:
