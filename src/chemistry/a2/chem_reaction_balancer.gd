@@ -6,6 +6,8 @@ class_name ChemReactionBalancer
 ## A search limit is never reported as proof that no solution exists.
 const DEFAULT_MAX_SUM := 64
 const DEFAULT_MAX_CANDIDATES := 500000
+const MAX_ELEMENT_COUNT := 1000000000
+const MAX_ABS_CHARGE := 1000000
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
 	var reactants: Array = reaction.get("reactants", [])
@@ -104,10 +106,16 @@ func _is_valid_term(term: Variant) -> bool:
 	var ast: Variant = species.get("formula_ast")
 	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
 		return false
-	if typeof(ast.get("net_charge")) != TYPE_INT or ast.element_counts.is_empty():
+	if typeof(ast.get("net_charge")) != TYPE_INT or abs(int(ast.net_charge)) > MAX_ABS_CHARGE or ast.element_counts.is_empty():
+		return false
+	if typeof(ast.get("source_text")) != TYPE_STRING or String(ast.source_text).is_empty():
+		return false
+	if typeof(species.get("phase", "UNSPECIFIED")) != TYPE_STRING:
 		return false
 	for element in ast.element_counts:
-		if typeof(element) != TYPE_STRING or typeof(ast.element_counts[element]) != TYPE_INT or int(ast.element_counts[element]) <= 0:
+		if typeof(element) != TYPE_STRING or typeof(ast.element_counts[element]) != TYPE_INT:
+			return false
+		if int(ast.element_counts[element]) <= 0 or int(ast.element_counts[element]) > MAX_ELEMENT_COUNT:
 			return false
 	return true
 
