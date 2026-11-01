@@ -87,15 +87,15 @@ func _on_reaction_pressed() -> void:
 		_output.append_text("[b]Уравнение распознано, но балансировка не выполнена[/b]\n")
 		_output.append_text("%s: %s" % [balanced.error_code, balanced.error_message])
 		return
-	var terms: Array[Dictionary] = []
-	terms.append_array(parsed.reactants)
-	terms.append_array(parsed.products)
-	var rendered: Array[String] = []
-	for index in range(terms.size()):
-		var coefficient := "" if balanced.coefficients[index] == 1 else str(balanced.coefficients[index]) + " "
-		rendered.append(coefficient + str(terms[index].formula))
-	var left := " + ".join(rendered.slice(0, parsed.reactants.size()))
-	var right := " + ".join(rendered.slice(parsed.reactants.size()))
+	var left := _format_side(parsed.reactants, balanced.coefficients, 0)
+	var right := _format_side(parsed.products, balanced.coefficients, parsed.reactants.size())
 	_output.append_text("[color=green][b]Балансировка выполнена[/b][/color]\n")
 	_output.append_text(left + " " + parsed.arrow + " " + right + "\n")
 	_output.append_text("Коэффициенты: %s" % str(balanced.coefficients))
+
+func _format_side(terms: Array[Dictionary], coefficients: Array[int], offset: int) -> String:
+	var parts := PackedStringArray()
+	for index in range(terms.size()):
+		var coefficient := "" if coefficients[offset + index] == 1 else str(coefficients[offset + index]) + " "
+		parts.append(coefficient + str(terms[index].formula))
+	return " + ".join(parts)
