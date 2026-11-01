@@ -32,7 +32,8 @@ var formula_input: LineEdit
 var amount_input: LineEdit
 var amount_unit: OptionButton
 var phase_input: OptionButton
-var edit_dialog: AcceptDialog
+var open_dialog: FileDialog
+var save_dialog: FileDialog
 
 func _ready() -> void:
 	_build_ui()
@@ -72,8 +73,11 @@ func _header() -> Control:
 	var new_button := _button("＋ Новый эксперимент", true)
 	new_button.pressed.connect(_new_experiment)
 	row.add_child(new_button)
+	var open_button := _button("Открыть черновик", false)
+	open_button.pressed.connect(_open_draft_picker)
+	row.add_child(open_button)
 	var save_button := _button("Сохранить черновик", false)
-	save_button.pressed.connect(_show_save_notice)
+	save_button.pressed.connect(_save_draft_picker)
 	row.add_child(save_button)
 	var settings := _button("Настройки", false)
 	settings.disabled = true
@@ -292,6 +296,7 @@ func _create_add_dialog() -> void:
 	phase_input.add_item("Твёрдое")
 	form.add_child(phase_input)
 	add_dialog.confirmed.connect(_confirm_add_component)
+	_create_file_dialogs()
 
 func _open_add_dialog() -> void:
 	name_input.text = ""
@@ -443,9 +448,134 @@ func _new_experiment() -> void:
 	diagnostic_label.text = "Создан пустой черновик. Расчёт не запускался."
 	status_label.text = "Создан новый эксперимент"
 
-func _show_save_notice() -> void:
-	status_label.text = "Сохранение отключено до утверждения формата файла эксперимента"
-	diagnostic_label.text = "Сейчас данные существуют только в памяти текущего окна. Файловое сохранение будет добавлено после согласования схемы и миграций."
+func _create_file_dialogs() -> void:
+	open_dialog = FileDialog.new()
+	open_dialog.title = "Открыть черновик ChemSim"
+	open_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	open_dialog.access = FileDialog.ACCESS_USERDATA
+	open_dialog.current_dir = "user://experiments"
+	open_dialog.add_filter("*.chemsim.json", "Черновик ChemSim (JSON)")
+	open_dialog.file_selected.connect(_load_draft_from_path)
+	add_child(open_dialog)
+
+	save_dialog = FileDialog.new()
+	save_dialog.title = "Сохранить черновик ChemSim"
+	save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	save_dialog.access = FileDialog.ACCESS_USERDATA
+	save_dialog.current_dir = "user://experiments"
+	save_dialog.current_file = "experiment-draft.chemsim.json"
+	save_dialog.add_filter("*.chemsim.json", "Черновик ChemSim (JSON)")
+	save_dialog.file_selected.connect(_save_draft_to_path)
+	add_child(save_dialog)
+
+func _open_draft_picker() -> void:
+	open_dialog.popup_centered_ratio(0.7)
+
+func _save_draft_picker() -> void:
+	save_dialog.popup_centered_ratio(0.7)
+
+func _save_draft_to_path(path: String) -> void:
+	var serialized_components: Array[Dictionary] = []
+	for item in components:
+		var position: Vector2 = item.position
+		serialized_components.append({
+			"id": int(item.id),
+			"name": str(item.name),
+			"formula": str(item.formula),
+			"amount": str(item.amount),
+			"unit": str(item.unit),
+			"phase": str(item.phase),
+			"position": [position.x, position.y]
+		})
+	var payload := {
+		"document_type": "chemsim_ui_draft",
+		"schema_version": 1,
+		"experiment_name": experiment_name,
+		"chemistry_status": "unvalidated_draft",
+		"reaction_text": reaction_input.text,
+		"conditions": {
+			"temperature_k": temperature_input.text,
+			"pressure_raw": pressure_input.text,
+			"volume_raw": volume_input.text
+		},
+		"components": serialized_components
+	}
+	var absolute_dir := ProjectSettings.globalize_path("user://experiments")
+	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
+	if dir_error != OK:
+		_show_io_error("Не удалось создать папку для черновиков: " + str(dir_error))
+		return
+	var temporary_path := path + ".tmp"
+	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
+	if file == null:
+		_show_io_error("Не удалось открыть файл для записи: " + str(FileAccess.get_open_error()))
+		return
+	file.store_string(JSON.stringify(payload, "\t"))
+	file.flush()
+	file.close()
+	var rename_error := DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary_path), ProjectSettings.globalize_path(path))
+	if rename_error != OK:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
+		_show_io_error("Не удалось завершить сохранение: " + str(rename_error))
+		return
+	draft_dirty = false
+	status_label.text = "Черновик сохранён · схема UI v1"
+	diagnostic_label.text = "Сохранён только пользовательский черновик. Химическая валидность, расчётные данные и история симуляции не включены."
+
+func _load_draft_from_path(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		_show_io_error("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if not parsed is Dictionary:
+		_show_io_error("Файл не является корректным JSON-объектом.")
+		return
+	if str(parsed.get("document_type", "")) != "chemsim_ui_draft" or int(parsed.get("schema_version", -1)) != 1:
+		_show_io_error("Неподдерживаемый формат. Исходный файл не изменён.")
+		return
+	if not parsed.get("components", []) is Array:
+		_show_io_error("В файле отсутствует корректный список компонентов.")
+		return
+	components.clear()
+	visual_field.clear_markers()
+	var max_id := 0
+	for raw_item in parsed.components:
+		if not raw_item is Dictionary:
+			continue
+		var raw_position: Array = raw_item.get("position", [-1.0, -1.0])
+		var position := Vector2(-1, -1)
+		if raw_position.size() >= 2:
+			position = Vector2(float(raw_position[0]), float(raw_position[1]))
+		var item := {
+			"id": int(raw_item.get("id", max_id + 1)),
+			"name": str(raw_item.get("name", "")),
+			"formula": str(raw_item.get("formula", "")),
+			"amount": str(raw_item.get("amount", "")),
+			"unit": str(raw_item.get("unit", "не задано")),
+			"phase": str(raw_item.get("phase", "Фаза не указана")),
+			"position": position
+		}
+		max_id = maxi(max_id, int(item.id))
+		components.append(item)
+		if position.x >= 0.0 and position.y >= 0.0:
+			visual_field.set_marker(int(item.id), str(item.name), position)
+	next_component_id = max_id + 1
+	selected_component_id = -1
+	experiment_name = str(parsed.get("experiment_name", "Черновик"))
+	reaction_input.text = str(parsed.get("reaction_text", ""))
+	var conditions: Dictionary = parsed.get("conditions", {})
+	pressure_input.text = str(conditions.get("pressure_raw", ""))
+	volume_input.text = str(conditions.get("volume_raw", ""))
+	_refresh_composition()
+	draft_dirty = false
+	status_label.text = "Черновик загружен · химическая проверка не выполнена"
+	diagnostic_label.text = "Загружен пользовательский черновик схемы v1. Перед расчётом требуется отдельная химическая проверка."
+
+func _show_io_error(message: String) -> void:
+	status_label.text = "Ошибка работы с файлом"
+	diagnostic_label.text = message
 
 func _panel(color: Color, border_width: int) -> PanelContainer:
 	var panel := PanelContainer.new()
