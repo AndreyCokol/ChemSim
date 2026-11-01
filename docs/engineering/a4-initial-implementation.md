@@ -31,6 +31,7 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 
 - A final requested integration interval shorter than the configured minimum step is allowed when it is integrated as one final step; the minimum-step limit applies to further subdivision.
 - The integrator does not infer completion from an epsilon scaled by absolute simulation time. It reaches the requested endpoint only after integrating the remaining interval.
+- Each trial uses the representable increment between the current and next time coordinate, avoiding duration drift when the absolute time is large relative to the step size.
 - RHS evaluation diagnostics count the stages actually evaluated before a rejected non-physical trial.
 
 ## Explicitly not implemented
