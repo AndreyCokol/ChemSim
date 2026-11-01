@@ -30,44 +30,45 @@ internal sealed class DormandPrince54
         CancellationToken cancellationToken)
     {
         var y = (double[])initialState.Clone();
-        var t = startTime;
-        var h = Math.Min(Math.Min(initialStep, _maxStep), endTime - startTime);
+        var duration = endTime - startTime;
+        var elapsed = 0d;
+        var rhsAtAbsoluteTime = (double time, double[] state) => rhs(startTime + time, state);
+        var h = Math.Min(Math.Min(initialStep, _maxStep), duration);
         var accepted = 0;
         var rejected = 0;
         var evaluations = 0;
         var attempts = 0;
         var lastRejectionWasNonPhysical = false;
 
-        while (t < endTime)
+        while (elapsed < duration)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++attempts > _maxSteps)
-                return new(StepStatus.MaximumStepsExceeded, y, t, accepted, rejected, evaluations);
+                return new(StepStatus.MaximumStepsExceeded, y, startTime + elapsed, accepted, rejected, evaluations);
 
-            var remaining = endTime - t;
+            var remaining = duration - elapsed;
             var candidateStep = Math.Min(h, remaining);
-            var nextTime = candidateStep >= remaining ? endTime : t + candidateStep;
-            var stepSize = nextTime - t;
-            var isFinalStep = nextTime >= endTime;
+            var nextElapsed = candidateStep >= remaining ? duration : elapsed + candidateStep;
+            var stepSize = nextElapsed - elapsed;
+            var isFinalStep = nextElapsed >= duration;
 
-            // Derive the numerical step from the representable time increment.
-            // At large absolute times, t + h may round to a different increment
-            // than h itself; using stepSize keeps integrated duration aligned
-            // with the actual time coordinate and guarantees forward progress.
+            // Integrate in elapsed time, not absolute clock time. This prevents
+            // loss of step resolution when startTime is large relative to h.
+            // The RHS still receives the corresponding absolute simulation time.
             if (!double.IsFinite(stepSize) || stepSize <= 0d ||
                 (stepSize < _minStep && !isFinalStep))
             {
                 var status = lastRejectionWasNonPhysical
                     ? StepStatus.NonPhysicalState
                     : StepStatus.StepSizeUnderflow;
-                return new(status, y, t, accepted, rejected, evaluations);
+                return new(status, y, startTime + elapsed, accepted, rejected, evaluations);
             }
 
-            var step = TryStep(rhs, t, y, stepSize);
+            var step = TryStep(rhsAtAbsoluteTime, elapsed, y, stepSize);
             evaluations += step.Evaluations;
 
             if (step.HasNonFiniteValues)
-                return new(StepStatus.NumericalFailure, y, t, accepted, rejected, evaluations);
+                return new(StepStatus.NumericalFailure, y, startTime + elapsed, accepted, rejected, evaluations);
 
             var errorNorm = ErrorNorm(step.Error, y, step.FifthOrder);
             var physical = !step.HasNonPhysicalStage &&
@@ -75,10 +76,7 @@ internal sealed class DormandPrince54
 
             if (errorNorm <= 1d && physical)
             {
-                // Use the exact requested endpoint only when this trial step
-                // actually covered the remaining interval. Never snap time
-                // forward based on an absolute-time epsilon.
-                t = nextTime;
+                elapsed = nextElapsed;
                 y = step.FifthOrder;
                 accepted++;
                 lastRejectionWasNonPhysical = false;
