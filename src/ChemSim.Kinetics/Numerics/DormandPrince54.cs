@@ -162,7 +162,13 @@ internal sealed class DormandPrince54
         if (state.Any(value => value < 0d))
             throw new NonPhysicalStageException();
 
-        return rhs(time, state);
+        var derivative = rhs(time, state);
+        if (derivative is null || derivative.Length != state.Length)
+            throw new ArithmeticException("The right-hand side returned a derivative vector with an invalid dimension.");
+        if (derivative.Any(value => !double.IsFinite(value)))
+            throw new ArithmeticException("The right-hand side returned a non-finite derivative.");
+
+        return derivative;
     }
 
     private static double[] Combine(double[] y, double h, params (double Coefficient, double[] K)[] terms)
