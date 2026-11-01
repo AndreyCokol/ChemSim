@@ -440,12 +440,12 @@ func _new_experiment() -> void:
 	selected_component_id = -1
 	next_component_id = 1
 	experiment_name = "Новый эксперимент"
-	draft_dirty = false
 	reaction_input.text = ""
 	pressure_input.text = ""
 	volume_input.text = ""
 	visual_field.clear_markers()
 	_refresh_composition()
+	draft_dirty = false
 	diagnostic_label.text = "Создан пустой черновик. Расчёт не запускался."
 	status_label.text = "Создан новый эксперимент"
 
