@@ -152,6 +152,8 @@ func _test_balance_proposal() -> void:
 
 	var malformed: Dictionary = balancer.propose_balance({"reactants": [{}], "products": [{}]})
 	assert(malformed.status == "INVALID_INPUT")
+	var malformed_sides: Dictionary = balancer.propose_balance({"reactants": "not-an-array", "products": []})
+	assert(malformed_sides.status == "INVALID_INPUT")
 
 	var ionic: Dictionary = parser.parse_reaction("Ag+ + Cl- -> AgCl(s)")
 	assert(ionic.ok)
