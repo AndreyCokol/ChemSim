@@ -449,6 +449,7 @@ func _new_experiment() -> void:
 	status_label.text = "Создан новый эксперимент"
 
 func _create_file_dialogs() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://experiments"))
 	open_dialog = FileDialog.new()
 	open_dialog.title = "Открыть черновик ChemSim"
 	open_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
@@ -513,11 +514,27 @@ func _save_draft_to_path(path: String) -> void:
 	file.store_string(JSON.stringify(payload, "\t"))
 	file.flush()
 	file.close()
-	var rename_error := DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary_path), ProjectSettings.globalize_path(path))
+	var target_absolute := ProjectSettings.globalize_path(path)
+	var temporary_absolute := ProjectSettings.globalize_path(temporary_path)
+	var backup_absolute := ProjectSettings.globalize_path(path + ".bak")
+	var had_previous_file := FileAccess.file_exists(path)
+	if had_previous_file:
+		if FileAccess.file_exists(path + ".bak"):
+			DirAccess.remove_absolute(backup_absolute)
+		var backup_error := DirAccess.rename_absolute(target_absolute, backup_absolute)
+		if backup_error != OK:
+			DirAccess.remove_absolute(temporary_absolute)
+			_show_io_error("Не удалось подготовить замену файла: " + str(backup_error))
+			return
+	var rename_error := DirAccess.rename_absolute(temporary_absolute, target_absolute)
 	if rename_error != OK:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(temporary_path))
+		DirAccess.remove_absolute(temporary_absolute)
+		if had_previous_file:
+			DirAccess.rename_absolute(backup_absolute, target_absolute)
 		_show_io_error("Не удалось завершить сохранение: " + str(rename_error))
 		return
+	if had_previous_file:
+		DirAccess.remove_absolute(backup_absolute)
 	draft_dirty = false
 	status_label.text = "Черновик сохранён · схема UI v1"
 	diagnostic_label.text = "Сохранён только пользовательский черновик. Химическая валидность, расчётные данные и история симуляции не включены."
@@ -535,16 +552,22 @@ func _load_draft_from_path(path: String) -> void:
 	if str(parsed.get("document_type", "")) != "chemsim_ui_draft" or int(parsed.get("schema_version", -1)) != 1:
 		_show_io_error("Неподдерживаемый формат. Исходный файл не изменён.")
 		return
-	if not parsed.get("components", []) is Array:
+	var raw_components: Variant = parsed.get("components", [])
+	if not raw_components is Array:
 		_show_io_error("В файле отсутствует корректный список компонентов.")
+		return
+	var raw_conditions: Variant = parsed.get("conditions", {})
+	if not raw_conditions is Dictionary:
+		_show_io_error("Блок условий имеет неверный формат.")
 		return
 	components.clear()
 	visual_field.clear_markers()
 	var max_id := 0
-	for raw_item in parsed.components:
+	for raw_item in raw_components:
 		if not raw_item is Dictionary:
 			continue
-		var raw_position: Array = raw_item.get("position", [-1.0, -1.0])
+		var raw_position_value: Variant = raw_item.get("position", [-1.0, -1.0])
+		var raw_position: Array = raw_position_value if raw_position_value is Array else [-1.0, -1.0]
 		var position := Vector2(-1, -1)
 		if raw_position.size() >= 2:
 			position = Vector2(float(raw_position[0]), float(raw_position[1]))
@@ -565,9 +588,8 @@ func _load_draft_from_path(path: String) -> void:
 	selected_component_id = -1
 	experiment_name = str(parsed.get("experiment_name", "Черновик"))
 	reaction_input.text = str(parsed.get("reaction_text", ""))
-	var conditions: Dictionary = parsed.get("conditions", {})
-	pressure_input.text = str(conditions.get("pressure_raw", ""))
-	volume_input.text = str(conditions.get("volume_raw", ""))
+	pressure_input.text = str(raw_conditions.get("pressure_raw", ""))
+	volume_input.text = str(raw_conditions.get("volume_raw", ""))
 	_refresh_composition()
 	draft_dirty = false
 	status_label.text = "Черновик загружен · химическая проверка не выполнена"
