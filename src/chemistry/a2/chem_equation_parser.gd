@@ -20,6 +20,9 @@ const PHASES := {"(s)": "SOLID", "(l)": "LIQUID", "(g)": "GAS", "(aq)": "AQUEOUS
 const MAX_FORMULA_LENGTH := 4096
 const MAX_REACTION_LENGTH := 16384
 const MAX_GROUP_DEPTH := 64
+const MAX_FORMULA_LENGTH := 4096
+const MAX_REACTION_LENGTH := 16384
+const MAX_GROUP_DEPTH := 64
 const ARROWS := {"->": "FORWARD", "→": "FORWARD", "⇌": "REVERSIBLE", "<->": "REVERSIBLE"}
 # Explicit aliases preserve common MVP spellings while rejecting ambiguous Fe3+ / Co3+.
 const SIMPLE_ION_ALIASES := [
@@ -356,6 +359,9 @@ func _message_for(code: String) -> String:
 		"PARSE_UNKNOWN_ELEMENT": return "Unknown chemical element symbol."
 		"PARSE_UNCLOSED_GROUP": return "A parenthesis group is not closed."
 		"PARSE_ZERO_COUNT": return "Subscripts and group multipliers must be positive integers."
+		"PARSE_EMPTY_GROUP": return "Empty parenthesis groups are not allowed."
+		"PARSE_NESTING_LIMIT": return "Formula nesting exceeds the configured limit."
+		"PARSE_FORMULA_TOO_LONG": return "Formula exceeds the configured length limit."
 		"PARSE_EMPTY_GROUP": return "Empty parenthesis groups are not allowed."
 		"PARSE_NESTING_LIMIT": return "Formula nesting exceeds the configured limit."
 		"PARSE_FORMULA_TOO_LONG": return "Formula exceeds the configured length limit."
