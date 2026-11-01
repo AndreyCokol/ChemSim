@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChemSim.Kinetics", "src\ChemSim.Kinetics\ChemSim.Kinetics.csproj", "{B8F3C1C7-0E18-4A4B-93E6-1C6DAFE2F8A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChemSim.Kinetics.Tests", "tests\ChemSim.Kinetics.Tests\ChemSim.Kinetics.Tests.csproj", "{F35F29E6-EC2B-4F8B-AF3D-1F82D0E88D12}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B8F3C1C7-0E18-4A4B-93E6-1C6DAFE2F8A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8F3C1C7-0E18-4A4B-93E6-1C6DAFE2F8A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8F3C1C7-0E18-4A4B-93E6-1C6DAFE2F8A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8F3C1C7-0E18-4A4B-93E6-1C6DAFE2F8A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F35F29E6-EC2B-4F8B-AF3D-1F82D0E88D12}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F35F29E6-EC2B-4F8B-AF3D-1F82D0E88D12}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F35F29E6-EC2B-4F8B-AF3D-1F82D0E88D12}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F35F29E6-EC2B-4F8B-AF3D-1F82D0E88D12}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

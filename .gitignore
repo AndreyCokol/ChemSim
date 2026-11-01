@@ -1,0 +1,18 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+coverage/
+
+# Godot
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# IDE
+.idea/
+.vscode/
