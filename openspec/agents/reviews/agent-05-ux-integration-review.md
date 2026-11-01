@@ -665,3 +665,104 @@ This review does not authorize:
 - modifications to A1–A4 owned DTOs/specifications.
 
 **Approval gate:** no implementation begins until the owner explicitly approves the OpenSpec baseline and the required scientific/technical validation tasks are completed.
+
+
+---
+
+## 21. Round-1 integration review (2026-11-02)
+
+> Status: A5 assessment of the integrated round-1 artifacts on `openspec/review-round-1`. This section is a compatibility review, not approval of the register or a frozen DTO contract.
+
+### 21.1 New evidence reviewed
+
+The repository now contains the five role reviews, an integrated findings report, a benchmark matrix, an integrator decision register, and owner scope clarifications. The branch is represented by Draft PR #1. The A5-specific round-1 report is `openspec/reviews/round-1/agent-a5-ux-integration.md`.
+
+The integrated work resolves several earlier questions at the product level:
+
+- MVP is explicitly isothermal; the temperature graph is constant and labelled.
+- Visual field positions/colors are presentation-only.
+- Graphs/details are separate views; the calculation panel is separate from the field.
+- Instant ideal mixing is in scope; finite mixing is unavailable pending validation.
+- Flows are constant or piecewise-constant schedules.
+- Offline Windows delivery and local encyclopedia remain product constraints.
+- Five aqueous and two gas benchmark scenarios are selected, but are not yet numerical fixtures.
+
+This removes the earlier ambiguity about whether the isothermal decision was merely an A4-local instruction: it is now stated in the updated owner decision text and the integrated OpenSpec artifacts on the review branch. The older Arrhenius wording remains relevant only to kinetic parameterization at a fixed experiment temperature where applicable; it must not be interpreted as a time-varying temperature model in MVP. The exact relationship between fixed-T Arrhenius evaluation and the A4 kinetic contract remains for A4/integrator to define.
+
+### 21.2 A5 alignment with integrator decision register
+
+| Register item | A5 position / presentation requirement | Status |
+|---|---|---|
+| INT-14 Missing/null/unknown | UI must preserve distinct domain states (zero, absent, unknown, not reported, not applicable, withheld); never coerce missing to zero or silently omit a meaningful state. A5 can render the agreed envelope but does not define its canonical enum. | Needs integrator schema |
+| INT-15 Error envelope | Map stable code, severity, message key, context, missing field/source references, and recoverability into actionable Russian diagnostics and field navigation. Do not invent a competing error DTO. | P0 integration dependency |
+| INT-16 Schema versions | Present document schema compatibility separately from record revision, dataset version, and model version. Unknown future schema must be read-only/blocked from overwrite; migration must be validated and atomic. | P0 integration dependency |
+| INT-17 Event ordering | Timeline/history must display same-time events in the canonical deterministic order supplied by A4/Application. UI must not sort independently by label or visual position. | P0 A4/Application decision |
+| INT-18 Replay identity/hash | Show replay provenance and compatibility; UI layout, display units, zoom, selection, and visual coordinates remain excluded from simulation identity. | P0 A4/A5 joint decision |
+| INT-19 Solver result contract | Display termination reason, numerical error estimate, invariant residuals, and sample validity separately from scientific applicability/data quality. | P1 A4 contract |
+| INT-20 ReliabilityVector | Render data quality, model validity, numerical status, completeness, warnings independently. No percentage/score of accuracy. | P1 A5 + domain mapping |
+| INT-24 Hazard metadata | Show hazard state, source, jurisdiction/classification version, and completeness; absent/not-assessed is visibly unknown and is not “safe”. Do not infer mixture hazard classification. | P1 A1/A5 |
+| INT-25 Save boundary | Keep chemical experiment content, replay metadata/history, user annotations, and UI layout logically separated; one physical container is possible only if versions/hash semantics stay distinct. | P1 A5 + A1/A4 |
+| INT-27 UI vocabulary | Propose Russian labels and action rules only after the underlying state/error enums are agreed. | P2 owner review |
+
+### 21.3 A1–A4 domain contract implications for A5
+
+**A1 — substance and property records**
+
+- Substance identity and each property are separate concerns; UI must not treat a catalog card as a single flat bag of trusted values.
+- Property rows should expose value, unit/dimension, basis, applicability range, uncertainty/status, source/version, and license/provenance where available.
+- User/hypothetical status must be visible at both record and property level where the domain contract distinguishes them.
+- Hazard display must distinguish known hazard, not assessed, not reported, withheld, and absent data when those states are supplied by A1.
+- A5 does not curate or license the built-in catalog.
+
+**A2 — parser and balancing**
+
+- Reaction editor displays parser-owned FormulaAST/Reaction diagnostics and token/span context where provided.
+- Charge, formula composition, phase, and stoichiometric coefficient remain distinct in the editor; do not infer or silently normalize ambiguous charge notation.
+- Parsing and balancing remain separate UI actions. Balancing ambiguity must be shown as a decision/diagnostic, not resolved by presentation logic.
+- Kinetic orders and rate parameters are not inferred from stoichiometric coefficients.
+
+**A3 — equilibrium**
+
+- Conditions and results must disclose equilibrium-constant basis/standard state and the selected aqueous activity or ideal-dilute assumption.
+- The UI must not label `-log10(concentration)` as universal thermodynamic pH; the result label follows A3's declared convention.
+- Gas results disclose ideal-gas and partial-pressure assumptions.
+- Phase/applicability warnings and saturation/equilibrium residuals are presented from A3; the UI does not perform an independent equilibrium check.
+
+**A4 — kinetics and numerical solver**
+
+- A4 owns rate-law semantics, kinetic orders, k dimensions, solver method, step size, error estimates, positivity policy, event application, history, and replay determinism.
+- A5 consumes typed result samples and metadata; it does not infer rate units, interpolate missing values, clip concentrations, or re-run the solver for graph rendering.
+- The temperature series is constant in MVP. A5 must not imply heating, even if a fixed-temperature Arrhenius parameterization is supported by A4.
+- History restore and deterministic replay are separate user-visible operations; reproducibility claims must match A4's guarantee (bitwise/deterministic/tolerance-bounded).
+
+### 21.4 A5 contract work to complete in the next round
+
+The next useful A5 artifact is a *presentation mapping specification*, not a parallel domain DTO:
+
+1. **Diagnostic mapping:** agreed Error Envelope -> blocker/warning/assumption panels, field links, retry/recovery actions.
+2. **Result mapping:** agreed solver/equilibrium result metadata -> ReliabilityVector display and per-series quality badges.
+3. **Graph adapter mapping:** typed variable/unit metadata -> axis labels, legends, gap/event markers, synchronized cursor; preserve source sample semantics.
+4. **Timeline mapping:** Application/A4 command acknowledgements and event log -> lifecycle state, deterministic same-time ordering, history/replay navigation.
+5. **Persistence mapping:** agreed ExperimentDocument + replay manifest + UI layout -> save/load workflow, compatibility warnings, migration/recovery.
+6. **Asset audit:** inspect source image bytes to measure dimensions, alpha bounds, border insets, and nine-patch candidates before specifying pixel-level theme values.
+
+### 21.5 Remaining A5 blockers and dependencies
+
+- The integrator register is explicitly a working proposal; final DTOs, error envelope, unit registry, missing-value semantics, and schema-version policy are not frozen.
+- A4/Application must settle event ordering, history checkpoint semantics, replay identity, and solver result fields before A5 can define stable adapters.
+- A1 must provide hazard completeness states and source/jurisdiction metadata before the encyclopedia can render them accurately.
+- A3 must provide pH convention, activity model identifiers, K basis, and applicability metadata.
+- A2 must provide stable parser diagnostics and grammar/AST identity for editor annotations.
+- Numerical benchmark fixtures remain blocked until source, basis/standard state, conditions, uncertainty, independent derivation, and per-test tolerances are complete.
+- The original image assets still require binary inspection; filenames alone do not establish dimensions, alpha, or nine-patch margins.
+
+### 21.6 Recommended next sequence
+
+1. Integrator closes P0 INT-01–INT-18 decisions with explicit owners and normative definitions.
+2. A1–A4 publish versioned contract drafts without changing one another's ownership boundaries.
+3. A5 reviews those drafts and produces a UI mapping table with examples for ready, blocked, approximate, incomplete, unsupported, and numerical-failure cases.
+4. Integrator freezes shared error/unit/version/time semantics.
+5. Owner approves the OpenSpec baseline.
+6. Only then may implementation work be authorized.
+
+**A5 conclusion:** round 1 is materially more mature than the earlier draft state, but the integration register is not yet an approved API. A5 can now align the presentation layer against the register, but must not implement adapters or scenes until the owner approval gate is passed.
