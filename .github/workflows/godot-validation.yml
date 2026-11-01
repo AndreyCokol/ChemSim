@@ -1,0 +1,26 @@
+name: Godot validation
+
+on:
+  pull_request:
+    paths:
+      - "**.gd"
+      - "**.tscn"
+      - "project.godot"
+      - ".github/workflows/godot-validation.yml"
+  push:
+    branches:
+      - main
+      - feat/godot-workspace-scaffold
+
+jobs:
+  headless-validation:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Import project and parse scripts
+        run: godot --headless --editor --path . --quit
+      - name: Start main scene
+        run: godot --headless --path . --quit-after 3
