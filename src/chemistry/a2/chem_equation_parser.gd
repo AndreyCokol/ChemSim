@@ -160,6 +160,55 @@ func check_balance(reaction: Dictionary) -> Dictionary:
 		"charge_residual": charge_residual
 	}
 
+
+func serialize_formula(formula_ast: Dictionary, phase: String = "UNSPECIFIED") -> String:
+	var output := _serialize_nodes(formula_ast.get("nodes", []))
+	var charge := int(formula_ast.get("net_charge", 0))
+	if charge == 1:
+		output += "+"
+	elif charge == -1:
+		output += "-"
+	elif charge > 1:
+		output += "^%d+" % charge
+	elif charge < -1:
+		output += "^%d-" % abs(charge)
+	var phase_suffix := {
+		"SOLID": "(s)",
+		"LIQUID": "(l)",
+		"GAS": "(g)",
+		"AQUEOUS": "(aq)"
+	}
+	output += String(phase_suffix.get(phase, ""))
+	return output
+
+func serialize_reaction(reaction: Dictionary) -> String:
+	var left: Array[String] = []
+	var right: Array[String] = []
+	for term in reaction.get("reactants", []):
+		var coefficient := int(term.get("stoichiometric_coefficient", 1))
+		var ast: Dictionary = term.species.formula_ast
+		var formula := serialize_formula(ast, String(term.species.get("phase", "UNSPECIFIED")))
+		left.append(("" if coefficient == 1 else str(coefficient)) + formula)
+	for term in reaction.get("products", []):
+		var coefficient := int(term.get("stoichiometric_coefficient", 1))
+		var ast: Dictionary = term.species.formula_ast
+		var formula := serialize_formula(ast, String(term.species.get("phase", "UNSPECIFIED")))
+		right.append(("" if coefficient == 1 else str(coefficient)) + formula)
+	var arrow := " ⇌ " if reaction.get("arrow_type", "FORWARD") == "REVERSIBLE" else " -> "
+	return " + ".join(left) + arrow + " + ".join(right)
+
+func _serialize_nodes(nodes: Array) -> String:
+	var output := ""
+	for node in nodes:
+		if node.type == "element":
+			var count := int(node.count)
+			output += String(node.symbol) + ("" if count == 1 else str(count))
+		else:
+			var nested := _serialize_nodes(node.children)
+			var multiplier := int(node.multiplier)
+			output += "(" + nested + ")" + ("" if multiplier == 1 else str(multiplier))
+	return output
+
 func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 	var text := raw_text.strip_edges()
 	if text.begins_with("-") or text.begins_with("+") or text.begins_with("."):
