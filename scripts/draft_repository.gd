@@ -50,7 +50,7 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	return {"ok": true}
 
 static func load_draft(path: String) -> Dictionary:
-	if not path.begins_with("user://"):
+	if not _is_allowed_user_path(path):
 		return _failure("Открывать черновики разрешено только внутри пользовательской папки.")
 	path = path.replace("\\", "/")
 	var file := FileAccess.open(path, FileAccess.READ)
