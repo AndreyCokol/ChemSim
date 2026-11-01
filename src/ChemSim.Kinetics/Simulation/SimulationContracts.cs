@@ -51,8 +51,14 @@ public sealed record SimulationRequest
             throw new ArgumentOutOfRangeException(nameof(VolumeM3), "Volume must be finite and greater than zero.");
         if (!double.IsFinite(StartTimeSeconds) || !double.IsFinite(EndTimeSeconds) || EndTimeSeconds <= StartTimeSeconds)
             throw new ArgumentException("End time must be finite and greater than start time.");
+        if (!double.IsFinite(EndTimeSeconds - StartTimeSeconds))
+            throw new ArgumentException("Simulation duration must be finite.");
         if (!double.IsFinite(OutputIntervalSeconds) || OutputIntervalSeconds <= 0d)
             throw new ArgumentOutOfRangeException(nameof(OutputIntervalSeconds));
+        if (Math.Min(EndTimeSeconds, StartTimeSeconds + OutputIntervalSeconds) <= StartTimeSeconds)
+            throw new ArgumentException(
+                "Output interval is too small to advance representable simulation time at the requested start time.",
+                nameof(OutputIntervalSeconds));
 
         var expected = Network.SpeciesIds.ToHashSet(StringComparer.Ordinal);
         if (InitialAmountsMol.Count != expected.Count || InitialAmountsMol.Keys.Any(id => !expected.Contains(id)))
