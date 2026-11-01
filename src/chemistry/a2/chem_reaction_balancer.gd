@@ -6,7 +6,6 @@ class_name ChemReactionBalancer
 ## A search limit is never reported as proof that no solution exists.
 const DEFAULT_MAX_SUM := 64
 const DEFAULT_MAX_CANDIDATES := 500000
-const CHARGE_INVARIANT_KEY := "__NET_CHARGE__"
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
 	var reactants: Array = reaction.get("reactants", [])
@@ -16,6 +15,9 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 	if max_candidates <= 0:
 		return _result("INVALID_INPUT", [], "Candidate limit must be positive.")
 
+	for term in reactants + products:
+		if not _is_valid_term(term):
+			return _result("INVALID_INPUT", [], "Reaction contains a malformed species term.")
 	var terms: Array = []
 	var sides: Array = []
 	var source_term_ids: Array = []
@@ -93,11 +95,20 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		"diagnostics": []
 	}
 
+func _is_valid_term(term: Variant) -> bool:
+	if typeof(term) != TYPE_DICTIONARY:
+		return false
+	var species: Variant = term.get("species")
+	if typeof(species) != TYPE_DICTIONARY:
+		return false
+	var ast: Variant = species.get("formula_ast")
+	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
+		return false
+	return ast.has("net_charge")
+
 func _append_aggregated_terms(input_terms: Array, side: int, terms: Array, sides: Array, source_term_ids: Array) -> void:
 	var key_to_index: Dictionary = {}
 	for term in input_terms:
-		if not term is Dictionary or not term.get("species") is Dictionary:
-			continue
 		var species: Dictionary = term.species
 		var ast: Dictionary = species.get("formula_ast", {})
 		var key := _species_key(ast, String(species.get("phase", "UNSPECIFIED")))
@@ -205,15 +216,6 @@ func _has_structural_impossibility(terms: Array, sides: Array) -> bool:
 			else:
 				flags["right"] = true
 			invariant_sides[element] = flags
-		if int(ast.get("net_charge", 0)) != 0:
-			if not invariant_sides.has(CHARGE_INVARIANT_KEY):
-				invariant_sides[CHARGE_INVARIANT_KEY] = {"left": false, "right": false}
-			var charge_flags: Dictionary = invariant_sides[CHARGE_INVARIANT_KEY]
-			if int(sides[i]) > 0:
-				charge_flags["left"] = true
-			else:
-				charge_flags["right"] = true
-			invariant_sides[CHARGE_INVARIANT_KEY] = charge_flags
 	for invariant in invariant_sides:
 		var occurrence: Dictionary = invariant_sides[invariant]
 		if bool(occurrence["left"]) != bool(occurrence["right"]):
