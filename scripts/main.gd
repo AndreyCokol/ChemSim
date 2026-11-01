@@ -2,6 +2,7 @@ extends Control
 
 const VisualFieldScript = preload("res://scripts/visual_field.gd")
 const DraftCodec = preload("res://scripts/draft_codec.gd")
+const DraftRepository = preload("res://scripts/draft_repository.gd")
 const BG := Color("#0B1118")
 const PANEL := Color("#151F2A")
 const PANEL_ALT := Color("#1B2936")
@@ -569,54 +570,18 @@ func _save_draft_to_path(path: String) -> void:
 		volume_input.text,
 		components
 	)
-	var absolute_dir := ProjectSettings.globalize_path("user://experiments")
-	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
-	if dir_error != OK:
-		_show_io_error("Не удалось создать папку для черновиков: " + str(dir_error))
+	var result: Dictionary = DraftRepository.save_draft(path, payload)
+	if not bool(result.get("ok", false)):
+		_show_io_error(str(result.get("error", "Не удалось сохранить черновик.")))
 		return
-	var temporary_path := path + ".tmp"
-	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
-	if file == null:
-		_show_io_error("Не удалось открыть файл для записи: " + str(FileAccess.get_open_error()))
-		return
-	file.store_string(JSON.stringify(payload, "\t"))
-	file.flush()
-	file.close()
-	var target_absolute := ProjectSettings.globalize_path(path)
-	var temporary_absolute := ProjectSettings.globalize_path(temporary_path)
-	var backup_absolute := ProjectSettings.globalize_path(path + ".bak")
-	var had_previous_file := FileAccess.file_exists(path)
-	if had_previous_file:
-		if FileAccess.file_exists(path + ".bak"):
-			DirAccess.remove_absolute(backup_absolute)
-		var backup_error := DirAccess.rename_absolute(target_absolute, backup_absolute)
-		if backup_error != OK:
-			DirAccess.remove_absolute(temporary_absolute)
-			_show_io_error("Не удалось подготовить замену файла: " + str(backup_error))
-			return
-	var rename_error := DirAccess.rename_absolute(temporary_absolute, target_absolute)
-	if rename_error != OK:
-		DirAccess.remove_absolute(temporary_absolute)
-		if had_previous_file:
-			DirAccess.rename_absolute(backup_absolute, target_absolute)
-		_show_io_error("Не удалось завершить сохранение: " + str(rename_error))
-		return
-	if had_previous_file:
-		DirAccess.remove_absolute(backup_absolute)
 	draft_dirty = false
 	status_label.text = "Черновик сохранён · схема UI v1"
 	diagnostic_label.text = "Сохранён только пользовательский черновик. Химическая валидность, расчётные данные и история симуляции не включены."
 
 func _load_draft_from_path(path: String) -> void:
-	var file := FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		_show_io_error("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	var decoded: Dictionary = DraftCodec.decode_payload(parsed)
+	var decoded: Dictionary = DraftRepository.load_draft(path)
 	if not bool(decoded.get("ok", false)):
-		_show_io_error(str(decoded.get("error", "Не удалось прочитать черновик.")) + " Исходный файл не изменён.")
+		_show_io_error(str(decoded.get("error", "Не удалось прочитать черновик.")) + " Текущий эксперимент не изменён.")
 		return
 	var data: Dictionary = decoded.data
 	components = data.components
@@ -638,6 +603,7 @@ func _load_draft_from_path(path: String) -> void:
 	volume_input.text = str(conditions.get("volume_raw", ""))
 	_refresh_composition()
 	draft_dirty = false
+	pending_open_path = ""
 	status_label.text = "Черновик загружен · химическая проверка не выполнена"
 	diagnostic_label.text = "Загружен пользовательский черновик схемы v1. Перед расчётом требуется отдельная химическая проверка."
 
