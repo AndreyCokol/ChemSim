@@ -158,10 +158,12 @@ func _has_structural_impossibility(terms: Array, sides: Array) -> bool:
 		for element in ast.element_counts:
 			if not element_sides.has(element):
 				element_sides[element] = {"left": false, "right": false}
+			var flags: Dictionary = element_sides[element]
 			if int(sides[i]) > 0:
-				element_sides[element].left = true
+				flags["left"] = true
 			else:
-				element_sides[element].right = true
+				flags["right"] = true
+			element_sides[element] = flags
 	for element in element_sides:
 		var occurrence: Dictionary = element_sides[element]
 		if bool(occurrence.left) != bool(occurrence.right):
