@@ -38,6 +38,11 @@ public sealed class ReactionDefinition
             stoichCopy.Add(speciesId, coefficient);
         }
 
+        if (!stoichCopy.Values.Any(value => value < 0) || !stoichCopy.Values.Any(value => value > 0))
+            throw new ArgumentException(
+                $"Reaction '{id}' must contain at least one reactant and one product in a closed-system reaction.",
+                nameof(stoichiometry));
+
         var orderCopy = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var (speciesId, order) in kineticOrders)
         {

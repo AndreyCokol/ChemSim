@@ -18,10 +18,10 @@ public sealed class ReactionNetwork
         ArgumentNullException.ThrowIfNull(speciesIds);
         ArgumentNullException.ThrowIfNull(reactions);
 
-        var species = speciesIds.Order(StringComparer.Ordinal).ToArray();
+        var species = speciesIds.OrderBy(id => id, StringComparer.Ordinal).ToArray();
         if (species.Length == 0)
             throw new ArgumentException("A reaction network must contain at least one species.", nameof(speciesIds));
-        if (species.Any(string.IsNullOrWhiteSpace))
+        if (species.Any(id => string.IsNullOrWhiteSpace(id)))
             throw new ArgumentException("Species ids cannot be empty.", nameof(speciesIds));
         if (species.Distinct(StringComparer.Ordinal).Count() != species.Length)
             throw new ArgumentException("Species ids must be unique.", nameof(speciesIds));
@@ -42,7 +42,9 @@ public sealed class ReactionNetwork
             }
         }
 
-        var laws = (conservationLaws ?? []).OrderBy(law => law.Id, StringComparer.Ordinal).ToArray();
+        var laws = (conservationLaws ?? Enumerable.Empty<ConservationLaw>())
+            .OrderBy(law => law.Id, StringComparer.Ordinal)
+            .ToArray();
         if (laws.Select(law => law.Id).Distinct(StringComparer.Ordinal).Count() != laws.Length)
             throw new ArgumentException("Conservation-law ids must be unique.", nameof(conservationLaws));
 

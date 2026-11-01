@@ -48,5 +48,5 @@ public sealed class ConservationLaw
         return total;
     }
 
-    public double CoefficientMagnitudeSum => Coefficients.Values.Sum(Math.Abs);
+    public double CoefficientMagnitudeSum => Coefficients.Values.Sum(value => Math.Abs(value));
 }
