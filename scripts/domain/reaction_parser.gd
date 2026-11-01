@@ -8,18 +8,16 @@ func parse(input: String) -> ReactionParseResult:
 	if source.is_empty():
 		return ReactionParseResult.failure("REACTION_EMPTY", "Введите уравнение реакции.")
 
-	var arrow := ""
-	var arrow_index := -1
-	if source.contains("<->"):
-		arrow = "<->"
-		arrow_index = source.find("<->")
-	elif source.contains("->"):
-		arrow = "->"
-		arrow_index = source.find("->")
-	if arrow.is_empty():
+	var arrow_regex := RegEx.new()
+	arrow_regex.compile("<->|->")
+	var arrow_matches := arrow_regex.search_all(source)
+	if arrow_matches.is_empty():
 		return ReactionParseResult.failure("REACTION_ARROW_REQUIRED", "Используйте стрелку -> или <->.")
-	if source.find(arrow, arrow_index + arrow.length()) >= 0:
+	if arrow_matches.size() != 1:
 		return ReactionParseResult.failure("REACTION_MULTIPLE_ARROWS", "Уравнение должно содержать ровно одну стрелку.")
+	var arrow_match: RegExMatch = arrow_matches[0]
+	var arrow := arrow_match.get_string()
+	var arrow_index := arrow_match.get_start()
 
 	var left_text := source.substr(0, arrow_index).strip_edges()
 	var right_text := source.substr(arrow_index + arrow.length()).strip_edges()
