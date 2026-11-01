@@ -40,6 +40,16 @@ func _initialize() -> void:
 	var invalid_position_result := DraftCodec.decode_payload(invalid_position)
 	assert(not invalid_position_result.ok, "Malformed marker coordinates must be rejected")
 
+	var out_of_range_position := payload.duplicate(true)
+	out_of_range_position.components[0].position = [1.01, 0.5]
+	var out_of_range_result := DraftCodec.decode_payload(out_of_range_position)
+	assert(not out_of_range_result.ok, "Marker coordinates outside the normalized range must be rejected")
+
+	var partial_unplaced_position := payload.duplicate(true)
+	partial_unplaced_position.components[0].position = [-1.0, 0.5]
+	var partial_unplaced_result := DraftCodec.decode_payload(partial_unplaced_position)
+	assert(not partial_unplaced_result.ok, "Unplaced markers must use the complete [-1, -1] sentinel")
+
 	var invalid_component := payload.duplicate(true)
 	invalid_component.components[0] = "not-a-dictionary"
 	var invalid_component_result := DraftCodec.decode_payload(invalid_component)
