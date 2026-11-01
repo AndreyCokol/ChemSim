@@ -10,12 +10,16 @@ const MAX_ELEMENT_COUNT := 1000000000
 const MAX_ABS_CHARGE := 1000000
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
-	var reactants: Array = reaction.get("reactants", [])
-	var products: Array = reaction.get("products", [])
+	var reactants_value: Variant = reaction.get("reactants", [])
+	var products_value: Variant = reaction.get("products", [])
+	if typeof(reactants_value) != TYPE_ARRAY or typeof(products_value) != TYPE_ARRAY:
+		return _result("INVALID_INPUT", [], "Reaction sides must be arrays.")
+	var reactants: Array = reactants_value
+	var products: Array = products_value
 	if reactants.is_empty() or products.is_empty():
 		return _result("INVALID_INPUT", [], "Reaction must have non-empty sides.")
-	if max_candidates <= 0:
-		return _result("INVALID_INPUT", [], "Candidate limit must be positive.")
+	if max_candidates <= 0 or max_sum <= 0:
+		return _result("INVALID_INPUT", [], "Coefficient-sum and candidate limits must be positive.")
 
 	for term in reactants + products:
 		if not _is_valid_term(term):
