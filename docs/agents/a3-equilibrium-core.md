@@ -29,3 +29,15 @@ From the repository root:
 
     python -m pip install -e .
     python -m unittest discover -s tests -v
+
+## Numerical diagnostics
+
+Each result carries the solver residual, iteration count, component-balance residual,
+charge-balance residual, method, activity model, and an explicit balance unit:
+- aqueous fixtures report concentration-balance residuals in mol/L;
+- gas fixtures report extent-update residuals in mol.
+
+The gas helper uses only the two fixed benchmark stoichiometries. It does not
+perform a general elemental-matrix rank check; atom conservation follows from
+those hard-coded balanced reactions. A future general reaction API must validate
+stoichiometry and elemental conservation independently before solving.
