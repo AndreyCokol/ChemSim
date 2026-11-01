@@ -298,7 +298,7 @@ SubstanceRecord, PropertyRecord, ThermoConstantRecord, Provenance/SourceRecord, 
 
 Система SHALL различать:
 - **SubstanceRecord** — каталоговую запись с устойчивым substance ID, FormulaAST/структурной идентичностью и справочными утверждениями-свойствами;
-- **SpeciesRef** — химическую частицу в реакции/равновесии, ссылающуюся на Substance/FormulaAST и задающую заряд и фазу для конкретного химического контекста;
+- **SpeciesRef** — химическую частицу в реакции/равновесии, ссылающуюся на Substance/FormulaAST (состав и net charge задаются FormulaAST по контракту A2) и задающую фазу для конкретного химического контекста;
 - **ExperimentComponent** — экземпляр в конкретном эксперименте с количеством, массой/концентрацией, объёмом и ссылкой на SpeciesRef.
 
 Фаза SHALL NOT быть частью FormulaAST или primary key SubstanceRecord. Фаза SHALL задаваться явно в SpeciesRef/ReactionTerm, поскольку одна формула может встречаться в разных фазовых контекстах. Количество вещества, концентрация и координаты SHALL NOT храниться в SubstanceRecord.
