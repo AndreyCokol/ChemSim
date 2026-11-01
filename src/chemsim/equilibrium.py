@@ -251,7 +251,10 @@ def solve_agcl_precipitation(
         _positive(name, value, allow_zero=True)
     _positive("ksp", ksp)
     _positive("kw", kw)
-    scale = max(1.0, silver_total_mol_l, chloride_total_mol_l)
+    scale = max(
+        abs(silver_total_mol_l), abs(chloride_total_mol_l),
+        abs(sodium_total_mol_l), abs(nitrate_total_mol_l), 1e-30,
+    )
     if abs(silver_total_mol_l - nitrate_total_mol_l) > 1e-10 * scale:
         raise EquilibriumInputError("AgNO3 feed must have equal Ag and nitrate totals")
     if abs(chloride_total_mol_l - sodium_total_mol_l) > 1e-10 * scale:
