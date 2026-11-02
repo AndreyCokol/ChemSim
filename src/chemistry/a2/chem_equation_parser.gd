@@ -330,12 +330,13 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			if nested:
 				state.index = int(state.index) + 1
 				return nodes
-			state.error_index = int(state.index)
+		state.error_index = int(state.index)
 		state.error = "PARSE_UNEXPECTED_TOKEN"
 			return nodes
 		if ch == "(":
 			state.depth = int(state.depth) + 1
 			if int(state.depth) > MAX_GROUP_DEPTH:
+				state.error_index = int(state.index)
 				state.error = "PARSE_NESTING_LIMIT"
 				return nodes
 			state.index = int(state.index) + 1
@@ -344,9 +345,11 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			if not String(state.error).is_empty():
 				return nodes
 			if int(state.index) == 0 or text.substr(int(state.index) - 1, 1) != ")":
+				state.error_index = int(state.index)
 				state.error = "PARSE_UNCLOSED_GROUP"
 				return nodes
 			if children.is_empty():
+				state.error_index = int(state.index)
 				state.error = "PARSE_EMPTY_GROUP"
 				return nodes
 			var group_count := _read_count(text, state)
@@ -363,6 +366,7 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 					symbol += next_ch
 					state.index = int(state.index) + 1
 			if not ELEMENTS.has(symbol):
+				state.error_index = int(state.index)
 				state.error = "PARSE_UNKNOWN_ELEMENT"
 				return nodes
 			var count := _read_count(text, state)
@@ -371,11 +375,14 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			nodes.append({"type": "element", "symbol": symbol, "count": count})
 			continue
 		if ch.is_valid_int():
+			state.error_index = int(state.index)
 			state.error = "PARSE_UNEXPECTED_TOKEN"
 			return nodes
+		state.error_index = int(state.index)
 		state.error = "PARSE_UNSUPPORTED_SYNTAX" if ch == "·" or ch == "[" or ch == "]" else "PARSE_UNEXPECTED_TOKEN"
 		return nodes
 	if nested:
+		state.error_index = int(state.index)
 		state.error = "PARSE_UNCLOSED_GROUP"
 	return nodes
 
@@ -387,9 +394,11 @@ func _read_count(text: String, state: Dictionary) -> int:
 		return 1
 	var value := _parse_bounded_integer(text.substr(start, int(state.index) - start), MAX_INTEGER_TOKEN)
 	if value < 0:
+		state.error_index = int(state.index)
 		state.error = "PARSE_COUNT_TOO_LARGE"
 		return -1
 	if value == 0:
+		state.error_index = int(state.index)
 		state.error = "PARSE_ZERO_COUNT"
 		return -1
 	return value
