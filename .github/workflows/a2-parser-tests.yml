@@ -1,0 +1,33 @@
+name: A2 parser and balancer tests
+
+on:
+  pull_request:
+    paths:
+      - "src/chemistry/a2/**"
+      - "tests/a2/**"
+      - ".github/workflows/a2-parser-tests.yml"
+  push:
+    branches:
+      - "agent/a2-parser-balancer-implementation"
+
+jobs:
+  godot-headless:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Create temporary Godot project descriptor
+        run: |
+          cat > project.godot <<'EOF'
+          config_version=5
+          [application]
+          config/name="ChemSim A2 Tests"
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          EOF
+      - name: Import project and parse scripts
+        run: godot --headless --editor --path . --quit
+      - name: Run A2 parser and balancer tests
+        run: godot --headless --path . --script res://tests/a2/test_a2_parser_balancer.gd
