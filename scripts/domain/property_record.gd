@@ -33,7 +33,16 @@ func is_valid() -> bool:
 	return true
 
 func is_usable() -> bool:
-	return is_valid() and value != null and not source_reference.is_empty() and not license_identifier.is_empty() and quality_status == "verified"
+	# Only finite numeric values can enter quantitative calculations. Text and
+	# booleans may be retained as descriptive metadata, but must never pass the
+	# calculation-readiness gate merely because provenance fields are present.
+	return (
+		is_valid()
+		and typeof(value) in [TYPE_INT, TYPE_FLOAT]
+		and not source_reference.is_empty()
+		and not license_identifier.is_empty()
+		and quality_status == "verified"
+	)
 
 func _valid_range(bounds: Array[float]) -> bool:
 	if bounds.is_empty():
