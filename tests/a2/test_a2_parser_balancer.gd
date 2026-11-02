@@ -223,6 +223,13 @@ func _test_balance_validation() -> void:
 	assert(not stale_ast_check.ok)
 	assert(stale_ast_check.code == "BALANCE_INVALID_TERM")
 
+	var stale_nodes: Dictionary = parser.parse_reaction("H2 + O2 -> H2O")
+	assert(stale_nodes.ok)
+	stale_nodes.reaction.reactants[0].species.formula_ast.nodes[0].symbol = "O"
+	var stale_nodes_check: Dictionary = parser.check_balance(stale_nodes.reaction)
+	assert(not stale_nodes_check.ok)
+	assert(stale_nodes_check.code == "BALANCE_INVALID_TERM")
+
 	var balanced: Dictionary = parser.parse_reaction("2H2 + O2 -> 2H2O")
 	assert(balanced.ok)
 	assert(parser.check_balance(balanced.reaction).balanced)
@@ -285,6 +292,11 @@ func _test_balance_proposal() -> void:
 	inconsistent_ast.reactants[0].species.formula_ast.element_counts["O"] = 1
 	var inconsistent_result: Dictionary = balancer.propose_balance(inconsistent_ast)
 	assert(inconsistent_result.status == "INVALID_INPUT")
+
+	var inconsistent_nodes: Dictionary = parsed.reaction.duplicate(true)
+	inconsistent_nodes.reactants[0].species.formula_ast.nodes[0].symbol = "O"
+	var inconsistent_nodes_result: Dictionary = balancer.propose_balance(inconsistent_nodes)
+	assert(inconsistent_nodes_result.status == "INVALID_INPUT")
 
 	var invalid_source_coefficient: Dictionary = parsed.reaction.duplicate(true)
 	invalid_source_coefficient.reactants[0].stoichiometric_coefficient = 0
