@@ -330,8 +330,8 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			if nested:
 				state.index = int(state.index) + 1
 				return nodes
-		state.error_index = int(state.index)
-		state.error = "PARSE_UNEXPECTED_TOKEN"
+			state.error_index = int(state.index)
+			state.error = "PARSE_UNEXPECTED_TOKEN"
 			return nodes
 		if ch == "(":
 			state.depth = int(state.depth) + 1
