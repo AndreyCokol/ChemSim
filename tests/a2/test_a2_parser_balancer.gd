@@ -139,6 +139,16 @@ func _test_negative_cases() -> void:
 	assert(fractional_coefficient.code == "PARSE_INVALID_COEFFICIENT")
 	assert(fractional_coefficient.source_span.start_offset == 1)
 
+	var negative_coefficient: Dictionary = parser.parse_reaction("-H2 -> H2")
+	assert(not negative_coefficient.ok)
+	assert(negative_coefficient.code == "PARSE_INVALID_COEFFICIENT")
+	assert(negative_coefficient.source_span.start_offset == 0)
+
+	var explicit_plus_coefficient: Dictionary = parser.parse_reaction("+H2 -> H2")
+	assert(not explicit_plus_coefficient.ok)
+	assert(explicit_plus_coefficient.code == "PARSE_INVALID_COEFFICIENT")
+	assert(explicit_plus_coefficient.source_span.start_offset == 0)
+
 	var composition_overflow: Dictionary = parser.parse_formula("(H1000000)1000000")
 	assert(not composition_overflow.ok)
 	assert(composition_overflow.code == "PARSE_COUNT_OVERFLOW")
