@@ -110,7 +110,7 @@ static func _is_valid_position(position: Array) -> bool:
 	var y := float(position[1])
 	if not is_finite(x) or not is_finite(y):
 		return false
-	var is_unplaced := is_equal_approx(x, -1.0) and is_equal_approx(y, -1.0)
+	var is_unplaced := x == -1.0 and y == -1.0
 	var is_normalized := x >= 0.0 and x <= 1.0 and y >= 0.0 and y <= 1.0
 	return is_unplaced or is_normalized
 
