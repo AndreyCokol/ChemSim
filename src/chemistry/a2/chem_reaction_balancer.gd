@@ -8,6 +8,9 @@ const DEFAULT_MAX_SUM := 64
 const DEFAULT_MAX_CANDIDATES := 500000
 const MAX_ELEMENT_COUNT := 1000000000
 const MAX_ABS_CHARGE := 1000000
+const MAX_INPUT_COEFFICIENT := 1000000
+const MAX_MAX_SUM := 1000000
+const MAX_SPECIES_TERMS := 1024
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
 	var reactants_value: Variant = reaction.get("reactants", [])
@@ -18,8 +21,10 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 	var products: Array = products_value
 	if reactants.is_empty() or products.is_empty():
 		return _result("INVALID_INPUT", [], "Reaction must have non-empty sides.")
-	if max_candidates <= 0 or max_sum <= 0:
-		return _result("INVALID_INPUT", [], "Coefficient-sum and candidate limits must be positive.")
+	if reactants.size() + products.size() > MAX_SPECIES_TERMS:
+		return _result("INVALID_INPUT", [], "Reaction exceeds the maximum supported species-term count.")
+	if max_candidates <= 0 or max_sum <= 0 or max_sum > MAX_MAX_SUM:
+		return _result("INVALID_INPUT", [], "Coefficient-sum limit must be between 1 and %d; candidate limit must be positive." % MAX_MAX_SUM)
 
 	for term in reactants + products:
 		if not _is_valid_term(term):
@@ -115,6 +120,22 @@ func _is_valid_term(term: Variant) -> bool:
 	if typeof(ast.get("source_text")) != TYPE_STRING or String(ast.source_text).is_empty():
 		return false
 	if typeof(species.get("phase", "UNSPECIFIED")) != TYPE_STRING:
+		return false
+	var phase := String(species.get("phase", "UNSPECIFIED"))
+	if not ["UNSPECIFIED", "SOLID", "LIQUID", "GAS", "AQUEOUS"].has(phase):
+		return false
+	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
+	if typeof(coefficient) != TYPE_INT or int(coefficient) <= 0 or int(coefficient) > MAX_INPUT_COEFFICIENT:
+		return false
+	# Treat the source formula as the authority: a hand-built or stale DTO must
+	# not pair one formula's notation with another formula's elemental makeup.
+	var reparsed := ChemEquationParser.new().parse_formula(String(ast.source_text))
+	if not bool(reparsed.get("ok", false)):
+		return false
+	var parsed_ast: Dictionary = reparsed.formula_ast
+	if String(reparsed.phase) != phase:
+		return false
+	if int(parsed_ast.net_charge) != int(ast.net_charge) or parsed_ast.element_counts != ast.element_counts:
 		return false
 	for element in ast.element_counts:
 		if typeof(element) != TYPE_STRING or typeof(ast.element_counts[element]) != TYPE_INT:
