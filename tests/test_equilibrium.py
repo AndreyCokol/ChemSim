@@ -215,6 +215,10 @@ class GasBenchmarkTests(unittest.TestCase):
         with self.assertRaises(EquilibriumInputError):
             solve_no2_dimerization(0.01, 0.0, 298.15, 1e-3, 0.0)
 
+    def test_rejects_gas_system_with_zero_total_inventory(self):
+        with self.assertRaises(EquilibriumInputError):
+            solve_no2_dimerization(0.0, 0.0, 298.15, 1e-3, 6.73)
+
 
     def test_g02_equilibrium_can_proceed_in_reverse(self):
         result = solve_h2_i2_hi(0.0, 0.0, 0.010, 298.15, 1.0e-3, 690.2)
