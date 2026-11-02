@@ -41,28 +41,40 @@ static func build_payload(
 static func decode_payload(payload: Variant) -> Dictionary:
 	if not payload is Dictionary:
 		return _failure("Файл не является корректным JSON-объектом.")
-	if str(payload.get("document_type", "")) != DOCUMENT_TYPE:
+	if typeof(payload.get("document_type", null)) != TYPE_STRING or payload.get("document_type") != DOCUMENT_TYPE:
 		return _failure("Неизвестный тип документа.")
-	if int(payload.get("schema_version", -1)) != SCHEMA_VERSION:
+	if typeof(payload.get("schema_version", null)) != TYPE_INT or payload.get("schema_version") != SCHEMA_VERSION:
 		return _failure("Неподдерживаемая версия черновика.")
+	for field in ["experiment_name", "reaction_text"]:
+		if payload.has(field) and typeof(payload[field]) != TYPE_STRING:
+			return _failure("Поле " + field + " должно быть строкой.")
 	var raw_components: Variant = payload.get("components", null)
 	if not raw_components is Array:
 		return _failure("Отсутствует корректный список компонентов.")
 	var raw_conditions: Variant = payload.get("conditions", {})
 	if not raw_conditions is Dictionary:
 		return _failure("Блок условий имеет неверный формат.")
+	for field in ["temperature_k", "pressure_raw", "volume_raw"]:
+		if raw_conditions.has(field) and typeof(raw_conditions[field]) != TYPE_STRING:
+			return _failure("Поле условий " + field + " должно быть строкой.")
 
 	var decoded_components: Array[Dictionary] = []
 	var seen_ids: Dictionary = {}
 	for raw_item in raw_components:
 		if not raw_item is Dictionary:
 			return _failure("Одна из записей компонента имеет неверный формат.")
+		for field in ["name", "formula", "amount", "unit", "phase"]:
+			if raw_item.has(field) and typeof(raw_item[field]) != TYPE_STRING:
+				return _failure("Поле компонента " + field + " должно быть строкой.")
 		var raw_position: Variant = raw_item.get("position", [-1.0, -1.0])
 		if not raw_position is Array or raw_position.size() != 2:
 			return _failure("Координаты компонента имеют неверный формат.")
 		if not _is_valid_position(raw_position):
 			return _failure("Координаты должны быть конечными числами от 0 до 1 либо парой -1 для неразмещённого маркера.")
-		var component_id := int(raw_item.get("id", 0))
+		var raw_id: Variant = raw_item.get("id", null)
+		if typeof(raw_id) != TYPE_INT:
+			return _failure("Идентификатор компонента должен быть целым числом.")
+		var component_id := int(raw_id)
 		if component_id <= 0 or seen_ids.has(component_id):
 			return _failure("Идентификаторы компонентов должны быть положительными и уникальными.")
 		seen_ids[component_id] = true
