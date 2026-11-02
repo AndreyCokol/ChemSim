@@ -56,15 +56,14 @@ func parse_formula(source: String) -> Dictionary:
 	if text.is_empty():
 		return _failure("PARSE_EMPTY_FORMULA", "Formula body is empty.", 0, original.length())
 
+	var trimmed_start := original.find(original.strip_edges())
 	var state := {"index": 0, "error": "", "error_index": 0, "depth": 0}
 	var nodes := _parse_sequence(text, state, false)
 	if not String(state.error).is_empty():
-		var trimmed_start := original.find(original.strip_edges())
 		var error_start := maxi(0, trimmed_start) + int(state.error_index)
 		var error_end := mini(original.length(), error_start + (1 if error_start < original.length() else 0))
 		return _failure(String(state.error), _message_for(String(state.error)), error_start, error_end)
 	if int(state.index) != text.length():
-		var trimmed_start := original.find(original.strip_edges())
 		var error_start := maxi(0, trimmed_start) + int(state.index)
 		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", error_start, mini(original.length(), error_start + 1))
 
