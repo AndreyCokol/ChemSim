@@ -10,13 +10,13 @@ PR: #3 (draft, not merged)
 - Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
 - Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
 - Draft file operation failures are shown in a dedicated modal and the persistent diagnostic area.
-- Separate local draft repository restricted to normalized paths inside `user://`; parent traversal, mixed-separator traversal and the user-data root are rejected. Writes use a temporary file and backup/restore replacement, with round-trip/security tests.
+- Separate local draft repository restricted to lexically normalized user:// paths; parent traversal, mixed-separator traversal and the user-data root are rejected.
+- Save replacement uses temporary and backup sidecars. Existing .tmp and .bak files are preserved; a collision aborts the save instead of deleting user data.
 - Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
-- Versioned local UI-draft document (`chemsim_ui_draft`, schema version 1), with codec validation, round-trip tests, and rejection of unsupported schema versions, duplicate IDs, non-finite/out-of-range marker coordinates and partial unplaced-marker sentinels.
-- Atomic-style replacement using a temporary file and backup/restore path.
-- Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/security tests and visual-field movement/bounds tests.
+- Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema/ID/text-type checks, round-trip tests, and rejection of unsupported schema versions, duplicate/non-integer IDs, non-finite/out-of-range marker coordinates and partial unplaced-marker sentinels.
+- Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/path/sidecar-collision tests, visual-field movement/bounds tests and a main UI draft-state integration test.
 
 ## Explicitly not implemented
 
@@ -24,6 +24,10 @@ PR: #3 (draft, not merged)
 - Solver-backed graphs, interpolation, graph-series adapters, playback, pause, single-step, rewind, event application, replay, or simulation hashing.
 - Final experiment-document persistence, chemistry records, solver history, event logs, migration of the future canonical format, CSV result export, or Windows release packaging.
 - Encyclopedia content. A1 must provide canonical substance/property/provenance/hazard records before the encyclopedia can display scientific claims.
+
+## Known security limitation
+
+The repository rejects lexical path traversal, but Godot-level path checks currently do not establish canonical containment when a directory inside the user data tree is a filesystem symlink. The repository must not be described as hardened against a hostile local filesystem until symlink handling is implemented and verified on supported platforms.
 
 ## Integration gates
 
@@ -37,10 +41,10 @@ PR: #3 (draft, not merged)
 
 ## Validation status
 
-- GitHub Actions successfully completed the initial scaffold import/startup checks on commit `2c1fc5935d32d7c5e0d12c73dc799c8a2a7ba042`.
-- The latest path/coordinate hardening commits have a GitHub Actions PR run queued; do not treat them as passed until the latest head SHA has a successful run.
+- GitHub Actions successfully completed the initial scaffold import/startup checks on commit 2c1fc5935d32d7c5e0d12c73dc799c8a2a7ba042.
+- The latest head has a new GitHub Actions run pending/awaiting confirmation; do not treat it as passed until the exact current head SHA has a successful run.
 - No local Godot executable is installed in the authoring environment.
 
 ## Approval boundary
 
-This PR is an A5 presentation/application-shell slice. It does not imply that OpenSpec PR #1, A1–A4 contracts, or the final experiment persistence format are approved. PR #3 remains draft and is not merged into `main`.
+This PR is an A5 presentation/application-shell slice. It does not imply that OpenSpec PR #1, A1–A4 contracts, or the final experiment persistence format are approved. PR #3 remains draft and is not merged into main.
