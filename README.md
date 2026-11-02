@@ -9,7 +9,8 @@
 - разбор простых химических формул, вложенных круглых групп, фаз и зарядов;
 - разбор уравнений со стрелками `->` и `<->`;
 - стехиометрическую балансировку по элементному составу и отдельной строке электрического заряда;
-- минимальный UI для проверки формул и балансировки уравнения.
+- минимальный UI для проверки формул и балансировки уравнения;
+- ранние доменные записи свойств, веществ, химических видов и компонентов эксперимента с проверками входных данных.
 
 Это **не** готовый химический симулятор: каталог проверенных веществ, равновесные модели, кинетика, численный ODE solver, графики и полноценная энциклопедия ещё не реализованы.
 
@@ -21,14 +22,16 @@
 
 ## Проверка
 
-Из корня проекта:
+Из корня проекта после импорта проекта и создания global class cache:
 
 ```sh
+godot --headless --editor --path . --quit
 godot --headless --path . --script res://tests/test_formula_parser.gd
 godot --headless --path . --script res://tests/test_reaction_balancer.gd
+godot --headless --path . --script res://tests/test_domain_records.gd
 ```
 
-Тесты добавлены, но пока не запускались в этом облачном цикле: требуется Godot 4.x runtime.
+Те же три набора запускаются GitHub Actions на push и pull request. Добавление workflow не является подтверждением успешного прогона: актуальный статус проверок смотрите во вкладке Actions.
 
 ## Синтаксис и ограничения
 
@@ -38,7 +41,7 @@ godot --headless --path . --script res://tests/test_reaction_balancer.gd
 - Уравнение: `H2 + O2 -> H2O`; разделитель веществ — плюс с пробелами вокруг него. Это не позволяет спутать плюс-разделитель с зарядом иона.
 - Коэффициент задаётся перед формулой через пробел: `2 H2 + O2 -> 2 H2O`.
 - Балансировщик учитывает атомы каждого элемента и суммарный заряд. Если пространство решений неоднозначно, нет положительного решения или не удаётся подтвердить целые коэффициенты в ограниченном диапазоне, он возвращает ошибку вместо произвольного выбора.
-- Балансировщик использует точную рациональную арифметику с сокращением дробей и проверкой безопасного диапазона промежуточных целых значений. При переполнении/выходе за предел коэффициентов он возвращает `numeric_limit`, не переключаясь на float и не подбирая коэффициенты. Это снижает численный риск, но реализация всё ещё требует запуска тестов на Godot 4.x и независимой верификации перед научным использованием.
+- Балансировщик использует точную рациональную арифметику с сокращением дробей и проверкой безопасного диапазона промежуточных целых значений. При переполнении/выходе за предел коэффициентов он возвращает `numeric_limit`, не переключаясь на float и не подбирая коэффициенты. Это снижает численный риск, но реализация всё ещё требует успешных тестов на Godot 4.x и независимой верификации перед научным использованием.
 - Гидраты, комплексы, структурные формулы, редокс-полуреакции и расширенный синтаксис пока не поддерживаются.
 
 ## Domain data contracts (early)
@@ -51,4 +54,4 @@ The domain layer now has initial records:
 
 A property is usable for scientific calculations only when it has a value, unit, source reference, license identifier and `verified` quality status. An absent or incomplete property is not replaced by an estimated default. An unknown hazard status is not equivalent to safe.
 
-These are initial GDScript domain records, not yet a complete validated persistence schema. Dataset licensing remains per-source/per-field; no broad external chemistry dataset is bundled by this change.
+The initial validators reject malformed property ranges, negative uncertainty, unsupported species phases, negative amounts, nonphysical optional state values and unsupported units. These are initial GDScript domain records, not yet a complete validated persistence schema. Dataset licensing remains per-source/per-field; no broad external chemistry dataset is bundled by this change.
