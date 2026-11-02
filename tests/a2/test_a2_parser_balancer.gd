@@ -77,6 +77,9 @@ func _test_nested_and_round_trip() -> void:
 	var calcium_solid: Dictionary = parser.parse_formula("Ca(OH)2(s)")
 	assert(calcium_solid.ok)
 	assert(parser.serialize_formula(calcium_solid.formula_ast, calcium_solid.phase) == "Ca(OH)2(s)")
+	var mutated_formula_ast: Dictionary = calcium.formula_ast.duplicate(true)
+	mutated_formula_ast.nodes[0].symbol = "O"
+	assert(parser.serialize_formula(mutated_formula_ast) == "")
 
 	var alum: Dictionary = parser.parse_formula("Al2(SO4)3")
 	assert(alum.ok)
@@ -93,6 +96,9 @@ func _test_nested_and_round_trip() -> void:
 	assert(reaction.ok)
 	var canonical: String = parser.serialize_reaction(reaction.reaction)
 	assert(canonical == "2H2 + O2 -> 2H2O")
+	var mutated_reaction: Dictionary = reaction.reaction.duplicate(true)
+	mutated_reaction.reactants[0].species.formula_ast.nodes[0].symbol = "O"
+	assert(parser.serialize_reaction(mutated_reaction) == "")
 	var reparsed: Dictionary = parser.parse_reaction(canonical)
 	assert(reparsed.ok)
 	assert(reparsed.reaction.reactants[0].species.formula_ast.element_counts["H"] == 2)
