@@ -16,7 +16,7 @@ PR: #3 (draft, not merged)
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
 - Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema-v1 field allowlists, ID/text-type checks, fixed 298.15 K isothermal condition, round-trip tests, and rejection of unsupported schema versions, unknown fields, duplicate/non-integer IDs, non-finite/out-of-visible-field marker coordinates and non-exact unplaced-marker sentinels.
-- Headless Godot import/startup CI (also manually dispatchable), draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit tests and a main UI draft-state integration test covering graph selection, component CRUD/custom metadata, placement, full save/load, Open/New discard confirmation and dirty-state transitions.
+- Headless Godot import/startup CI (also manually dispatchable), draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit/selection tests and a main UI draft-state integration test covering graph selection, component CRUD/custom metadata, visual-marker selection, placement, full save/load, Open/New discard confirmation and dirty-state transitions.
 
 ## Explicitly not implemented
 
