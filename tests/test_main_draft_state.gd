@@ -41,8 +41,8 @@ func _initialize() -> void:
 	main.formula_input.text = "H2O"
 	main.amount_input.text = "1"
 	main._confirm_add_component()
-	assert(main.components.size() == 2, "Adding a component should append one draft record")
-	var added_id := int(main.components[1].id)
+	assert(main.components.size() == 1, "Adding a component should append one draft record")
+	var added_id := int(main.components[0].id)
 	assert(added_id == 1, "A new experiment should assign its first component ID")
 	assert(main.selected_component_id == added_id, "The newly added component should become selected")
 
@@ -51,11 +51,11 @@ func _initialize() -> void:
 	main.formula_input.text = "H2O"
 	main.amount_input.text = "2"
 	main._confirm_add_component()
-	assert(main.components[1].name == "Переименованная вода", "Editing should update the existing component rather than append")
-	assert(main.components.size() == 2, "Editing must not create a duplicate component")
+	assert(main.components[0].name == "Переименованная вода", "Editing should update the existing component rather than append")
+	assert(main.components.size() == 1, "Editing must not create a duplicate component")
 
 	main._on_field_pressed(Vector2(0.3, 0.4))
-	assert(Vector2(main.components[1].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
+	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
 	assert(main.visual_field.markers.size() == 1 and int(main.visual_field.markers[0].id) == added_id, "Placement should create a corresponding visual marker")
 
 	var round_trip_path := "user://experiments/main-ui-roundtrip.chemsim.json"
@@ -66,11 +66,11 @@ func _initialize() -> void:
 	main._load_draft_from_path(round_trip_path)
 	assert(main.experiment_name == "Новый эксперимент", "Loading should restore the saved experiment title")
 	assert(not main.draft_dirty, "A successful UI load should clear the dirty state")
-	assert(main.components[1].name == "Переименованная вода", "Loading should restore edited component data")
+	assert(main.components[0].name == "Переименованная вода", "Loading should restore edited component data")
 	assert(main.visual_field.markers.size() == 1, "Loading should rebuild only placed visual markers")
 
 	main._remove_component(added_id)
-	assert(main.components.size() == 1, "Removing a component should delete its draft record")
+	assert(main.components.is_empty(), "Removing a component should delete its draft record")
 	assert(main.visual_field.markers.is_empty(), "Removing a component should remove its marker")
 	assert(main.draft_dirty, "Removing a component should mark the draft dirty")
 
