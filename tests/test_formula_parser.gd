@@ -19,6 +19,10 @@ func _run() -> void:
 	_test_invalid("H0", "PARSER_INVALID_INDEX")
 	_test_invalid("Xx2", "PARSER_UNKNOWN_ELEMENT")
 	_test_invalid("NaCl·2H2O", "PARSER_UNSUPPORTED_SYNTAX")
+	_test_invalid("H1000000H", "PARSER_COUNT_LIMIT")
+	_test_invalid("H1000001", "PARSER_COUNT_LIMIT")
+	_test_invalid("Fe^12345678+", "PARSER_CHARGE_LIMIT")
+	_test_resource_limits()
 
 	if _failures.is_empty():
 		print("PASS: formula parser tests")
@@ -27,6 +31,11 @@ func _run() -> void:
 		for failure in _failures:
 			push_error(failure)
 		quit(1)
+
+func _test_resource_limits() -> void:
+	var deep_formula := "H" + "(".repeat(33) + "O" + ")".repeat(33)
+	_test_invalid(deep_formula, "PARSER_NESTING_LIMIT")
+	_test_invalid("H".repeat(257), "PARSER_INPUT_LIMIT")
 
 func _test_formula(source: String, expected: Dictionary, charge: int, phase: String) -> void:
 	var result = FormulaParserScript.new().parse(source)
