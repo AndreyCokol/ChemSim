@@ -2,6 +2,7 @@ extends SceneTree
 
 const DraftCodec = preload("res://scripts/draft_codec.gd")
 const DraftRepository = preload("res://scripts/draft_repository.gd")
+const MAX_DRAFT_BYTES := 5 * 1024 * 1024
 
 func _write_text(path: String, value: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
@@ -36,6 +37,19 @@ func _initialize() -> void:
 	assert(loaded.data.experiment_name == "Repository test", "Experiment name must round-trip")
 	assert(loaded.data.components[0].formula == "X", "Raw formula text must round-trip")
 	assert(loaded.data.conditions.pressure_raw == "raw P", "Raw condition text must round-trip")
+
+	var invalid_payload := payload.duplicate(true)
+	invalid_payload.schema_version = 99
+	var invalid_save_path := "user://experiments/invalid-schema.chemsim.json"
+	var invalid_save := DraftRepository.save_draft(invalid_save_path, invalid_payload)
+	assert(not invalid_save.ok, "Repository must reject malformed payloads before writing")
+	assert(not FileAccess.file_exists(invalid_save_path), "Rejected payload must not create a draft file")
+
+	var oversized_path := "user://experiments/oversized.chemsim.json"
+	_write_text(oversized_path, "x".repeat(MAX_DRAFT_BYTES + 1))
+	var oversized_load := DraftRepository.load_draft(oversized_path)
+	assert(not oversized_load.ok, "Repository must reject oversized draft files before JSON parsing")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(oversized_path))
 
 	var rejected_save := DraftRepository.save_draft("res://must-not-write.json", payload)
 	assert(not rejected_save.ok, "Repository must reject writes outside user://")
