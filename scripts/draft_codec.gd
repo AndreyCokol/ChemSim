@@ -57,6 +57,8 @@ static func decode_payload(payload: Variant) -> Dictionary:
 			return _failure("В блоке условий отсутствует обязательное поле " + field + ".")
 		if typeof(raw_conditions[field]) != TYPE_STRING:
 			return _failure("Поле условий " + field + " должно быть строкой.")
+	if raw_conditions.temperature_k != "298.15":
+		return _failure("Черновик не соответствует фиксированной изотермической температуре 298.15 K.")
 
 	var decoded_components: Array[Dictionary] = []
 	var seen_ids: Dictionary = {}
