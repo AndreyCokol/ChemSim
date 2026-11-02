@@ -47,6 +47,10 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		"sides": sides,
 		"candidate_count": 0,
 		"candidate_limit": max_candidates,
+		# Bound total recursive work as well as complete coefficient vectors.
+		# A bounded leaf count alone does not bound the search tree.
+		"search_node_count": 0,
+		"search_node_limit": mini(MAX_MAX_CANDIDATES * 4, max_candidates * 4 + terms.size()),
 		"solutions": [],
 		"limit_hit": false
 	}
@@ -180,6 +184,10 @@ func _solver_term_metadata(terms: Array, sides: Array, source_term_ids: Array) -
 
 func _enumerate_compositions(position: int, remaining: int, current: Array, context: Dictionary) -> void:
 	if bool(context.limit_hit) or context.solutions.size() > 1:
+		return
+	context.search_node_count = int(context.search_node_count) + 1
+	if int(context.search_node_count) > int(context.search_node_limit):
+		context.limit_hit = true
 		return
 	var term_count: int = context.terms.size()
 	if position == term_count - 1:
