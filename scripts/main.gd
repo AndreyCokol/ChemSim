@@ -30,6 +30,7 @@ var components: Array[Dictionary] = []
 var experiment_name: String = "Новый эксперимент"
 var draft_dirty: bool = false
 var active_graph: String = "concentration"
+var graph_buttons: Dictionary = {}
 var add_dialog: AcceptDialog
 var name_input: LineEdit
 var formula_input: LineEdit
@@ -500,6 +501,8 @@ func _set_draft_status() -> void:
 
 func _graph_tab(caption: String, mode: String) -> Button:
 	var button := _button(caption, mode == active_graph)
+	graph_buttons[mode] = button
+	button.modulate = Color.WHITE if mode == active_graph else Color(0.68, 0.75, 0.82, 1.0)
 	button.pressed.connect(func():
 		active_graph = mode
 		match mode:
@@ -509,6 +512,9 @@ func _graph_tab(caption: String, mode: String) -> Button:
 				graph_title.text = "СКОРОСТЬ · ВРЕМЯ"
 			"temperature":
 				graph_title.text = "ТЕМПЕРАТУРА · ВРЕМЯ"
+		for graph_mode in graph_buttons:
+			var graph_button: Button = graph_buttons[graph_mode]
+			graph_button.modulate = Color.WHITE if graph_mode == active_graph else Color(0.68, 0.75, 0.82, 1.0)
 	)
 	return button
 
