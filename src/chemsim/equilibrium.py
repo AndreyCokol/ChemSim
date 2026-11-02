@@ -72,6 +72,30 @@ def _ideal_gas_pressure(amount_mol: float, temperature_k: float, volume_m3: floa
         return float("inf")
 
 
+def _aqueous_result(
+    species_mol_l: dict[str, float],
+    pH: float,
+    diagnostics: SolverDiagnostics,
+    solid_mol_l: float = 0.0,
+) -> AqueousResult:
+    numeric_diagnostics = (
+        diagnostics.residual,
+        diagnostics.component_balance_residual,
+        diagnostics.charge_balance_residual,
+    )
+    if (
+        any(not isfinite(value) or value < 0.0 for value in species_mol_l.values())
+        or not isfinite(pH)
+        or not isfinite(solid_mol_l)
+        or solid_mol_l < 0.0
+        or any(not isfinite(value) for value in numeric_diagnostics)
+    ):
+        raise EquilibriumConvergenceError(
+            "Aqueous equilibrium produced non-finite or nonphysical result values"
+        )
+    return AqueousResult(species_mol_l, pH, diagnostics, solid_mol_l)
+
+
 def _positive(name: str, value: float, *, allow_zero: bool = False) -> None:
     if not isfinite(value) or (value < 0 if allow_zero else value <= 0):
         qualifier = "non-negative" if allow_zero else "positive"
@@ -183,7 +207,7 @@ def solve_weak_acid(
     oh = kw / h
     mass_error = abs((ha + a_minus) - total_acid_mol_l)
     charge_error = abs(h - a_minus - oh)
-    return AqueousResult(
+    return _aqueous_result(
         {"HA": ha, "A-": a_minus, "H+": h, "OH-": oh},
         -log10(h / STANDARD_CONCENTRATION_MOL_L),
         SolverDiagnostics(iterations, residual, mass_error, charge_error, "log-space bisection", "mol/L"),
@@ -210,7 +234,7 @@ def solve_strong_neutralization(
     h, iterations, f_residual = _log_root_positive(residual)
     oh = kw / h
     charge = h + naoh_mol_l - oh - hcl_mol_l
-    return AqueousResult(
+    return _aqueous_result(
         {"H+": h, "OH-": oh, "Na+": naoh_mol_l, "Cl-": hcl_mol_l},
         -log10(h),
         SolverDiagnostics(iterations, f_residual, 0.0, abs(charge), "log-space bisection", "mol/L"),
@@ -228,7 +252,7 @@ def solve_agcl_solubility(ksp: float, kw: float) -> AqueousResult:
     s = STANDARD_CONCENTRATION_MOL_L * sqrt(ksp)
     h = sqrt(kw)
     oh = kw / h
-    return AqueousResult(
+    return _aqueous_result(
         {"Ag+": s, "Cl-": s, "H+": h, "OH-": oh},
         -log10(h),
         SolverDiagnostics(
@@ -262,7 +286,7 @@ def solve_ammonia_buffer(
     oh = kw / h
     mass_error = abs(nh3 + nh4 - total_nitrogen_mol_l)
     charge_error = abs(nh4 + h - chloride_mol_l - oh)
-    return AqueousResult(
+    return _aqueous_result(
         {"NH3": nh3, "NH4+": nh4, "H+": h, "OH-": oh, "Cl-": chloride_mol_l},
         -log10(h),
         SolverDiagnostics(iterations, residual, mass_error, charge_error, "log-space bisection", "mol/L"),
@@ -336,7 +360,7 @@ def solve_agcl_precipitation(
     charge = ag + sodium_total_mol_l + h - cl - nitrate_total_mol_l - oh
     ag_balance = abs(ag + solid - silver_total_mol_l)
     cl_balance = abs(cl + solid - chloride_total_mol_l)
-    return AqueousResult(
+    return _aqueous_result(
         {"Ag+": ag, "Cl-": cl, "Na+": sodium_total_mol_l,
          "NO3-": nitrate_total_mol_l, "H+": h, "OH-": oh},
         -log10(h),
