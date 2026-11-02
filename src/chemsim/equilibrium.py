@@ -266,28 +266,39 @@ def solve_agcl_precipitation(
         _positive(name, value, allow_zero=True)
     _positive("ksp", ksp)
     _positive("kw", kw)
-    scale = max(
+    feed_scale = max(
         abs(silver_total_mol_l), abs(chloride_total_mol_l),
-        abs(sodium_total_mol_l), abs(nitrate_total_mol_l), 1e-30,
+        abs(sodium_total_mol_l), abs(nitrate_total_mol_l),
     )
-    if abs(silver_total_mol_l - nitrate_total_mol_l) > 1e-10 * scale:
-        raise EquilibriumInputError("AgNO3 feed must have equal Ag and nitrate totals")
-    if abs(chloride_total_mol_l - sodium_total_mol_l) > 1e-10 * scale:
-        raise EquilibriumInputError("NaCl feed must have equal Na and chloride totals")
+    if feed_scale > 0.0:
+        if abs(silver_total_mol_l - nitrate_total_mol_l) > 1e-10 * feed_scale:
+            raise EquilibriumInputError("AgNO3 feed must have equal Ag and nitrate totals")
+        if abs(chloride_total_mol_l - sodium_total_mol_l) > 1e-10 * feed_scale:
+            raise EquilibriumInputError("NaCl feed must have equal Na and chloride totals")
+    elif any(value != 0.0 for value in (
+        silver_total_mol_l, chloride_total_mol_l, sodium_total_mol_l, nitrate_total_mol_l
+    )):
+        raise EquilibriumInputError("Feed totals are inconsistent")
 
-    q_initial = silver_total_mol_l * chloride_total_mol_l
-    if q_initial <= ksp:
-        ag, cl, solid, iterations, residual = silver_total_mol_l, chloride_total_mol_l, 0.0, 0, q_initial - ksp
+    log_ksp = log(ksp)
+
+    def log_saturation(ag_concentration: float, cl_concentration: float) -> float:
+        if ag_concentration <= 0.0 or cl_concentration <= 0.0:
+            return -float("inf")
+        return log(ag_concentration) + log(cl_concentration) - log_ksp
+
+    initial_log_saturation = log_saturation(silver_total_mol_l, chloride_total_mol_l)
+    if initial_log_saturation <= 0.0:
+        ag, cl, solid, iterations, residual = (
+            silver_total_mol_l, chloride_total_mol_l, 0.0, 0, initial_log_saturation
+        )
     else:
         upper = min(silver_total_mol_l, chloride_total_mol_l)
 
         def saturation(extent: float) -> float:
             ag_remaining = max(0.0, silver_total_mol_l - extent)
             cl_remaining = max(0.0, chloride_total_mol_l - extent)
-            product = ag_remaining * cl_remaining
-            if product == 0:
-                return -float("inf")
-            return log(product / ksp)
+            return log_saturation(ag_remaining, cl_remaining)
 
         solid, iterations, residual = _bisect(saturation, 0.0, upper, f_tol=1e-12)
         ag = max(0.0, silver_total_mol_l - solid)
