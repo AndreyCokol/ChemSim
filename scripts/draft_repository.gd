@@ -60,16 +60,39 @@ static func load_draft(path: String) -> Dictionary:
 	if not _is_allowed_user_path(path):
 		return _failure("Открывать черновики разрешено только внутри пользовательской папки.")
 	path = path.replace("\\", "/")
-	# Recover the previous committed draft if the process stopped after moving
-	# the target to .bak but before promoting the new temporary file.
 	var backup_path := path + ".bak"
-	if not FileAccess.file_exists(path) and FileAccess.file_exists(backup_path):
-		var recovery_error := DirAccess.rename_absolute(
-			ProjectSettings.globalize_path(backup_path),
-			ProjectSettings.globalize_path(path)
-		)
-		if recovery_error != OK:
-			return _failure("Не удалось восстановить резервную копию черновика: " + str(recovery_error))
+	var temporary_path := path + ".tmp"
+
+	# Never promote a sidecar before validating its size, JSON and complete schema.
+	# If both sidecars exist while the canonical file is missing, prefer the
+	# previous committed backup; leave the temporary file untouched for inspection.
+	if not FileAccess.file_exists(path):
+		if FileAccess.file_exists(backup_path):
+			var backup_validation := _read_and_validate(backup_path)
+			if not bool(backup_validation.get("ok", false)):
+				return _failure("Резервная копия существует, но не прошла проверку; исходный файл не восстановлен. " + String(backup_validation.get("error", "")))
+			var backup_restore_error := DirAccess.rename_absolute(
+				ProjectSettings.globalize_path(backup_path),
+				ProjectSettings.globalize_path(path)
+			)
+			if backup_restore_error != OK:
+				return _failure("Не удалось восстановить проверенную резервную копию: " + str(backup_restore_error))
+		elif FileAccess.file_exists(temporary_path):
+			var temporary_validation := _read_and_validate(temporary_path)
+			if not bool(temporary_validation.get("ok", false)):
+				return _failure("Временный файл существует, но не прошёл проверку; он оставлен без изменений. " + String(temporary_validation.get("error", "")))
+			var temporary_restore_error := DirAccess.rename_absolute(
+				ProjectSettings.globalize_path(temporary_path),
+				ProjectSettings.globalize_path(path)
+			)
+			if temporary_restore_error != OK:
+				return _failure("Не удалось восстановить проверенный временный файл: " + str(temporary_restore_error))
+		else:
+			return _failure("Файл черновика не найден.")
+
+	return _read_and_validate(path)
+
+static func _read_and_validate(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _failure("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
