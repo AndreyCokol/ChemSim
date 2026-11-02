@@ -112,6 +112,17 @@ func _test_substance_record() -> void:
 	property.quality_status = "provisional"
 	_expect(not substance.can_be_used_for(["molar_mass"]), "provisional property must block calculation")
 
+	property.quality_status = "verified"
+	property.property_id = "density"
+	_expect(not substance.can_be_used_for(["molar_mass"]), "property key and record identity must match")
+
+	property.property_id = "molar_mass"
+	substance.properties.clear()
+	substance.molar_mass = property
+	_expect(substance.can_be_used_for(["molar_mass"]), "molar mass convenience field must participate in verified-property lookup")
+	property.property_id = "density"
+	_expect(not substance.can_be_used_for(["molar_mass"]), "molar mass field with mismatched identity must be rejected")
+
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
