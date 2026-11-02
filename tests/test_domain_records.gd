@@ -107,8 +107,22 @@ func _test_substance_record() -> void:
 	var substance := SubstanceRecord.new()
 	substance.substance_id = "water"
 	substance.formula = "H2O"
-	_expect(substance.can_be_used_for([]), "identity-complete substance can satisfy an empty property requirement")
+	substance.element_counts = {"H": 2, "O": 1}
+	substance.net_charge = 0
+	_expect(substance.can_be_used_for([]), "validated identity can satisfy an empty property requirement")
 	_expect(not substance.can_be_used_for(["molar_mass"]), "missing required property must block use")
+
+	substance.formula = "not-a-formula"
+	_expect(not substance.can_be_used_for([]), "malformed formula must block use even when no properties are requested")
+	substance.formula = "H2O"
+	substance.element_counts.clear()
+	_expect(not substance.can_be_used_for([]), "missing elemental composition must block use")
+	substance.element_counts = {"H": 2, "O": 2}
+	_expect(not substance.can_be_used_for([]), "composition inconsistent with formula must block use")
+	substance.element_counts = {"H": 2, "O": 1}
+	substance.net_charge = 1
+	_expect(not substance.can_be_used_for([]), "charge inconsistent with formula must block use")
+	substance.net_charge = 0
 
 	var property := PropertyRecord.new()
 	property.property_id = "molar_mass"
