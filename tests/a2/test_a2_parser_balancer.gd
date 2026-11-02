@@ -53,6 +53,16 @@ func _test_reaction_boundaries() -> void:
 	assert(reversible.reaction.reactants[0].stoichiometric_coefficient == 1)
 	assert(reversible.reaction.products[0].stoichiometric_coefficient == 2)
 
+	var reversible_canonical := parser.serialize_reaction(reversible.reaction)
+	assert(reversible_canonical == "H2 + I2 ⇌ 2HI")
+	var reversible_round_trip: Dictionary = parser.parse_reaction(reversible_canonical)
+	assert(reversible_round_trip.ok)
+	assert(reversible_round_trip.reaction.arrow_type == "REVERSIBLE")
+
+	var unicode_forward: Dictionary = parser.parse_reaction("H2 + O2 → H2O")
+	assert(unicode_forward.ok)
+	assert(parser.serialize_reaction(unicode_forward.reaction) == "H2 + O2 -> H2O")
+
 
 func _test_nested_and_round_trip() -> void:
 	var parser = Parser.new()
