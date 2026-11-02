@@ -363,4 +363,16 @@ public sealed class KineticsSimulatorTests
         Assert.Single(result.Samples);
     }
 
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(-1d)]
+    public void RateConstant_RejectsInvalidTotalOrder(double totalOrder)
+    {
+        var rateConstant = new RateConstant(1d, 0d);
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            rateConstant.ValidateForTotalOrder(totalOrder, "invalid-total-order"));
+    }
+
 }
