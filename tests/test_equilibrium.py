@@ -108,6 +108,10 @@ class AqueousBenchmarkTests(unittest.TestCase):
         with self.assertRaises(EquilibriumInputError):
             solve_agcl_precipitation(1.0e-12, 1.0e-12, 1.0e-12, 0.0, 1.0e-10, 1.0e-14)
 
+    def test_rejects_feed_mismatch_below_previous_absolute_scale_floor(self):
+        with self.assertRaises(EquilibriumInputError):
+            solve_agcl_precipitation(1.0e-50, 1.0e-50, 1.0e-50, 0.0, 1.0e-100, 1.0e-14)
+
     def test_rejects_inconsistent_spectator_totals(self):
         with self.assertRaises(EquilibriumInputError):
             solve_agcl_precipitation(0.01, 0.01, 0.02, 0.01, 1e-10, 1e-14)
