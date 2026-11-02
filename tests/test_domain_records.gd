@@ -51,6 +51,16 @@ func _test_property_record() -> void:
 	_expect(record.is_valid(), "unknown quality is a valid record state")
 	_expect(not record.is_usable(), "unknown quality must not be used in calculations")
 
+	record.quality_status = "verified"
+	record.value = "18.015"
+	_expect(record.is_valid(), "descriptive string values may be structurally retained")
+	_expect(not record.is_usable(), "string-valued properties must not enter quantitative calculations")
+	record.value = true
+	_expect(record.is_valid(), "boolean metadata may be structurally retained")
+	_expect(not record.is_usable(), "boolean-valued properties must not enter quantitative calculations")
+	record.value = 18.015
+	_expect(record.is_usable(), "finite numeric property with provenance should remain usable")
+
 func _test_species_ref() -> void:
 	var species := SpeciesRef.new()
 	species.species_id = "water_aq"
