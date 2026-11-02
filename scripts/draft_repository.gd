@@ -114,9 +114,32 @@ static func _is_allowed_user_path(path: String) -> bool:
 	var relative_path := path.substr("user://".length()).replace("\\", "/")
 	if relative_path.is_empty() or relative_path.begins_with("/"):
 		return false
-	for segment in relative_path.split("/"):
+	var segments := relative_path.split("/")
+	for segment in segments:
 		if segment.is_empty() or segment == "." or segment == "..":
 			return false
+	return _has_no_symlink_components(segments)
+
+static func _has_no_symlink_components(segments: PackedStringArray) -> bool:
+	var current_directory := "user://"
+	for index in range(segments.size()):
+		var directory := DirAccess.open(current_directory)
+		# A missing parent is valid for a future save. Existing parents must be
+		# inspectable before traversing them.
+		if directory == null:
+			return not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(current_directory))
+		var segment: String = segments[index]
+		if directory.is_link(segment):
+			return false
+		if index == segments.size() - 1:
+			return true
+		var next_directory := current_directory.path_join(segment)
+		if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(next_directory)):
+			current_directory = next_directory
+		elif FileAccess.file_exists(next_directory):
+			return false
+		else:
+			return true
 	return true
 
 static func _failure(message: String) -> Dictionary:
