@@ -467,7 +467,7 @@ func _is_valid_reaction_term(term: Variant) -> bool:
 	if typeof(species) != TYPE_DICTIONARY:
 		return false
 	var ast: Variant = species.get("formula_ast")
-	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
+	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY or typeof(ast.get("nodes")) != TYPE_ARRAY:
 		return false
 	if typeof(ast.get("schema_version")) != TYPE_INT or int(ast.schema_version) != 1:
 		return false
@@ -493,7 +493,7 @@ func _is_valid_reaction_term(term: Variant) -> bool:
 	if not bool(reparsed.get("ok", false)) or String(reparsed.phase) != String(phase):
 		return false
 	var parsed_ast: Dictionary = reparsed.formula_ast
-	if int(parsed_ast.net_charge) != int(ast.net_charge) or parsed_ast.element_counts != ast.element_counts:
+	if int(parsed_ast.net_charge) != int(ast.net_charge) or parsed_ast.element_counts != ast.element_counts or parsed_ast.nodes != ast.nodes:
 		return false
 
 	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
