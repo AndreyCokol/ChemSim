@@ -10,7 +10,8 @@
 - разбор уравнений со стрелками `->` и `<->`;
 - стехиометрическую балансировку по элементному составу и отдельной строке электрического заряда;
 - минимальный UI для проверки формул и балансировки уравнения;
-- ранние доменные записи свойств, веществ, химических видов и компонентов эксперимента с проверками входных данных.
+- ранние доменные записи свойств, веществ, химических видов и компонентов эксперимента с проверками входных данных;
+- ограничения ресурсов парсера формул и проверки идентичности свойств в каталожной записи вещества.
 
 Это **не** готовый химический симулятор: каталог проверенных веществ, равновесные модели, кинетика, численный ODE solver, графики и полноценная энциклопедия ещё не реализованы.
 
@@ -41,7 +42,8 @@ godot --headless --path . --script res://tests/test_domain_records.gd
 - Уравнение: `H2 + O2 -> H2O`; разделитель веществ — плюс с пробелами вокруг него. Это не позволяет спутать плюс-разделитель с зарядом иона.
 - Коэффициент задаётся перед формулой через пробел: `2 H2 + O2 -> 2 H2O`.
 - Балансировщик учитывает атомы каждого элемента и суммарный заряд. Если пространство решений неоднозначно, нет положительного решения или не удаётся подтвердить целые коэффициенты в ограниченном диапазоне, он возвращает ошибку вместо произвольного выбора.
-- Балансировщик использует точную рациональную арифметику с сокращением дробей и проверкой безопасного диапазона промежуточных целых значений. При переполнении/выходе за предел коэффициентов он возвращает `numeric_limit`, не переключаясь на float и не подбирая коэффициенты. Это снижает численный риск, но реализация всё ещё требует успешных тестов на Godot 4.x и независимой верификации перед научным использованием.
+- Рациональные числители и знаменатели хранятся как целые значения; промежуточные операции проверяются на ограничение диапазона. При превышении пределов возвращается `numeric_limit`, без перехода на float и без подбора коэффициентов. Это всё ещё требует запуска тестов на Godot 4.x и независимой верификации перед научным использованием.
+- Парсер ограничивает длину формулы, глубину групп, модуль заряда и число атомов, чтобы некорректный ввод не приводил к чрезмерной рекурсии или росту целых значений.
 - Гидраты, комплексы, структурные формулы, редокс-полуреакции и расширенный синтаксис пока не поддерживаются.
 
 ## Domain data contracts (early)
@@ -52,6 +54,6 @@ The domain layer now has initial records:
 - `SpeciesRef`: references a substance in a particular phase/context.
 - `ExperimentComponent`: experiment-local amount and optional initial state.
 
-A property is usable for scientific calculations only when it has a value, unit, source reference, license identifier and `verified` quality status. An absent or incomplete property is not replaced by an estimated default. An unknown hazard status is not equivalent to safe.
+A property is usable for scientific calculations only when it has a value, unit, source reference, license identifier and `verified` quality status. Property dictionary keys must match the embedded property identifier; the dedicated molar-mass field follows the same provenance and quality contract. An absent or incomplete property is not replaced by an estimated default. An unknown hazard status is not equivalent to safe.
 
 The initial validators reject malformed property ranges, negative uncertainty, unsupported species phases, negative amounts, nonphysical optional state values and unsupported units. These are initial GDScript domain records, not yet a complete validated persistence schema. Dataset licensing remains per-source/per-field; no broad external chemistry dataset is bundled by this change.
