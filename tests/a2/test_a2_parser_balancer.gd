@@ -144,6 +144,13 @@ func _test_balance_validation() -> void:
 	assert(balanced.ok)
 	assert(parser.check_balance(balanced.reaction).balanced)
 
+	var too_many_terms: Dictionary = {"reactants": [], "products": [balanced.reaction.products[0].duplicate(true)]}
+	for i in range(4096):
+		too_many_terms.reactants.append(balanced.reaction.reactants[0].duplicate(true))
+	var term_limit_result: Dictionary = parser.check_balance(too_many_terms)
+	assert(not term_limit_result.ok)
+	assert(term_limit_result.code == "BALANCE_TOO_MANY_TERMS")
+
 	var oversized_balance: Dictionary = parser.parse_reaction("H1000000000 + H1000000000 -> H2")
 	assert(oversized_balance.ok)
 	var overflow_result: Dictionary = parser.check_balance(oversized_balance.reaction)
