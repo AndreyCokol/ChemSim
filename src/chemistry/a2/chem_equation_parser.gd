@@ -241,7 +241,8 @@ func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 	var text := raw_text.strip_edges()
 	if text.begins_with("-") or text.begins_with("+") or text.begins_with("."):
 		return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
-	var leading := raw_text.length() - raw_text.strip_edges().length()
+	var leading := raw_text.find(text)
+	var formula_offset := global_start + leading
 	var coefficient := 1
 	var digit_count := 0
 	while digit_count < text.length() and text.substr(digit_count, 1).is_valid_int():
@@ -260,10 +261,9 @@ func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 		var formula_text := formula_remainder.strip_edges()
 		if formula_text.is_empty():
 			return _failure("PARSE_EMPTY_FORMULA", "A coefficient must be followed by a formula.", global_start, global_start + raw_text.length())
-		var formula_offset := global_start + leading + digit_count + formula_remainder.find(formula_text)
+		formula_offset = global_start + leading + digit_count + formula_remainder.find(formula_text)
 		text = formula_text
-	else:
-		var formula_offset := global_start + leading + text.find(text)
+	
 
 	var formula_result := parse_formula(text)
 	if not formula_result.ok:
