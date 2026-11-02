@@ -457,6 +457,7 @@ func _remove_component(component_id: int) -> void:
 
 func _select_component_for_placement(component_id: int) -> void:
 	selected_component_id = component_id
+	visual_field.select_marker(component_id)
 	_refresh_composition()
 	status_label.text = "Нажмите на визуальное поле для размещения маркера"
 
@@ -468,6 +469,7 @@ func _on_field_pressed(normalized_position: Vector2) -> void:
 		if int(components[index].id) == selected_component_id:
 			components[index].position = normalized_position
 			visual_field.set_marker(selected_component_id, str(components[index].name), normalized_position)
+			visual_field.select_marker(selected_component_id)
 			draft_dirty = true
 			status_label.text = "Маркер перемещён · химическое состояние не изменено"
 			_refresh_composition()
