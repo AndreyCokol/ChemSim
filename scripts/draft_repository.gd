@@ -16,6 +16,11 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
 	if dir_error != OK:
 		return _failure("Не удалось создать папку для черновиков: " + str(dir_error))
+	# Recover a previous interrupted transaction before starting another save.
+	if not FileAccess.file_exists(path) and (FileAccess.file_exists(path + ".bak") or FileAccess.file_exists(path + ".tmp")):
+		var recovery := load_draft(path)
+		if not bool(recovery.get("ok", false)):
+			return _failure("Сохранение остановлено: сначала требуется восстановить предыдущий черновик. " + String(recovery.get("error", "")))
 
 	var temporary_path := path + ".tmp"
 	var temporary_absolute := ProjectSettings.globalize_path(temporary_path)
