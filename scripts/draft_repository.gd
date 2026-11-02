@@ -10,6 +10,9 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	var validation := DraftCodec.decode_payload(payload)
 	if not bool(validation.get("ok", false)):
 		return _failure("Черновик не прошёл проверку схемы: " + String(validation.get("error", "неизвестная ошибка")))
+	var serialized := JSON.stringify(payload, "\\t")
+	if serialized.to_utf8_buffer().size() > MAX_DRAFT_BYTES:
+		return _failure("Черновик превышает допустимый размер 5 МиБ.")
 	path = path.replace("\\", "/")
 	var absolute_path := ProjectSettings.globalize_path(path)
 	var absolute_dir := ProjectSettings.globalize_path(path.get_base_dir())
@@ -29,7 +32,7 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
 	if file == null:
 		return _failure("Не удалось открыть временный файл: " + str(FileAccess.get_open_error()))
-	file.store_string(JSON.stringify(payload, "\t"))
+	file.store_string(serialized)
 	file.flush()
 	var write_error := file.get_error()
 	file.close()
