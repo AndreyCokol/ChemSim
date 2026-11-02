@@ -140,6 +140,13 @@ func _test_balance_validation() -> void:
 	assert(not malformed_check.ok)
 	assert(malformed_check.code == "BALANCE_INVALID_TERM")
 
+	var stale_ast: Dictionary = parser.parse_reaction("H2 + O2 -> H2O")
+	assert(stale_ast.ok)
+	stale_ast.reaction.reactants[0].species.formula_ast.element_counts["O"] = 1
+	var stale_ast_check: Dictionary = parser.check_balance(stale_ast.reaction)
+	assert(not stale_ast_check.ok)
+	assert(stale_ast_check.code == "BALANCE_INVALID_TERM")
+
 	var balanced: Dictionary = parser.parse_reaction("2H2 + O2 -> 2H2O")
 	assert(balanced.ok)
 	assert(parser.check_balance(balanced.reaction).balanced)
