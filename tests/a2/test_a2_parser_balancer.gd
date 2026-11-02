@@ -97,6 +97,11 @@ func _test_negative_cases() -> void:
 	assert(not oversized_count.ok)
 	assert(oversized_count.code == "PARSE_COUNT_TOO_LARGE")
 
+	var huge_count_token := "H" + "9".repeat(1000)
+	var huge_count: Dictionary = parser.parse_formula(huge_count_token)
+	assert(not huge_count.ok)
+	assert(huge_count.code == "PARSE_COUNT_TOO_LARGE")
+
 	var oversized_charge: Dictionary = parser.parse_formula("Fe^1000001+")
 	assert(not oversized_charge.ok)
 	assert(oversized_charge.code == "PARSE_CHARGE_TOO_LARGE")
