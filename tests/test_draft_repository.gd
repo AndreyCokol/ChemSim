@@ -45,6 +45,13 @@ func _initialize() -> void:
 	assert(not invalid_save.ok, "Repository must reject malformed payloads before writing")
 	assert(not FileAccess.file_exists(invalid_save_path), "Rejected payload must not create a draft file")
 
+	var oversized_save_payload := payload.duplicate(true)
+	oversized_save_payload.experiment_name = "x".repeat(MAX_DRAFT_BYTES + 1)
+	var oversized_save_path := "user://experiments/oversized-save.chemsim.json"
+	var oversized_save := DraftRepository.save_draft(oversized_save_path, oversized_save_payload)
+	assert(not oversized_save.ok, "Repository must reject oversized payloads before writing")
+	assert(not FileAccess.file_exists(oversized_save_path), "Oversized payload must not create a draft file")
+
 	var oversized_path := "user://experiments/oversized.chemsim.json"
 	_write_text(oversized_path, "x".repeat(MAX_DRAFT_BYTES + 1))
 	var oversized_load := DraftRepository.load_draft(oversized_path)
