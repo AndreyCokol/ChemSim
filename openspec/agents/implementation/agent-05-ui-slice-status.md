@@ -9,6 +9,7 @@ PR: #3 (draft, not merged)
 - Godot 4.x project entry point and Russian-language experiment workspace.
 - Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
 - Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
+- Draft file operation failures are shown in a dedicated modal and the persistent diagnostic area.
 - Separate local draft repository restricted to normalized paths inside `user://`; parent traversal, mixed-separator traversal and the user-data root are rejected. Writes use a temporary file and backup/restore replacement, with round-trip/security tests.
 - Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
