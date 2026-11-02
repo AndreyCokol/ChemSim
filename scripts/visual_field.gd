@@ -37,6 +37,10 @@ func set_marker(component_id: int, label: String, normalized_position: Vector2) 
 	})
 	queue_redraw()
 
+func select_marker(component_id: int) -> void:
+	selected_marker_id = component_id
+	queue_redraw()
+
 func remove_marker(component_id: int) -> void:
 	for index in range(markers.size() - 1, -1, -1):
 		if int(markers[index].id) == component_id:
