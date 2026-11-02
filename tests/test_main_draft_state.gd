@@ -53,7 +53,7 @@ func _initialize() -> void:
 
 	main._on_field_pressed(Vector2(0.3, 0.4))
 	assert(Vector2(main.components[1].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
-	assert(main.visual_field.markers.any(func(marker): return int(marker.id) == added_id), "Placement should create a corresponding visual marker")
+	assert(main.visual_field.markers.size() == 1 and int(main.visual_field.markers[0].id) == added_id, "Placement should create a corresponding visual marker")
 
 	var round_trip_path := "user://experiments/main-ui-roundtrip.chemsim.json"
 	main._save_draft_to_path(round_trip_path)
