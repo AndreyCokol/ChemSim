@@ -81,7 +81,7 @@ static func decode_payload(payload: Variant) -> Dictionary:
 		if not raw_position is Array or raw_position.size() != 2:
 			return _failure("Координаты компонента имеют неверный формат.")
 		if not _is_valid_position(raw_position):
-			return _failure("Координаты должны быть конечными числами от 0 до 1 либо парой -1 для неразмещённого маркера.")
+			return _failure("Координаты должны находиться в видимой области поля (x: 0.03–0.97, y: 0.05–0.95) либо быть парой -1 для неразмещённого маркера.")
 		var raw_id: Variant = raw_item.id
 		if typeof(raw_id) != TYPE_INT:
 			return _failure("Идентификатор компонента должен быть целым числом.")
@@ -123,7 +123,7 @@ static func _is_valid_position(position: Array) -> bool:
 	if not is_finite(x) or not is_finite(y):
 		return false
 	var is_unplaced := x == -1.0 and y == -1.0
-	var is_normalized := x >= 0.0 and x <= 1.0 and y >= 0.0 and y <= 1.0
+	var is_normalized := x >= 0.03 and x <= 0.97 and y >= 0.05 and y <= 0.95
 	return is_unplaced or is_normalized
 
 static func _failure(message: String) -> Dictionary:
