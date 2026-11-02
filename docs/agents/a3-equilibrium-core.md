@@ -53,3 +53,50 @@ The gas helper uses only the two fixed benchmark stoichiometries. It does not
 perform a general elemental-matrix rank check; atom conservation follows from
 those hard-coded balanced reactions. A future general reaction API must validate
 stoichiometry and elemental conservation independently before solving.
+
+
+## Cross-agent integration boundary (reviewed 2026-11-02)
+
+This branch is an executable **fixture prototype**, not the normative A3
+EquilibriumProblem/EquilibriumResult contract. The repository's round-1 review
+proposals and integrator decision register still leave public DTOs and several
+shared contracts unapproved. In particular, INT-04–09, INT-13–16, INT-19–20,
+INT-22, INT-34–39 must be resolved before this module can be promoted as the
+application-facing equilibrium API.
+
+### Important semantic gaps in this prototype
+
+- `AqueousResult.pH` is calculated as `-log10([H+]/c°)` with gamma=1. It is
+  only an **ideal concentration approximation**, not thermodynamic activity pH.
+  The scalar field is retained for benchmark compatibility and must not be
+  exposed as an unqualified pH value by UI or downstream adapters.
+- `ka`, `kw`, `ksp`, and gas `kp` are currently plain numeric arguments.
+  They do not carry the A1 ThermoConstantRecord reference, source, uncertainty,
+  reference temperature, applicability interval, basis, or standard-state ID.
+  The fixture caller is responsible for supplying compatible values.
+- The aqueous solvers implement a deliberately narrow ideal-dilute convention
+  (`gamma_i = 1`, molarity scale). They do not establish a general activity
+  model or ionic-strength validity range.
+- The precipitation fixture is specific to neutral AgNO3/NaCl feeds and one
+  AgCl(s) phase. It is not a general complementarity solver for arbitrary
+  reaction networks or multiple solids.
+- `SolverDiagnostics.reliability_status` is a local prototype flag, not the
+  A5 ReliabilityVector. Numerical convergence, conservation residuals, input
+  data quality, model applicability, and result completeness remain separate
+  dimensions in the integration contract.
+- Gas calculations use dimensionless partial pressures relative to 1 bar and
+  ideal-gas assumptions. They do not support fugacity or conversion from
+  activity-basis K without an explicit thermodynamic transformation.
+
+### Promotion gate
+
+Do not use this module as the public application API until the owner/integrator
+approves the OpenSpec baseline and the shared contracts. Before promotion,
+replace bare constant arguments with typed, provenance-linked references;
+introduce a typed pH result; align error/status envelopes and units with the
+shared registries; and add independently sourced numeric benchmarks with
+declared conditions, uncertainty, and benchmark-specific tolerances.
+
+The current seven fixtures remain useful as isolated regression examples.
+Passing them demonstrates implementation consistency for those assumptions,
+not scientific validation outside their documented domains.
