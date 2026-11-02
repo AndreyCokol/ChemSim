@@ -106,6 +106,10 @@ func _test_negative_cases() -> void:
 	assert(not oversized_charge.ok)
 	assert(oversized_charge.code == "PARSE_CHARGE_TOO_LARGE")
 
+	var invalid_charge_digits: Dictionary = parser.parse_formula("Fe^x+")
+	assert(not invalid_charge_digits.ok)
+	assert(invalid_charge_digits.code == "PARSE_INVALID_CHARGE")
+
 	var oversized_coefficient: Dictionary = parser.parse_reaction("1000001H2 -> H2")
 	assert(not oversized_coefficient.ok)
 	assert(oversized_coefficient.code == "PARSE_COEFFICIENT_TOO_LARGE")
