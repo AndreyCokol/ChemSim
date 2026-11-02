@@ -338,7 +338,7 @@ func _extract_charge(text: String) -> Dictionary:
 
 	return {"ok": true, "body": text, "charge": 0}
 
-func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
+func _parse_sequence(text: String, state: Dictionary, nested: bool, group_start: int = -1) -> Array:
 	var nodes: Array = []
 	while int(state.index) < text.length():
 		var ch := text.substr(int(state.index), 1)
@@ -350,22 +350,23 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			state.error = "PARSE_UNEXPECTED_TOKEN"
 			return nodes
 		if ch == "(":
+			var group_start := int(state.index)
 			state.depth = int(state.depth) + 1
 			if int(state.depth) > MAX_GROUP_DEPTH:
-				state.error_index = int(state.index)
+				state.error_index = group_start
 				state.error = "PARSE_NESTING_LIMIT"
 				return nodes
 			state.index = int(state.index) + 1
-			var children := _parse_sequence(text, state, true)
+			var children := _parse_sequence(text, state, true, group_start)
 			state.depth = int(state.depth) - 1
 			if not String(state.error).is_empty():
 				return nodes
 			if int(state.index) == 0 or text.substr(int(state.index) - 1, 1) != ")":
-				state.error_index = int(state.index)
+				state.error_index = group_start
 				state.error = "PARSE_UNCLOSED_GROUP"
 				return nodes
 			if children.is_empty():
-				state.error_index = int(state.index)
+				state.error_index = group_start
 				state.error = "PARSE_EMPTY_GROUP"
 				return nodes
 			var group_count := _read_count(text, state)
@@ -399,7 +400,7 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 		state.error = "PARSE_UNSUPPORTED_SYNTAX" if ch == "·" or ch == "[" or ch == "]" else "PARSE_UNEXPECTED_TOKEN"
 		return nodes
 	if nested:
-		state.error_index = int(state.index)
+		state.error_index = group_start
 		state.error = "PARSE_UNCLOSED_GROUP"
 	return nodes
 
