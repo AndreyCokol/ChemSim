@@ -149,6 +149,18 @@ class AqueousBenchmarkTests(unittest.TestCase):
 
 
 class GasBenchmarkTests(unittest.TestCase):
+    def test_large_finite_inputs_do_not_overflow_intermediate_pressure_products(self):
+        result = solve_h2_i2_hi(
+            1.0e300, 1.0e300, 0.0, 1.0e300, 1.0e300, 1.0
+        )
+        self.assertTrue(math.isfinite(result.total_pressure_pa))
+        self.assertTrue(all(math.isfinite(value) for value in result.partial_pressures_pa.values()))
+        self.assertAlmostEqual(
+            result.total_pressure_pa,
+            sum(result.partial_pressures_pa.values()),
+            delta=result.total_pressure_pa * 1e-12,
+        )
+
     def test_g01_no2_dimerization(self):
         result = solve_no2_dimerization(0.010, 0.0, 298.15, 1.0e-3, 6.73)
         self.assertEqual(result.diagnostics.reliability_status, "idealized_approximation")
