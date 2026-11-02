@@ -16,7 +16,7 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	var temporary_path := path + ".tmp"
 	var temporary_absolute := ProjectSettings.globalize_path(temporary_path)
 	if FileAccess.file_exists(temporary_path):
-		DirAccess.remove_absolute(temporary_absolute)
+		return _failure("Сохранение отменено: рядом уже существует временный файл " + temporary_path)
 	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
 	if file == null:
 		return _failure("Не удалось открыть временный файл: " + str(FileAccess.get_open_error()))
@@ -33,7 +33,8 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	var had_previous_file := FileAccess.file_exists(path)
 	if had_previous_file:
 		if FileAccess.file_exists(backup_path):
-			DirAccess.remove_absolute(backup_absolute)
+			DirAccess.remove_absolute(temporary_absolute)
+			return _failure("Сохранение отменено: резервный файл уже существует " + backup_path)
 		var backup_error := DirAccess.rename_absolute(absolute_path, backup_absolute)
 		if backup_error != OK:
 			DirAccess.remove_absolute(temporary_absolute)
@@ -43,7 +44,9 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	if rename_error != OK:
 		DirAccess.remove_absolute(temporary_absolute)
 		if had_previous_file:
-			DirAccess.rename_absolute(backup_absolute, absolute_path)
+			var restore_error := DirAccess.rename_absolute(backup_absolute, absolute_path)
+			if restore_error != OK:
+				return _failure("Не удалось завершить сохранение (" + str(rename_error) + ") и восстановить исходный файл (" + str(restore_error) + "). Резервная копия сохранена: " + backup_path)
 		return _failure("Не удалось завершить сохранение: " + str(rename_error))
 	if had_previous_file:
 		DirAccess.remove_absolute(backup_absolute)
