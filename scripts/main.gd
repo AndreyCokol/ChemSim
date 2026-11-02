@@ -358,6 +358,9 @@ func _select_option_by_text(option: OptionButton, value: String) -> void:
 		if option.get_item_text(index) == value:
 			option.select(index)
 			return
+	# Preserve values from loaded drafts even when they are not in the built-in
+	# suggestion list; editing another field must not silently rewrite them.
+	option.add_item(value)
 	option.select(option.get_item_count() - 1)
 
 func _confirm_add_component() -> void:
