@@ -10,7 +10,9 @@ const MAX_ELEMENT_COUNT := 1000000000
 const MAX_ABS_CHARGE := 1000000
 const MAX_INPUT_COEFFICIENT := 1000000
 const MAX_MAX_SUM := 1000000
-const MAX_SPECIES_TERMS := 4096
+const MAX_MAX_CANDIDATES := 2000000
+const MAX_SPECIES_TERMS := 128
+const FormulaParser = preload("res://src/chemistry/a2/chem_equation_parser.gd")
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
 	var reactants_value: Variant = reaction.get("reactants", [])
@@ -23,8 +25,8 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		return _result("INVALID_INPUT", [], "Reaction must have non-empty sides.")
 	if reactants.size() + products.size() > MAX_SPECIES_TERMS:
 		return _result("INVALID_INPUT", [], "Reaction exceeds the maximum supported species-term count.")
-	if max_candidates <= 0 or max_sum <= 0 or max_sum > MAX_MAX_SUM:
-		return _result("INVALID_INPUT", [], "Coefficient-sum limit must be between 1 and %d; candidate limit must be positive." % MAX_MAX_SUM)
+	if max_candidates <= 0 or max_candidates > MAX_MAX_CANDIDATES or max_sum <= 0 or max_sum > MAX_MAX_SUM:
+		return _result("INVALID_INPUT", [], "Coefficient-sum limit must be between 1 and %d; candidate limit must be between 1 and %d." % [MAX_MAX_SUM, MAX_MAX_CANDIDATES])
 
 	for term in reactants + products:
 		if not _is_valid_term(term):
@@ -129,7 +131,7 @@ func _is_valid_term(term: Variant) -> bool:
 		return false
 	# Treat the source formula as the authority: a hand-built or stale DTO must
 	# not pair one formula's notation with another formula's elemental makeup.
-	var reparsed := ChemEquationParser.new().parse_formula(String(ast.source_text))
+	var reparsed := FormulaParser.new().parse_formula(String(ast.source_text))
 	if not bool(reparsed.get("ok", false)):
 		return false
 	var parsed_ast: Dictionary = reparsed.formula_ast
