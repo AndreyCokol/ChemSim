@@ -100,7 +100,13 @@ def _bisect(
         if isnan(f_mid):
             raise EquilibriumConvergenceError("NaN encountered during equilibrium iteration")
         interval_scale = max(abs(low), abs(high), 1e-300)
-        if abs(f_mid) <= f_tol or (high - low) <= x_tol * interval_scale:
+        if abs(f_mid) <= f_tol:
+            return mid, iteration, f_mid
+        if (high - low) <= x_tol * interval_scale:
+            if not isfinite(f_mid):
+                raise EquilibriumConvergenceError(
+                    "Bisection interval converged without a finite residual"
+                )
             return mid, iteration, f_mid
         # Compare signs directly instead of multiplying residuals: products can
         # overflow for large residuals and are undefined for inf * 0.
