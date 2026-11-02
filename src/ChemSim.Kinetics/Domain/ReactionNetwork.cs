@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace ChemSim.Kinetics.Domain;
 
 /// <summary>
@@ -78,10 +80,18 @@ public sealed class ReactionNetwork
                             nameof(conservationLaws));
                 }
 
-                if (Math.Abs(residual) > 1e-12d * Math.Max(1d, magnitude))
+                // A conservation vector is defined only up to non-zero scale.
+                // Using max(1, magnitude) makes small but proportionally large
+                // violations pass merely because the vector is expressed with
+                // small coefficients. Compare against the actual term scale.
+                var tolerance = 1e-12d * magnitude;
+                if ((magnitude == 0d && residual != 0d) ||
+                    (magnitude > 0d && Math.Abs(residual) > tolerance))
+                {
                     throw new ArgumentException(
                         $"Reaction '{reaction.Id}' violates conservation law '{law.Id}' (residual {residual:G17}).",
                         nameof(conservationLaws));
+                }
             }
         }
 
