@@ -64,8 +64,8 @@ func parse_formula(source: String) -> Dictionary:
 		var error_end := mini(original.length(), error_start + (1 if error_start < original.length() else 0))
 		return _failure(String(state.error), _message_for(String(state.error)), error_start, error_end)
 	if int(state.index) != text.length():
-		var error_start := maxi(0, trimmed_start) + int(state.index)
-		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", error_start, mini(original.length(), error_start + 1))
+		var unexpected_error_start := maxi(0, trimmed_start) + int(state.index)
+		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", unexpected_error_start, mini(original.length(), unexpected_error_start + 1))
 
 	var expansion_state := {"overflow": false}
 	var composition := _expand_nodes(nodes, expansion_state)
