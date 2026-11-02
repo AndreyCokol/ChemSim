@@ -55,9 +55,12 @@ public sealed record SimulationRequest
             throw new ArgumentException("Simulation duration must be finite.");
         if (!double.IsFinite(OutputIntervalSeconds) || OutputIntervalSeconds <= 0d)
             throw new ArgumentOutOfRangeException(nameof(OutputIntervalSeconds));
-        if (Math.Min(EndTimeSeconds, StartTimeSeconds + OutputIntervalSeconds) <= StartTimeSeconds)
+        var maximumTimeMagnitude = Math.Max(Math.Abs(StartTimeSeconds), Math.Abs(EndTimeSeconds));
+        var representableTimeResolution = Math.BitIncrement(maximumTimeMagnitude) - maximumTimeMagnitude;
+        if (OutputIntervalSeconds < representableTimeResolution ||
+            Math.Min(EndTimeSeconds, StartTimeSeconds + OutputIntervalSeconds) <= StartTimeSeconds)
             throw new ArgumentException(
-                "Output interval is too small to advance representable simulation time at the requested start time.",
+                "Output interval is too small to advance representable simulation time throughout the requested time range.",
                 nameof(OutputIntervalSeconds));
 
         var expected = Network.SpeciesIds.ToHashSet(StringComparer.Ordinal);
