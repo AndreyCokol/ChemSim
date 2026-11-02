@@ -204,12 +204,18 @@ func _divide(a: Dictionary, b: Dictionary) -> Dictionary:
 func _safe_product(a: int, b: int) -> Dictionary:
 	if a == 0 or b == 0:
 		return {"ok": true, "value": 0}
-	if abs(a) > int(MAX_SAFE_INTEGER / abs(b)):
+	# Inputs are bounded by 1e9, so their product is within signed 64-bit range.
+	# Check the integer product directly to avoid a floating-point division guard.
+	var product: int = a * b
+	if abs(product) > MAX_SAFE_INTEGER:
 		return {"ok": false}
-	return {"ok": true, "value": a * b}
+	return {"ok": true, "value": product}
 
 func _within_safe(a: int, b: int) -> bool:
-	return a == 0 or b == 0 or abs(a) <= int(MAX_SAFE_INTEGER / abs(b))
+	if a == 0 or b == 0:
+		return true
+	# The caller's operands are each bounded by MAX_SAFE_INTEGER (1e9).
+	return abs(a * b) <= MAX_SAFE_INTEGER
 
 func _negate(value: Dictionary) -> Dictionary:
 	return _rat(-value.n, value.d)
