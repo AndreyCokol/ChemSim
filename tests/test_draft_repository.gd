@@ -138,7 +138,7 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(outside_target)
 	var link_directory := DirAccess.open("user://experiments")
 	assert(link_directory != null, "The experiment directory should be available for symlink testing")
-	var link_error := link_directory.create_link(outside_target, "link-outside")
+	var link_error := link_directory.create_link(outside_target, ProjectSettings.globalize_path("user://experiments/link-outside"))
 	assert(link_error == OK, "CI should be able to create a symlink fixture")
 	var symlink_save := DraftRepository.save_draft("user://experiments/link-outside/escaped.json", payload)
 	assert(not symlink_save.ok, "Repository must reject writes through a symlink escaping user://")
