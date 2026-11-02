@@ -22,6 +22,10 @@ This folder contains the first executable A2 domain slice in GDScript 4.x. It ha
 
 Hydrates, square-bracket complexes, redox half-reactions, isotopes, radicals, and advanced organic notation are rejected or not implemented.
 
+## Diagnostic source spans
+
+Parser diagnostics expose `source_span.start_offset` and `source_span.end_offset` as zero-based Godot `String` character indices. The end offset is exclusive. Offsets refer to the original formula or reaction input, including leading whitespace and text before the failing token; they are not UTF-8 byte offsets.
+
 ## API sketch
 
 ```gdscript
