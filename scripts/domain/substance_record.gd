@@ -14,11 +14,22 @@ var hazard_sources: Array[String] = []
 var record_version: String = "1"
 var completeness: String = "incomplete"
 
-func has_verified_property(property_id: String) -> bool:
+func get_property_record(property_id: String) -> PropertyRecord:
+	# Molar mass is a convenience field but follows the same provenance contract.
+	if property_id == "molar_mass" and molar_mass != null:
+		if molar_mass.property_id == property_id:
+			return molar_mass
+		return null
 	if not properties.has(property_id):
-		return false
+		return null
 	var record = properties[property_id]
-	return record is PropertyRecord and record.is_usable()
+	if not record is PropertyRecord or record.property_id != property_id:
+		return null
+	return record
+
+func has_verified_property(property_id: String) -> bool:
+	var record := get_property_record(property_id)
+	return record != null and record.is_usable()
 
 func can_be_used_for(property_ids: Array[String]) -> bool:
 	if substance_id.is_empty() or formula.is_empty():
@@ -32,7 +43,7 @@ func to_dictionary() -> Dictionary:
 	var serialized_properties: Dictionary = {}
 	for key in properties:
 		var record = properties[key]
-		if record is PropertyRecord:
+		if record is PropertyRecord and record.property_id == str(key):
 			serialized_properties[key] = record.to_dictionary()
 	return {
 		"substance_id": substance_id,
