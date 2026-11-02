@@ -95,7 +95,9 @@ def _bisect(
         raise EquilibriumConvergenceError("Equilibrium root is not bracketed")
 
     for iteration in range(1, max_iter + 1):
-        mid = 0.5 * (low + high)
+        # Halving each endpoint first avoids overflow when both are large
+        # and have the same sign; it is safe for opposite-sign bounds too.
+        mid = 0.5 * low + 0.5 * high
         f_mid = fn(mid)
         if isnan(f_mid):
             raise EquilibriumConvergenceError("NaN encountered during equilibrium iteration")
@@ -367,7 +369,9 @@ def _gas_equilibrium(
         if total <= 0:
             return -float("inf")
         # p_i / p° = n_i RT / (V p°)
-        log_common = log(R * temperature_k / (volume_m3 * STANDARD_PRESSURE_PA))
+        # Work in log space so finite T/V inputs do not overflow in an
+        # intermediate R*T or V*p° product.
+        log_common = log(R) + log(temperature_k) - log(volume_m3) - log(STANDARD_PRESSURE_PA)
         value = 0.0
         for name, coefficient in stoichiometry.items():
             n = ns[name]
@@ -396,6 +400,16 @@ def _gas_equilibrium(
         for name, amount in final.items()
     }
     total_pressure = total_moles * R * temperature_k / volume_m3
+
+    if (
+        any(not isfinite(amount) or amount < 0.0 for amount in final.values())
+        or not isfinite(total_moles)
+        or any(not isfinite(pressure) or pressure < 0.0 for pressure in partials.values())
+        or not isfinite(total_pressure)
+    ):
+        raise EquilibriumConvergenceError(
+            "Gas equilibrium produced non-finite amounts or pressures"
+        )
 
     # Verify the extent update itself in amount space. Atom conservation is
     # guaranteed by the fixed benchmark stoichiometries, not by this generic helper.
