@@ -375,4 +375,30 @@ public sealed class KineticsSimulatorTests
             rateConstant.ValidateForTotalOrder(totalOrder, "invalid-total-order"));
     }
 
+    [Fact]
+    public void ConservationValidation_IsInvariantToCoefficientScale()
+    {
+        var reaction = new ReactionDefinition(
+            "A-to-B",
+            new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+            new Dictionary<string, double> { ["A"] = 1d },
+            new RateConstant(1d, 0d));
+
+        // Multiplying a conservation vector by a non-zero scalar must not
+        // turn a materially invalid invariant into an accepted one.
+        var tinyButInvalidLaw = new ConservationLaw(
+            "scaled-invalid-law",
+            new Dictionary<string, double> { ["A"] = 1e-15, ["B"] = 2e-15 });
+
+        Assert.Throws<ArgumentException>(() =>
+            new ReactionNetwork(["A", "B"], [reaction], [tinyButInvalidLaw]));
+
+        var validLaw = new ConservationLaw(
+            "scaled-valid-law",
+            new Dictionary<string, double> { ["A"] = 1e-15, ["B"] = 1e-15 });
+
+        var network = new ReactionNetwork(["A", "B"], [reaction], [validLaw]);
+        Assert.Single(network.ConservationLaws);
+    }
+
 }
