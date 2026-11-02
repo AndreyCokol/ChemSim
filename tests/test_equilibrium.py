@@ -38,6 +38,20 @@ class BisectionRobustnessTests(unittest.TestCase):
         self.assertGreater(iterations, 0)
         self.assertTrue(math.isfinite(residual))
 
+    def test_subnormal_interval_never_steps_outside_bracket(self):
+        low = math.ulp(0.0)
+        high = 2.0 * low
+        root, iterations, residual = _bisect(
+            lambda x: -1.0 if x <= low else 1.0,
+            low,
+            high,
+            f_tol=0.0,
+        )
+        self.assertGreaterEqual(root, low)
+        self.assertLessEqual(root, high)
+        self.assertGreater(iterations, 0)
+        self.assertTrue(math.isfinite(residual))
+
     def test_rejects_non_finite_or_reversed_bounds(self):
         with self.assertRaises(EquilibriumInputError):
             _bisect(lambda x: x, 0.0, float("inf"))
