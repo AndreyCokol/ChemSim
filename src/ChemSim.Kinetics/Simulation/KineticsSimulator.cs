@@ -118,13 +118,17 @@ public sealed class KineticsSimulator
         {
             var initialTotal = law.Evaluate(request.Network.SpeciesIds, initialState);
             var currentTotal = law.Evaluate(request.Network.SpeciesIds, currentState);
+            var difference = currentTotal - initialTotal;
             var scale = Math.Max(Math.Abs(initialTotal), Math.Abs(currentTotal));
             var tolerance = 10d * (
                 request.Solver.AbsoluteToleranceMol * law.CoefficientMagnitudeSum +
                 request.Solver.RelativeTolerance * scale);
 
-            if (Math.Abs(currentTotal - initialTotal) > tolerance)
-                return $"Conservation law '{law.Id}' drifted by {currentTotal - initialTotal:G17}.";
+            if (!double.IsFinite(difference) || !double.IsFinite(tolerance))
+                return $"Conservation law '{law.Id}' produced non-finite comparison arithmetic.";
+
+            if (Math.Abs(difference) > tolerance)
+                return $"Conservation law '{law.Id}' drifted by {difference:G17}.";
         }
 
         return null;
