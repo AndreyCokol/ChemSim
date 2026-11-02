@@ -65,8 +65,17 @@ public sealed class ReactionNetwork
                     if (!law.Coefficients.TryGetValue(speciesId, out var conservedCoefficient))
                         continue;
                     var term = conservedCoefficient * coefficient;
+                    if (!double.IsFinite(term))
+                        throw new ArgumentException(
+                            $"Conservation law '{law.Id}' overflows while validating reaction '{reaction.Id}'.",
+                            nameof(conservationLaws));
+
                     residual += term;
                     magnitude += Math.Abs(term);
+                    if (!double.IsFinite(residual) || !double.IsFinite(magnitude))
+                        throw new ArgumentException(
+                            $"Conservation law '{law.Id}' has non-finite arithmetic while validating reaction '{reaction.Id}'.",
+                            nameof(conservationLaws));
                 }
 
                 if (Math.Abs(residual) > 1e-12d * Math.Max(1d, magnitude))
