@@ -429,15 +429,33 @@ func _is_valid_reaction_term(term: Variant) -> bool:
 	var ast: Variant = species.get("formula_ast")
 	if typeof(ast) != TYPE_DICTIONARY or typeof(ast.get("element_counts")) != TYPE_DICTIONARY:
 		return false
+	if typeof(ast.get("schema_version")) != TYPE_INT or int(ast.schema_version) != 1:
+		return false
+	if typeof(ast.get("source_text")) != TYPE_STRING or String(ast.source_text).is_empty():
+		return false
 	if typeof(ast.get("net_charge")) != TYPE_INT or abs(int(ast.net_charge)) > MAX_INTEGER_TOKEN:
 		return false
 	if ast.element_counts.is_empty():
+		return false
+	var phase: Variant = species.get("phase", "UNSPECIFIED")
+	if typeof(phase) != TYPE_STRING or not ["UNSPECIFIED", "SOLID", "LIQUID", "GAS", "AQUEOUS"].has(String(phase)):
 		return false
 	for element in ast.element_counts:
 		if typeof(element) != TYPE_STRING or typeof(ast.element_counts[element]) != TYPE_INT:
 			return false
 		if int(ast.element_counts[element]) <= 0 or int(ast.element_counts[element]) > MAX_COMPOSITION_COUNT:
 			return false
+
+	# FormulaAST is a derived value, not an independent source of truth.
+	# Reparse the preserved formula so stale or caller-mutated counts/charge
+	# cannot make check_balance report a false positive.
+	var reparsed := parse_formula(String(ast.source_text))
+	if not bool(reparsed.get("ok", false)) or String(reparsed.phase) != String(phase):
+		return false
+	var parsed_ast: Dictionary = reparsed.formula_ast
+	if int(parsed_ast.net_charge) != int(ast.net_charge) or parsed_ast.element_counts != ast.element_counts:
+		return false
+
 	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
 	if typeof(coefficient) != TYPE_INT or int(coefficient) <= 0 or int(coefficient) > MAX_INTEGER_TOKEN:
 		return false
