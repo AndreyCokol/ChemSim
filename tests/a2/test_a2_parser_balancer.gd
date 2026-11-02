@@ -181,6 +181,12 @@ func _test_negative_cases() -> void:
 	assert(empty_separator.source_span.start_offset == empty_separator_source.find("+", 5))
 	assert(empty_separator.source_span.end_offset == empty_separator.source_span.start_offset + 1)
 
+	var right_separator_source := "H2 -> H2 + + O2"
+	var right_separator: Dictionary = parser.parse_reaction(right_separator_source)
+	assert(not right_separator.ok)
+	assert(right_separator.code == "PARSE_INVALID_SEPARATOR")
+	assert(right_separator.source_span.start_offset == right_separator_source.find("+", 10))
+
 	var empty_product_side: Dictionary = parser.parse_reaction("H2 ->   ")
 	assert(not empty_product_side.ok)
 	assert(empty_product_side.code == "PARSE_EMPTY_SIDE")
