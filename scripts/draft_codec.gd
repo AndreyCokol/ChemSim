@@ -102,7 +102,7 @@ static func decode_payload(payload: Variant) -> Dictionary:
 	return {"ok": true, "data": {
 		"experiment_name": payload.experiment_name,
 		"reaction_text": payload.reaction_text,
-		"conditions": raw_conditions,
+		"conditions": raw_conditions.duplicate(true),
 		"components": decoded_components
 	}}
 
