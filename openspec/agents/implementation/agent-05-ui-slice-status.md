@@ -7,15 +7,15 @@ PR: #3 (draft, not merged)
 ## Implemented in this slice
 
 - Godot 4.x project entry point and Russian-language experiment workspace.
-- Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
+- Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label); loaded custom unit/phase values are preserved when other fields are edited.
 - Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
 - Draft file operation failures are shown in a dedicated modal and the persistent diagnostic area.
-- Separate local draft repository restricted to normalized user:// paths; parent traversal, mixed-separator traversal, symlinks and Windows reparse points in existing path components are rejected using Godot DirAccess.is_link.
+- Separate local draft repository restricted to normalized user:// paths; parent traversal, mixed-separator traversal, symlinks and Windows reparse points in existing path components and derived .tmp/.bak sidecar paths are rejected using Godot DirAccess.is_link.
 - Save replacement uses temporary and backup sidecars. Existing sidecars are never blindly deleted; a missing canonical file can recover a schema-valid .bak (preferred) or .tmp before another save. Invalid sidecars are preserved and block automatic recovery.
 - Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
-- Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema/ID/text-type checks, fixed 298.15 K isothermal condition, round-trip tests, and rejection of unsupported schema versions, duplicate/non-integer IDs, non-finite/out-of-range marker coordinates and non-exact unplaced-marker sentinels.
+- Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema-v1 field allowlists, ID/text-type checks, fixed 298.15 K isothermal condition, round-trip tests, and rejection of unsupported schema versions, unknown fields, duplicate/non-integer IDs, non-finite/out-of-range marker coordinates and non-exact unplaced-marker sentinels.
 - Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit tests and a main UI draft-state integration test covering graph selection, component CRUD, placement, save/load and discard confirmation.
 
 ## Explicitly not implemented
