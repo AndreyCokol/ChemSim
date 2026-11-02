@@ -44,6 +44,7 @@ public sealed class ReactionDefinition
                 nameof(stoichiometry));
 
         var orderCopy = new Dictionary<string, double>(StringComparer.Ordinal);
+        var totalOrder = 0d;
         foreach (var (speciesId, order) in kineticOrders)
         {
             if (string.IsNullOrWhiteSpace(speciesId))
@@ -51,9 +52,12 @@ public sealed class ReactionDefinition
             if (!double.IsFinite(order) || order < 0d)
                 throw new ArgumentOutOfRangeException(nameof(kineticOrders), $"Reaction '{id}': kinetic orders must be finite and non-negative.");
             orderCopy.Add(speciesId, order);
+
+            totalOrder += order;
+            if (!double.IsFinite(totalOrder))
+                throw new ArgumentOutOfRangeException(nameof(kineticOrders), $"Reaction '{id}': total kinetic order must be finite.");
         }
 
-        var totalOrder = orderCopy.Values.Sum();
         rateConstant.ValidateForTotalOrder(totalOrder, id);
 
         Id = id;
