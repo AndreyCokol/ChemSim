@@ -102,15 +102,33 @@ internal sealed class DormandPrince54
 
     private double ErrorNorm(double[] error, double[] oldState, double[] newState)
     {
-        double sumSquares = 0d;
+        // Scaled sum-of-squares (LASSQ): squaring normalized errors directly
+        // can overflow even when the final RMS norm is representable.
+        double magnitude = 0d;
+        double scaledSquares = 1d;
         for (var i = 0; i < error.Length; i++)
         {
-            var scale = _atol + _rtol * Math.Max(Math.Abs(oldState[i]), Math.Abs(newState[i]));
-            var normalized = error[i] / scale;
-            sumSquares += normalized * normalized;
+            var toleranceScale = _atol + _rtol * Math.Max(Math.Abs(oldState[i]), Math.Abs(newState[i]));
+            var normalized = Math.Abs(error[i] / toleranceScale);
+            if (normalized == 0d)
+                continue;
+            if (!double.IsFinite(normalized))
+                return double.PositiveInfinity;
+
+            if (magnitude < normalized)
+            {
+                var ratio = magnitude / normalized;
+                scaledSquares = 1d + scaledSquares * ratio * ratio;
+                magnitude = normalized;
+            }
+            else
+            {
+                var ratio = normalized / magnitude;
+                scaledSquares += ratio * ratio;
+            }
         }
 
-        return Math.Sqrt(sumSquares / error.Length);
+        return magnitude == 0d ? 0d : magnitude * Math.Sqrt(scaledSquares / error.Length);
     }
 
     private static TrialStep TryStep(Func<double, double[], double[]> rhs, double t, double[] y, double h)
