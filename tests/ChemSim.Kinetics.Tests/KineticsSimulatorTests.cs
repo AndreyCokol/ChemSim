@@ -250,6 +250,35 @@ public sealed class KineticsSimulatorTests
 
 
     [Fact]
+    public void OutputInterval_ThatStopsAdvancingAfterUlpBoundary_IsRejectedUpFront()
+    {
+        const double startTime = 9_007_199_254_740_990d; // 2^53 - 2
+        const double endTime = 9_007_199_254_740_996d;   // 2^53 + 4
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(1d, 0d))
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = startTime,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 1d
+        });
+
+        Assert.Equal(SimulationStatus.InvalidInput, result.Status);
+        Assert.Empty(result.Samples);
+    }
+
+    [Fact]
     public void PreCancelledRequest_ReturnsCancelledWithoutAdvancingState()
     {
         var network = new ReactionNetwork(
