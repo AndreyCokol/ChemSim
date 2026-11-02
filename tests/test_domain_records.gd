@@ -167,6 +167,8 @@ func _test_substance_record() -> void:
 	_expect(substance.can_be_used_for(["molar_mass"]), "molar mass convenience field must participate in verified-property lookup")
 	property.property_id = "density"
 	_expect(not substance.can_be_used_for(["molar_mass"]), "molar mass field with mismatched identity must be rejected")
+	var serialized_mismatch := substance.to_dictionary()
+	_expect(serialized_mismatch.molar_mass == null, "mismatched molar-mass record must not serialize under the molar_mass key")
 
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
