@@ -12,6 +12,13 @@ public readonly record struct RateConstant(double Value, double ConcentrationExp
 
     public void ValidateForTotalOrder(double totalOrder, string reactionId)
     {
+        if (!double.IsFinite(totalOrder) || totalOrder < 0d)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(totalOrder),
+                $"Reaction '{reactionId}': total kinetic order must be finite and non-negative.");
+        }
+
         if (!double.IsFinite(Value) || Value <= 0d)
         {
             throw new ArgumentOutOfRangeException(
