@@ -28,3 +28,6 @@ jobs:
 
       - name: Reaction parser and balancer tests
         run: godot --headless --path . --script res://tests/test_reaction_balancer.gd
+
+      - name: Domain record validation tests
+        run: godot --headless --path . --script res://tests/test_domain_records.gd
