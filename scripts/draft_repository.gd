@@ -2,10 +2,14 @@ extends RefCounted
 class_name ChemSimDraftRepository
 
 const DraftCodec = preload("res://scripts/draft_codec.gd")
+const MAX_DRAFT_BYTES := 5 * 1024 * 1024
 
 static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	if not _is_allowed_user_path(path):
 		return _failure("Черновики разрешено сохранять только внутри пользовательской папки.")
+	var validation := DraftCodec.decode_payload(payload)
+	if not bool(validation.get("ok", false)):
+		return _failure("Черновик не прошёл проверку схемы: " + String(validation.get("error", "неизвестная ошибка")))
 	path = path.replace("\\", "/")
 	var absolute_path := ProjectSettings.globalize_path(path)
 	var absolute_dir := ProjectSettings.globalize_path(path.get_base_dir())
@@ -59,6 +63,9 @@ static func load_draft(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _failure("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
+	if file.get_length() > MAX_DRAFT_BYTES:
+		file.close()
+		return _failure("Файл черновика превышает допустимый размер 5 МиБ.")
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	return DraftCodec.decode_payload(parsed)
