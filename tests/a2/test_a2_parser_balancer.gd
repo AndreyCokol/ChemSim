@@ -127,6 +127,7 @@ func _test_negative_cases() -> void:
 	var fractional_coefficient: Dictionary = parser.parse_reaction("2.5H2 -> H2")
 	assert(not fractional_coefficient.ok)
 	assert(fractional_coefficient.code == "PARSE_INVALID_COEFFICIENT")
+	assert(fractional_coefficient.source_span.start_offset == 1)
 
 	var composition_overflow: Dictionary = parser.parse_formula("(H1000000)1000000")
 	assert(not composition_overflow.ok)
