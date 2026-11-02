@@ -2,6 +2,7 @@ class_name SubstanceRecord
 extends RefCounted
 
 ## Catalog identity is independent of phase; phase belongs to SpeciesRef.
+const FormulaParserScript = preload("res://scripts/domain/formula_parser.gd")
 var substance_id: String = ""
 var display_name: String = ""
 var formula: String = ""
@@ -32,12 +33,22 @@ func has_verified_property(property_id: String) -> bool:
 	return record != null and record.is_usable()
 
 func can_be_used_for(property_ids: Array[String]) -> bool:
-	if substance_id.is_empty() or formula.is_empty():
+	if not _has_valid_identity():
 		return false
 	for property_id in property_ids:
 		if not has_verified_property(property_id):
 			return false
 	return true
+
+func _has_valid_identity() -> bool:
+	if substance_id.strip_edges().is_empty() or formula.strip_edges().is_empty():
+		return false
+	var parsed = FormulaParserScript.new().parse(formula)
+	if not parsed.ok:
+		return false
+	# Stored composition and charge are denormalized identity data. Never let
+	# a stale or hand-edited record contradict its canonical formula string.
+	return parsed.element_counts == element_counts and parsed.net_charge == net_charge
 
 func to_dictionary() -> Dictionary:
 	var serialized_properties: Dictionary = {}
