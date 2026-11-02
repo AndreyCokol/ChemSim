@@ -62,7 +62,7 @@ func to_dictionary() -> Dictionary:
 		"formula": formula,
 		"element_counts": element_counts.duplicate(true),
 		"net_charge": net_charge,
-		"molar_mass": molar_mass.to_dictionary() if molar_mass != null else null,
+		"molar_mass": molar_mass.to_dictionary() if molar_mass != null and molar_mass.property_id == "molar_mass" else null,
 		"properties": serialized_properties,
 		"hazard_status": hazard_status,
 		"hazard_sources": hazard_sources.duplicate(),
