@@ -10,6 +10,7 @@ func _initialize() -> void:
 	_test_negative_cases()
 	_test_balance_validation()
 	_test_balance_proposal()
+	_test_search_node_budget()
 	print("A2 tests: all assertions passed")
 	quit(0)
 
@@ -179,6 +180,22 @@ func _test_balance_validation() -> void:
 	var overflow_result: Dictionary = parser.check_balance(oversized_balance.reaction)
 	assert(not overflow_result.ok)
 	assert(overflow_result.code == "BALANCE_COUNT_OVERFLOW")
+
+func _test_search_node_budget() -> void:
+	var balancer = Balancer.new()
+	var terms: Array = []
+	for i in range(10):
+		terms.append({})
+	var context := {
+		"terms": terms,
+		"solutions": [],
+		"limit_hit": false,
+		"search_node_count": 0,
+		"search_node_limit": 3
+	}
+	balancer._enumerate_compositions(0, 10, [], context)
+	assert(context.limit_hit)
+	assert(context.search_node_count == 4)
 
 func _test_balance_proposal() -> void:
 	var parser = Parser.new()
