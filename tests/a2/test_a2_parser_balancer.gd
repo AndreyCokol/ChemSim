@@ -38,6 +38,8 @@ func _test_formula_ast() -> void:
 	var empty_group: Dictionary = parser.parse_formula("Ca()")
 	assert(not empty_group.ok)
 	assert(empty_group.code == "PARSE_EMPTY_GROUP")
+	assert(empty_group.source_span.start_offset == 2)
+	assert(empty_group.source_span.end_offset == 3)
 
 func _test_reaction_boundaries() -> void:
 	var parser = Parser.new()
@@ -105,6 +107,8 @@ func _test_negative_cases() -> void:
 	var unclosed: Dictionary = parser.parse_formula("Ca(OH2")
 	assert(not unclosed.ok)
 	assert(unclosed.code == "PARSE_UNCLOSED_GROUP")
+	assert(unclosed.source_span.start_offset == 2)
+	assert(unclosed.source_span.end_offset == 3)
 
 	var zero: Dictionary = parser.parse_formula("H0")
 	assert(not zero.ok)
