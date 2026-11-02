@@ -309,4 +309,58 @@ public sealed class KineticsSimulatorTests
         Assert.Equal(0d, result.Samples[0].AmountsMol["B"]);
     }
 
+
+    [Fact]
+    public void TotalKineticOrder_OverflowIsRejected()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ReactionDefinition(
+            "overflow-order",
+            new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+            new Dictionary<string, double> { ["A"] = 1e308, ["B"] = 1e308 },
+            new RateConstant(1d, -1e308)));
+    }
+
+    [Fact]
+    public void ConservationLaw_OverflowDuringNetworkValidationIsRejected()
+    {
+        var reaction = new ReactionDefinition(
+            "large-stoichiometry",
+            new Dictionary<string, int> { ["A"] = -2, ["B"] = 2 },
+            new Dictionary<string, double> { ["A"] = 1d },
+            new RateConstant(1d, 0d));
+        var law = new ConservationLaw(
+            "large-coefficients",
+            new Dictionary<string, double> { ["A"] = double.MaxValue, ["B"] = double.MaxValue });
+
+        Assert.Throws<ArgumentException>(() => new ReactionNetwork(["A", "B"], [reaction], [law]));
+    }
+
+    [Fact]
+    public void ConservationEvaluation_OverflowReturnsNumericalFailure()
+    {
+        var reaction = new ReactionDefinition(
+            "A-to-B",
+            new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+            new Dictionary<string, double> { ["A"] = 1d },
+            new RateConstant(1e-300, 0d));
+        var law = new ConservationLaw(
+            "large-total",
+            new Dictionary<string, double> { ["A"] = 8e307, ["B"] = 8e307 });
+        var network = new ReactionNetwork(["A", "B"], [reaction], [law]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 2d, ["B"] = 2d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 0.01d,
+            OutputIntervalSeconds = 0.01d
+        });
+
+        Assert.Equal(SimulationStatus.NumericalFailure, result.Status);
+        Assert.Contains("non-finite total", result.Diagnostics.Message);
+        Assert.Single(result.Samples);
+    }
+
 }
