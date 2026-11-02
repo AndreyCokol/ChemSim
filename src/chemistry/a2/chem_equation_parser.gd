@@ -358,6 +358,7 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			nodes.append({"type": "group", "children": children, "multiplier": group_count})
 			continue
 		if ch >= "A" and ch <= "Z":
+			var symbol_start := int(state.index)
 			var symbol := ch
 			state.index = int(state.index) + 1
 			if int(state.index) < text.length():
@@ -366,7 +367,7 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 					symbol += next_ch
 					state.index = int(state.index) + 1
 			if not ELEMENTS.has(symbol):
-				state.error_index = int(state.index)
+				state.error_index = symbol_start
 				state.error = "PARSE_UNKNOWN_ELEMENT"
 				return nodes
 			var count := _read_count(text, state)
@@ -394,11 +395,11 @@ func _read_count(text: String, state: Dictionary) -> int:
 		return 1
 	var value := _parse_bounded_integer(text.substr(start, int(state.index) - start), MAX_INTEGER_TOKEN)
 	if value < 0:
-		state.error_index = int(state.index)
+		state.error_index = start
 		state.error = "PARSE_COUNT_TOO_LARGE"
 		return -1
 	if value == 0:
-		state.error_index = int(state.index)
+		state.error_index = start
 		state.error = "PARSE_ZERO_COUNT"
 		return -1
 	return value
