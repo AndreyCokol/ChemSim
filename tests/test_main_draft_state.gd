@@ -40,6 +40,10 @@ func _initialize() -> void:
 	main.name_input.text = "Вода"
 	main.formula_input.text = "H2O"
 	main.amount_input.text = "1"
+	main.amount_unit.add_item("custom unit")
+	main.amount_unit.select(main.amount_unit.get_item_count() - 1)
+	main.phase_input.add_item("custom phase")
+	main.phase_input.select(main.phase_input.get_item_count() - 1)
 	main._confirm_add_component()
 	assert(main.components.size() == 1, "Adding a component should append one draft record")
 	var added_id := int(main.components[0].id)
@@ -50,9 +54,12 @@ func _initialize() -> void:
 	main.name_input.text = "Переименованная вода"
 	main.formula_input.text = "H2O"
 	main.amount_input.text = "2"
+	assert(main.amount_unit.get_item_text(main.amount_unit.get_selected()) == "custom unit", "Editing should preserve unknown loaded units")
+	assert(main.phase_input.get_item_text(main.phase_input.get_selected()) == "custom phase", "Editing should preserve unknown loaded phases")
 	main._confirm_add_component()
 	assert(main.components[0].name == "Переименованная вода", "Editing should update the existing component rather than append")
 	assert(main.components.size() == 1, "Editing must not create a duplicate component")
+	assert(main.components[0].unit == "custom unit" and main.components[0].phase == "custom phase", "Editing other fields must not discard custom unit or phase values")
 
 	main._on_field_pressed(Vector2(0.3, 0.4))
 	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
