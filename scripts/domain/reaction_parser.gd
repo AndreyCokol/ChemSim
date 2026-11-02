@@ -47,7 +47,7 @@ func _parse_side(side_text: String) -> ReactionParseResult:
 		var coefficient := 1
 		var formula := piece
 		var coefficient_match := RegEx.new()
-		coefficient_match.compile("^([0-9]+)\\s+(.+)$")
+		coefficient_match.compile("^([0-9]+)\\s*(.+)$")
 		var matched := coefficient_match.search(piece)
 		if matched:
 			coefficient = int(matched.get_string(1))
