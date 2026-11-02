@@ -1,5 +1,7 @@
 extends SceneTree
 
+const A2PhaseAdapterScript = preload("res://scripts/integration/a2_phase_adapter.gd")
+
 var _failures: Array[String] = []
 
 func _initialize() -> void:
@@ -8,6 +10,7 @@ func _initialize() -> void:
 func _run() -> void:
 	_test_property_record()
 	_test_species_ref()
+	_test_a2_phase_adapter()
 	_test_experiment_component()
 	_test_substance_record()
 
@@ -69,6 +72,24 @@ func _test_species_ref() -> void:
 	_expect(species.is_valid(), "aqueous species reference should be valid")
 	species.phase = "gas"
 	_expect(not species.is_valid(), "unsupported phase must be rejected")
+
+func _test_a2_phase_adapter() -> void:
+	var expected := {
+		"AQUEOUS": "aq",
+		"SOLID": "s",
+		"LIQUID": "l",
+		"GAS": "g"
+	}
+	for parser_phase in expected:
+		var phase := A2PhaseAdapterScript.to_species_ref_phase(parser_phase)
+		_expect(phase == expected[parser_phase], "A2 phase should map to the canonical SpeciesRef token")
+		var species := SpeciesRef.new()
+		species.species_id = "phase_test"
+		species.substance_id = "phase_test"
+		species.phase = phase
+		_expect(species.is_valid(), "Mapped A2 phase should produce a valid SpeciesRef")
+	_expect(A2PhaseAdapterScript.to_species_ref_phase("UNSPECIFIED").is_empty(), "Unspecified A2 phase must not be guessed")
+	_expect(A2PhaseAdapterScript.to_species_ref_phase("UNKNOWN").is_empty(), "Unknown A2 phase must be rejected")
 
 func _test_experiment_component() -> void:
 	var species := SpeciesRef.new()
