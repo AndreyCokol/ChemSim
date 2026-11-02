@@ -10,7 +10,7 @@ const MAX_ELEMENT_COUNT := 1000000000
 const MAX_ABS_CHARGE := 1000000
 const MAX_INPUT_COEFFICIENT := 1000000
 const MAX_MAX_SUM := 1000000
-const MAX_SPECIES_TERMS := 1024
+const MAX_SPECIES_TERMS := 4096
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
 	var reactants_value: Variant = reaction.get("reactants", [])
