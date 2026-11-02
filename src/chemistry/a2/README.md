@@ -39,8 +39,8 @@ Parsing never changes coefficients and never balances implicitly. `check_balance
 
 The current solver enumerates positive integer coefficient vectors in increasing total-sum order. It can prove a unique or ambiguous optimum when it finishes a complete minimum-sum layer. It uses integer arithmetic only and rejects malformed/out-of-contract species DTOs before search.
 
-- Default maximum coefficient sum: 64; caller-supplied bounds are capped at 1,000,000.
-- Maximum input species terms: 4,096 per reaction; this and the coefficient-sum cap keep solver residual arithmetic within signed 64-bit bounds under the validated formula/charge limits.
+- Default maximum coefficient sum: 64; caller-supplied coefficient-sum bounds are capped at 1,000,000 and candidate limits at 2,000,000.
+- Maximum input species terms: 128 per reaction; this also bounds recursive search depth and keeps residual arithmetic within signed 64-bit bounds under the validated formula/charge limits.
 - Source coefficients must be positive integers no greater than 1,000,000. `propose_balance` validates them but computes a fresh coefficient proposal independently of the entered values.
 - Each species DTO is reparsed from `formula_ast.source_text`; phase, net charge, and elemental composition must match the parsed source formula.
 - Default candidate limit: 500,000.
