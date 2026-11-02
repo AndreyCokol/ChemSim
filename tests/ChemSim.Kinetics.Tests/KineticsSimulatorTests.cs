@@ -329,8 +329,8 @@ public sealed class KineticsSimulatorTests
             new Dictionary<string, double> { ["A"] = 1d },
             new RateConstant(1d, 0d));
         var law = new ConservationLaw(
-            "large-coefficients",
-            new Dictionary<string, double> { ["A"] = double.MaxValue, ["B"] = double.MaxValue });
+            "large-coefficient",
+            new Dictionary<string, double> { ["A"] = double.MaxValue });
 
         Assert.Throws<ArgumentException>(() => new ReactionNetwork(["A", "B"], [reaction], [law]));
     }
