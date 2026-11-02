@@ -82,6 +82,21 @@ func _initialize() -> void:
 	assert(original_after_collision.ok, "Original draft must remain readable after sidecar collision")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_sidecar))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_collision_path))
+
+	var recovery_path := "user://experiments/recovery-test.chemsim.json"
+	var recovery_backup := recovery_path + ".bak"
+	assert(DraftRepository.save_draft(recovery_path, payload).ok, "Recovery fixture should be saved")
+	var move_to_backup := DirAccess.rename_absolute(
+		ProjectSettings.globalize_path(recovery_path),
+		ProjectSettings.globalize_path(recovery_backup)
+	)
+	assert(move_to_backup == OK, "Test should simulate interruption after moving the previous draft to backup")
+	assert(not FileAccess.file_exists(recovery_path), "Canonical draft should be absent during simulated interruption")
+	var recovered := DraftRepository.load_draft(recovery_path)
+	assert(recovered.ok, "Load should recover the previous committed draft from .bak")
+	assert(FileAccess.file_exists(recovery_path), "Recovery should restore the canonical draft path")
+	assert(not FileAccess.file_exists(recovery_backup), "Recovery should consume the backup sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(recovery_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("Draft repository tests passed")
 	quit(0)
