@@ -10,6 +10,7 @@ public sealed class ConservationLaw
 {
     public string Id { get; }
     public IReadOnlyDictionary<string, double> Coefficients { get; }
+    public double CoefficientMagnitudeSum { get; }
 
     public ConservationLaw(string id, IReadOnlyDictionary<string, double> coefficients)
     {
@@ -20,6 +21,7 @@ public sealed class ConservationLaw
             throw new ArgumentException("A conservation law must reference at least one species.", nameof(coefficients));
 
         var copy = new Dictionary<string, double>(StringComparer.Ordinal);
+        var magnitudeSum = 0d;
         foreach (var (speciesId, coefficient) in coefficients)
         {
             if (string.IsNullOrWhiteSpace(speciesId))
@@ -27,10 +29,15 @@ public sealed class ConservationLaw
             if (!double.IsFinite(coefficient) || coefficient == 0d)
                 throw new ArgumentOutOfRangeException(nameof(coefficients), "Conservation coefficients must be finite and non-zero.");
             copy.Add(speciesId, coefficient);
+
+            magnitudeSum += Math.Abs(coefficient);
+            if (!double.IsFinite(magnitudeSum))
+                throw new ArgumentOutOfRangeException(nameof(coefficients), "The sum of conservation coefficient magnitudes must be finite.");
         }
 
         Id = id;
         Coefficients = new ReadOnlyDictionary<string, double>(copy);
+        CoefficientMagnitudeSum = magnitudeSum;
     }
 
     public double Evaluate(IReadOnlyList<string> speciesIds, IReadOnlyList<double> amountsMol)
@@ -41,12 +48,18 @@ public sealed class ConservationLaw
         double total = 0d;
         for (var i = 0; i < speciesIds.Count; i++)
         {
-            if (Coefficients.TryGetValue(speciesIds[i], out var coefficient))
-                total += coefficient * amountsMol[i];
+            if (!Coefficients.TryGetValue(speciesIds[i], out var coefficient))
+                continue;
+
+            var term = coefficient * amountsMol[i];
+            if (!double.IsFinite(term))
+                throw new ArithmeticException($"Conservation law '{Id}' produced a non-finite term for species '{speciesIds[i]}'.");
+
+            total += term;
+            if (!double.IsFinite(total))
+                throw new ArithmeticException($"Conservation law '{Id}' produced a non-finite total.");
         }
 
         return total;
     }
-
-    public double CoefficientMagnitudeSum => Coefficients.Values.Sum(value => Math.Abs(value));
 }
