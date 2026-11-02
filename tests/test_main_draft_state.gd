@@ -65,16 +65,25 @@ func _initialize() -> void:
 	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
 	assert(main.visual_field.markers.size() == 1 and int(main.visual_field.markers[0].id) == added_id, "Placement should create a corresponding visual marker")
 
+	main.reaction_input.text = "raw reaction text"
+	main.pressure_input.text = "raw pressure"
+	main.volume_input.text = "raw volume"
 	var round_trip_path := "user://experiments/main-ui-roundtrip.chemsim.json"
 	main._save_draft_to_path(round_trip_path)
 	assert(not main.draft_dirty, "A successful UI save should clear the dirty state")
 	main.experiment_name_input.text = "Unsaved title"
 	assert(main.draft_dirty, "Changing the title should mark the UI draft dirty")
-	main._load_draft_from_path(round_trip_path)
+	main._request_load_draft(round_trip_path)
+	assert(main.discard_dialog.visible, "Opening another draft should request confirmation when the current draft is dirty")
+	main.discard_dialog.confirmed.emit()
 	assert(main.experiment_name == "Новый эксперимент", "Loading should restore the saved experiment title")
 	assert(not main.draft_dirty, "A successful UI load should clear the dirty state")
 	assert(main.components[0].name == "Переименованная вода", "Loading should restore edited component data")
 	assert(main.visual_field.markers.size() == 1, "Loading should rebuild only placed visual markers")
+	assert(main.reaction_input.text == "raw reaction text", "Loading should restore raw reaction text")
+	assert(main.pressure_input.text == "raw pressure" and main.volume_input.text == "raw volume", "Loading should restore raw condition text")
+	assert(main.components[0].unit == "custom unit" and main.components[0].phase == "custom phase", "Custom component metadata should survive save/load")
+	assert(main.temperature_input.text == "298.15", "The isothermal temperature must remain fixed in the UI")
 
 	main._remove_component(added_id)
 	assert(main.components.is_empty(), "Removing a component should delete its draft record")
@@ -86,6 +95,7 @@ func _initialize() -> void:
 	main.discard_dialog.confirmed.emit()
 	assert(main.components.is_empty(), "Confirming discard should create an empty experiment")
 	assert(not main.draft_dirty, "A new empty experiment should start clean")
+	assert(main.reaction_input.text.is_empty() and main.pressure_input.text.is_empty() and main.volume_input.text.is_empty(), "A new experiment should clear raw reaction and condition fields")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(round_trip_path))
 
 	main.queue_free()
