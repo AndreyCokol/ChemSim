@@ -190,6 +190,12 @@ func _test_negative_cases() -> void:
 	assert(bad_product.code == "PARSE_UNKNOWN_ELEMENT")
 	assert(bad_product.source_span.start_offset == bad_product_source.find("Xx"))
 
+	var unicode_prefix_source := "H2 + O2 → H2Xx"
+	var unicode_prefix_error: Dictionary = parser.parse_reaction(unicode_prefix_source)
+	assert(not unicode_prefix_error.ok)
+	assert(unicode_prefix_error.code == "PARSE_UNKNOWN_ELEMENT")
+	assert(unicode_prefix_error.source_span.start_offset == unicode_prefix_source.find("Xx"))
+
 func _test_balance_validation() -> void:
 	var parser = Parser.new()
 	var unbalanced: Dictionary = parser.parse_reaction("H2 + O2 -> H2O")
