@@ -196,11 +196,11 @@ func _enumerate_compositions(position: int, remaining: int, current: Array, cont
 		if remaining < 1:
 			return
 		current.append(remaining)
-		context.candidate_count = int(context.candidate_count) + 1
-		if int(context.candidate_count) > int(context.candidate_limit):
+		if int(context.candidate_count) >= int(context.candidate_limit):
 			context.limit_hit = true
 			current.pop_back()
 			return
+		context.candidate_count = int(context.candidate_count) + 1
 		if _is_balanced(context.terms, context.sides, current):
 			context.solutions.append(current.duplicate())
 		current.pop_back()
