@@ -10,6 +10,7 @@ func _initialize() -> void:
 	_test_negative_cases()
 	_test_balance_validation()
 	_test_balance_proposal()
+	_test_search_node_guard()
 	_test_search_node_budget()
 	print("A2 tests: all assertions passed")
 	quit(0)
@@ -278,3 +279,16 @@ func _test_balance_proposal() -> void:
 	assert(duplicate_result.proposed_coefficients[0].source_term_ids.size() == 2)
 	assert(duplicate_result.proposed_coefficients[1].coefficient == 1)
 	assert(duplicate_result.proposed_coefficients[2].coefficient == 2)
+
+func _test_search_node_guard() -> void:
+	var balancer = Balancer.new()
+	var context := {
+		"limit_hit": false,
+		"solutions": [],
+		"search_node_count": 0,
+		"search_node_limit": 1,
+		"terms": [{}, {}, {}]
+	}
+	balancer._enumerate_compositions(0, 3, [], context)
+	assert(context.limit_hit)
+	assert(context.search_node_count == 2)
