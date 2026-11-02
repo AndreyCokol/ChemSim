@@ -27,6 +27,10 @@ func _initialize() -> void:
 	main.draft_dirty = false
 	main.visual_field.marker_moved.emit(999, Vector2(0.2, 0.2))
 	assert(not main.draft_dirty, "An unknown marker must not dirty the draft")
+	main.components.clear()
+	main.visual_field.clear_markers()
+	main.next_component_id = 1
+	main.selected_component_id = -1
 
 	# Exercise component CRUD and visual-marker synchronization through the
 	# real main workspace methods and controls.
