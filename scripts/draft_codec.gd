@@ -37,6 +37,8 @@ static func decode_payload(payload: Variant) -> Dictionary:
 	for required_field in ["document_type", "schema_version", "experiment_name", "reaction_text", "chemistry_status", "conditions", "components"]:
 		if not payload.has(required_field):
 			return _failure("В документе отсутствует обязательное поле " + required_field + ".")
+	if not _has_only_fields(payload, ["document_type", "schema_version", "experiment_name", "reaction_text", "chemistry_status", "conditions", "components"]):
+		return _failure("Документ содержит неизвестные поля для схемы v1.")
 	if typeof(payload.document_type) != TYPE_STRING or payload.document_type != DOCUMENT_TYPE:
 		return _failure("Неизвестный тип документа.")
 	if typeof(payload.schema_version) != TYPE_INT or payload.schema_version != SCHEMA_VERSION:
@@ -52,6 +54,8 @@ static func decode_payload(payload: Variant) -> Dictionary:
 	var raw_conditions: Variant = payload.conditions
 	if not raw_conditions is Dictionary:
 		return _failure("Блок условий имеет неверный формат.")
+	if not _has_only_fields(raw_conditions, ["temperature_k", "pressure_raw", "volume_raw"]):
+		return _failure("Блок условий содержит неизвестные поля для схемы v1.")
 	for field in ["temperature_k", "pressure_raw", "volume_raw"]:
 		if not raw_conditions.has(field):
 			return _failure("В блоке условий отсутствует обязательное поле " + field + ".")
@@ -65,6 +69,8 @@ static func decode_payload(payload: Variant) -> Dictionary:
 	for raw_item in raw_components:
 		if not raw_item is Dictionary:
 			return _failure("Одна из записей компонента имеет неверный формат.")
+		if not _has_only_fields(raw_item, ["id", "name", "formula", "amount", "unit", "phase", "position"]):
+			return _failure("Запись компонента содержит неизвестные поля для схемы v1.")
 		for field in ["id", "name", "formula", "amount", "unit", "phase", "position"]:
 			if not raw_item.has(field):
 				return _failure("В записи компонента отсутствует обязательное поле " + field + ".")
@@ -99,6 +105,12 @@ static func decode_payload(payload: Variant) -> Dictionary:
 		"conditions": raw_conditions,
 		"components": decoded_components
 	}}
+
+static func _has_only_fields(value: Dictionary, allowed_fields: Array) -> bool:
+	for field in value.keys():
+		if not allowed_fields.has(field):
+			return false
+	return true
 
 static func _is_number(value: Variant) -> bool:
 	return typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT
