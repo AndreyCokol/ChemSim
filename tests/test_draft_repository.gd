@@ -124,6 +124,21 @@ func _initialize() -> void:
 	assert(FileAccess.file_exists(temp_recovery_path), "Recovered temporary content should become canonical")
 	assert(not FileAccess.file_exists(temp_recovery_sidecar), "Successful temporary recovery should consume its sidecar")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_recovery_path))
+
+	# DirAccess.is_link detects symlinks and Windows reparse points. Exercise
+	# an actual link to a location outside user:// on the Linux CI runner.
+	var outside_target := OS.get_cache_dir().path_join("chemsim-symlink-target")
+	DirAccess.make_dir_recursive_absolute(outside_target)
+	var link_directory := DirAccess.open("user://experiments")
+	assert(link_directory != null, "The experiment directory should be available for symlink testing")
+	var link_error := link_directory.create_link(outside_target, "link-outside")
+	assert(link_error == OK, "CI should be able to create a symlink fixture")
+	var symlink_save := DraftRepository.save_draft("user://experiments/link-outside/escaped.json", payload)
+	assert(not symlink_save.ok, "Repository must reject writes through a symlink escaping user://")
+	var symlink_load := DraftRepository.load_draft("user://experiments/link-outside/escaped.json")
+	assert(not symlink_load.ok, "Repository must reject reads through a symlink escaping user://")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://experiments/link-outside"))
+	DirAccess.remove_absolute(outside_target)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("Draft repository tests passed")
 	quit(0)
