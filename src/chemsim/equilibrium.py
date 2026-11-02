@@ -106,9 +106,23 @@ def _bisect(
         raise EquilibriumConvergenceError("Equilibrium root is not bracketed")
 
     for iteration in range(1, max_iter + 1):
-        # Halving each endpoint first avoids overflow when both are large
-        # and have the same sign; it is safe for opposite-sign bounds too.
-        mid = 0.5 * low + 0.5 * high
+        # Use a difference-based midpoint for same-sign bounds: halving
+        # subnormal endpoints first can underflow to zero and leave the bracket.
+        # Opposite-sign addition cannot overflow and avoids a large difference.
+        if low < 0.0 < high:
+            mid = 0.5 * (low + high)
+        else:
+            mid = low + 0.5 * (high - low)
+        if mid <= low or mid >= high:
+            # No representable float remains strictly inside this bracket.
+            endpoint, endpoint_residual = (
+                (low, f_low) if abs(f_low) <= abs(f_high) else (high, f_high)
+            )
+            if not isfinite(endpoint_residual):
+                raise EquilibriumConvergenceError(
+                    "Bisection reached floating-point resolution without a finite residual"
+                )
+            return endpoint, iteration, endpoint_residual
         f_mid = fn(mid)
         if isnan(f_mid):
             raise EquilibriumConvergenceError("NaN encountered during equilibrium iteration")
