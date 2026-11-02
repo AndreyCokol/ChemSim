@@ -6,9 +6,6 @@ on:
       - "src/chemistry/a2/**"
       - "tests/a2/**"
       - ".github/workflows/a2-parser-tests.yml"
-  push:
-    branches:
-      - "agent/a2-parser-balancer-implementation"
 
 jobs:
   godot-headless:
