@@ -315,6 +315,10 @@ func _extract_charge(text: String) -> Dictionary:
 		var magnitude_text := suffix.substr(0, suffix.length() - 1)
 		var magnitude := 1
 		if not magnitude_text.is_empty():
+			for digit_index in range(magnitude_text.length()):
+				var digit_text := magnitude_text.substr(digit_index, 1)
+				if digit_text < "0" or digit_text > "9":
+					return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must contain decimal digits only."}
 			magnitude = _parse_bounded_integer(magnitude_text, MAX_INTEGER_TOKEN)
 			if magnitude < 0:
 				return {"ok": false, "code": "PARSE_CHARGE_TOO_LARGE", "message": "Charge magnitude exceeds the configured safe limit."}
