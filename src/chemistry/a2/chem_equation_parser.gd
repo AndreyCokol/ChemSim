@@ -56,12 +56,17 @@ func parse_formula(source: String) -> Dictionary:
 	if text.is_empty():
 		return _failure("PARSE_EMPTY_FORMULA", "Formula body is empty.", 0, original.length())
 
-	var state := {"index": 0, "error": "", "depth": 0}
+	var state := {"index": 0, "error": "", "error_index": 0, "depth": 0}
 	var nodes := _parse_sequence(text, state, false)
 	if not String(state.error).is_empty():
-		return _failure(String(state.error), _message_for(String(state.error)), 0, original.length())
+		var trimmed_start := original.find(original.strip_edges())
+		var error_start := maxi(0, trimmed_start) + int(state.error_index)
+		var error_end := mini(original.length(), error_start + (1 if error_start < original.length() else 0))
+		return _failure(String(state.error), _message_for(String(state.error)), error_start, error_end)
 	if int(state.index) != text.length():
-		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", int(state.index), original.length())
+		var trimmed_start := original.find(original.strip_edges())
+		var error_start := maxi(0, trimmed_start) + int(state.index)
+		return _failure("PARSE_UNEXPECTED_TOKEN", "Unexpected token in formula.", error_start, mini(original.length(), error_start + 1))
 
 	var expansion_state := {"overflow": false}
 	var composition := _expand_nodes(nodes, expansion_state)
@@ -325,7 +330,8 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool) -> Array:
 			if nested:
 				state.index = int(state.index) + 1
 				return nodes
-			state.error = "PARSE_UNEXPECTED_TOKEN"
+			state.error_index = int(state.index)
+		state.error = "PARSE_UNEXPECTED_TOKEN"
 			return nodes
 		if ch == "(":
 			state.depth = int(state.depth) + 1
