@@ -126,7 +126,9 @@ func move_marker_by(component_id: int, direction: Vector2, step: float = 0.01) -
 	return false
 
 func _find_marker_at(point: Vector2) -> int:
-	for marker in markers:
+	# Later markers are drawn on top, so hit-test in reverse draw order too.
+	for index in range(markers.size() - 1, -1, -1):
+		var marker: Dictionary = markers[index]
 		var marker_position: Vector2 = Vector2(marker.position) * size
 		if marker_position.distance_to(point) <= 17.0:
 			return int(marker.id)
