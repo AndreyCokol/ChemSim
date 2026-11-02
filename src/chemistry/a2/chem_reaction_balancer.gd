@@ -12,6 +12,7 @@ const MAX_INPUT_COEFFICIENT := 1000000
 const MAX_MAX_SUM := 1000000
 const MAX_MAX_CANDIDATES := 2000000
 const MAX_SPECIES_TERMS := 128
+const MAX_SEARCH_NODES := 2000000
 const FormulaParser = preload("res://src/chemistry/a2/chem_equation_parser.gd")
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
@@ -47,6 +48,8 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		"sides": sides,
 		"candidate_count": 0,
 		"candidate_limit": max_candidates,
+		"search_node_count": 0,
+		"search_node_limit": MAX_SEARCH_NODES,
 		# Bound total recursive work as well as complete coefficient vectors.
 		# A bounded leaf count alone does not bound the search tree.
 		"search_node_count": 0,
