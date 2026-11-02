@@ -160,6 +160,27 @@ func _test_negative_cases() -> void:
 	var missing_arrow: Dictionary = parser.parse_reaction("H2 + O2")
 	assert(not missing_arrow.ok)
 	assert(missing_arrow.code == "PARSE_MISSING_ARROW")
+	assert(missing_arrow.source_span.start_offset == "H2 + O2".length())
+	assert(missing_arrow.source_span.end_offset == "H2 + O2".length())
+
+	var multiple_arrow_source := "H2 -> O2 -> H2O"
+	var multiple_arrow: Dictionary = parser.parse_reaction(multiple_arrow_source)
+	assert(not multiple_arrow.ok)
+	assert(multiple_arrow.code == "PARSE_MULTIPLE_ARROWS")
+	assert(multiple_arrow.source_span.start_offset == multiple_arrow_source.find("->", 4))
+	assert(multiple_arrow.source_span.end_offset == multiple_arrow.source_span.start_offset + 2)
+
+	var empty_separator_source := "H2 + + O2 -> H2O"
+	var empty_separator: Dictionary = parser.parse_reaction(empty_separator_source)
+	assert(not empty_separator.ok)
+	assert(empty_separator.code == "PARSE_INVALID_SEPARATOR")
+	assert(empty_separator.source_span.start_offset == empty_separator_source.find("+", 5))
+	assert(empty_separator.source_span.end_offset == empty_separator.source_span.start_offset + 1)
+
+	var empty_product_side: Dictionary = parser.parse_reaction("H2 ->   ")
+	assert(not empty_product_side.ok)
+	assert(empty_product_side.code == "PARSE_EMPTY_SIDE")
+	assert(empty_product_side.source_span.start_offset == "H2 ->   ".length())
 
 	# Formula diagnostics in a reaction must use absolute source offsets,
 	# including preceding terms, coefficients, and whitespace.
