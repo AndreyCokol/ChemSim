@@ -4,14 +4,7 @@ class_name ChemSimDraftCodec
 const DOCUMENT_TYPE := "chemsim_ui_draft"
 const SCHEMA_VERSION := 1
 
-static func build_payload(
-	experiment_name: String,
-	reaction_text: String,
-	temperature_text: String,
-	pressure_raw: String,
-	volume_raw: String,
-	component_drafts: Array[Dictionary]
-) -> Dictionary:
+static func build_payload(experiment_name: String, reaction_text: String, temperature_text: String, pressure_raw: String, volume_raw: String, component_drafts: Array[Dictionary]) -> Dictionary:
 	var serialized_components: Array[Dictionary] = []
 	for item in component_drafts:
 		var position: Vector2 = item.get("position", Vector2(-1, -1))
@@ -41,21 +34,28 @@ static func build_payload(
 static func decode_payload(payload: Variant) -> Dictionary:
 	if not payload is Dictionary:
 		return _failure("Файл не является корректным JSON-объектом.")
-	if typeof(payload.get("document_type", null)) != TYPE_STRING or payload.get("document_type") != DOCUMENT_TYPE:
+	for required_field in ["document_type", "schema_version", "experiment_name", "reaction_text", "chemistry_status", "conditions", "components"]:
+		if not payload.has(required_field):
+			return _failure("В документе отсутствует обязательное поле " + required_field + ".")
+	if typeof(payload.document_type) != TYPE_STRING or payload.document_type != DOCUMENT_TYPE:
 		return _failure("Неизвестный тип документа.")
-	if typeof(payload.get("schema_version", null)) != TYPE_INT or payload.get("schema_version") != SCHEMA_VERSION:
+	if typeof(payload.schema_version) != TYPE_INT or payload.schema_version != SCHEMA_VERSION:
 		return _failure("Неподдерживаемая версия черновика.")
+	if typeof(payload.chemistry_status) != TYPE_STRING or payload.chemistry_status != "unvalidated_draft":
+		return _failure("Недопустимый статус химической проверки черновика.")
 	for field in ["experiment_name", "reaction_text"]:
-		if payload.has(field) and typeof(payload[field]) != TYPE_STRING:
+		if typeof(payload[field]) != TYPE_STRING:
 			return _failure("Поле " + field + " должно быть строкой.")
-	var raw_components: Variant = payload.get("components", null)
+	var raw_components: Variant = payload.components
 	if not raw_components is Array:
 		return _failure("Отсутствует корректный список компонентов.")
-	var raw_conditions: Variant = payload.get("conditions", {})
+	var raw_conditions: Variant = payload.conditions
 	if not raw_conditions is Dictionary:
 		return _failure("Блок условий имеет неверный формат.")
 	for field in ["temperature_k", "pressure_raw", "volume_raw"]:
-		if raw_conditions.has(field) and typeof(raw_conditions[field]) != TYPE_STRING:
+		if not raw_conditions.has(field):
+			return _failure("В блоке условий отсутствует обязательное поле " + field + ".")
+		if typeof(raw_conditions[field]) != TYPE_STRING:
 			return _failure("Поле условий " + field + " должно быть строкой.")
 
 	var decoded_components: Array[Dictionary] = []
@@ -63,15 +63,18 @@ static func decode_payload(payload: Variant) -> Dictionary:
 	for raw_item in raw_components:
 		if not raw_item is Dictionary:
 			return _failure("Одна из записей компонента имеет неверный формат.")
+		for field in ["id", "name", "formula", "amount", "unit", "phase", "position"]:
+			if not raw_item.has(field):
+				return _failure("В записи компонента отсутствует обязательное поле " + field + ".")
 		for field in ["name", "formula", "amount", "unit", "phase"]:
-			if raw_item.has(field) and typeof(raw_item[field]) != TYPE_STRING:
+			if typeof(raw_item[field]) != TYPE_STRING:
 				return _failure("Поле компонента " + field + " должно быть строкой.")
-		var raw_position: Variant = raw_item.get("position", [-1.0, -1.0])
+		var raw_position: Variant = raw_item.position
 		if not raw_position is Array or raw_position.size() != 2:
 			return _failure("Координаты компонента имеют неверный формат.")
 		if not _is_valid_position(raw_position):
 			return _failure("Координаты должны быть конечными числами от 0 до 1 либо парой -1 для неразмещённого маркера.")
-		var raw_id: Variant = raw_item.get("id", null)
+		var raw_id: Variant = raw_item.id
 		if typeof(raw_id) != TYPE_INT:
 			return _failure("Идентификатор компонента должен быть целым числом.")
 		var component_id := int(raw_id)
@@ -80,23 +83,20 @@ static func decode_payload(payload: Variant) -> Dictionary:
 		seen_ids[component_id] = true
 		decoded_components.append({
 			"id": component_id,
-			"name": str(raw_item.get("name", "")),
-			"formula": str(raw_item.get("formula", "")),
-			"amount": str(raw_item.get("amount", "")),
-			"unit": str(raw_item.get("unit", "не задано")),
-			"phase": str(raw_item.get("phase", "Фаза не указана")),
+			"name": raw_item.name,
+			"formula": raw_item.formula,
+			"amount": raw_item.amount,
+			"unit": raw_item.unit,
+			"phase": raw_item.phase,
 			"position": Vector2(float(raw_position[0]), float(raw_position[1]))
 		})
 
-	return {
-		"ok": true,
-		"data": {
-			"experiment_name": str(payload.get("experiment_name", "Черновик")),
-			"reaction_text": str(payload.get("reaction_text", "")),
-			"conditions": raw_conditions,
-			"components": decoded_components
-		}
-	}
+	return {"ok": true, "data": {
+		"experiment_name": payload.experiment_name,
+		"reaction_text": payload.reaction_text,
+		"conditions": raw_conditions,
+		"components": decoded_components
+	}}
 
 static func _is_number(value: Variant) -> bool:
 	return typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT
