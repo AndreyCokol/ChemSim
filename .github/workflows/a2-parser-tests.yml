@@ -7,6 +7,10 @@ on:
       - "tests/a2/**"
       - ".github/workflows/a2-parser-tests.yml"
 
+concurrency:
+  group: a2-parser-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   godot-headless:
     runs-on: ubuntu-latest
