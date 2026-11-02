@@ -172,6 +172,8 @@ func _test_balance_proposal() -> void:
 
 	var oversized_search_bound: Dictionary = balancer.propose_balance(parsed.reaction, 1000001, 500000)
 	assert(oversized_search_bound.status == "INVALID_INPUT")
+	var oversized_candidate_bound: Dictionary = balancer.propose_balance(parsed.reaction, 64, 2000001)
+	assert(oversized_candidate_bound.status == "INVALID_INPUT")
 
 	var inconsistent_ast: Dictionary = parsed.reaction.duplicate(true)
 	inconsistent_ast.reactants[0].species.formula_ast.element_counts["O"] = 1
