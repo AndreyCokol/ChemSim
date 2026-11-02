@@ -78,17 +78,14 @@ def _aqueous_result(
     diagnostics: SolverDiagnostics,
     solid_mol_l: float = 0.0,
 ) -> AqueousResult:
-    numeric_diagnostics = (
-        diagnostics.residual,
-        diagnostics.component_balance_residual,
-        diagnostics.charge_balance_residual,
-    )
     if (
         any(not isfinite(value) or value < 0.0 for value in species_mol_l.values())
         or not isfinite(pH)
         or not isfinite(solid_mol_l)
         or solid_mol_l < 0.0
-        or any(not isfinite(value) for value in numeric_diagnostics)
+        or isnan(diagnostics.residual)
+        or not isfinite(diagnostics.component_balance_residual)
+        or not isfinite(diagnostics.charge_balance_residual)
     ):
         raise EquilibriumConvergenceError(
             "Aqueous equilibrium produced non-finite or nonphysical result values"
