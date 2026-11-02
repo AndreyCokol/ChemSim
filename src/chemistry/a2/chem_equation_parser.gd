@@ -50,11 +50,12 @@ func parse_formula(source: String) -> Dictionary:
 	var charge := 0
 	var charge_result := _extract_charge(text)
 	if not charge_result.ok:
-		var charge_error_start := text.rfind("^")
+		var charge_error_start := int(charge_result.get("error_offset", text.rfind("^") + 1))
 		if charge_error_start < 0:
 			charge_error_start = maxi(0, text.length() - 1)
 		var absolute_charge_start := maxi(0, trimmed_start) + charge_error_start
-		return _failure(charge_result.code, charge_result.message, absolute_charge_start, original.length())
+		var absolute_charge_end := mini(original.length(), absolute_charge_start + (1 if absolute_charge_start < original.length() else 0))
+		return _failure(charge_result.code, charge_result.message, absolute_charge_start, absolute_charge_end)
 	charge = charge_result.charge
 	text = charge_result.body
 
@@ -308,22 +309,22 @@ func _extract_charge(text: String) -> Dictionary:
 	if caret >= 0:
 		var suffix := text.substr(caret + 1)
 		if suffix.is_empty():
-			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge marker must be followed by an optional magnitude and a sign."}
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge marker must be followed by an optional magnitude and a sign.", "error_offset": caret + 1}
 		var sign_text := suffix.substr(suffix.length() - 1, 1)
 		if sign_text != "+" and sign_text != "-" and sign_text != "−":
-			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge must end with + or -."}
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge must end with + or -.", "error_offset": caret + 1 + suffix.length() - 1}
 		var magnitude_text := suffix.substr(0, suffix.length() - 1)
 		var magnitude := 1
 		if not magnitude_text.is_empty():
 			for digit_index in range(magnitude_text.length()):
 				var digit_text := magnitude_text.substr(digit_index, 1)
 				if digit_text < "0" or digit_text > "9":
-					return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must contain decimal digits only."}
+					return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must contain decimal digits only.", "error_offset": caret + 1 + digit_index}
 			magnitude = _parse_bounded_integer(magnitude_text, MAX_INTEGER_TOKEN)
 			if magnitude < 0:
-				return {"ok": false, "code": "PARSE_CHARGE_TOO_LARGE", "message": "Charge magnitude exceeds the configured safe limit."}
+				return {"ok": false, "code": "PARSE_CHARGE_TOO_LARGE", "message": "Charge magnitude exceeds the configured safe limit.", "error_offset": caret + 1}
 		if magnitude <= 0:
-			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be positive."}
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge magnitude must be positive.", "error_offset": caret + 1}
 		return {"ok": true, "body": text.substr(0, caret), "charge": magnitude if sign_text == "+" else -magnitude}
 
 	if text.ends_with("+") or text.ends_with("-") or text.ends_with("−"):
