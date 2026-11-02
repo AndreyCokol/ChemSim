@@ -14,6 +14,8 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	if serialized.to_utf8_buffer().size() > MAX_DRAFT_BYTES:
 		return _failure("Черновик превышает допустимый размер 5 МиБ.")
 	path = path.replace("\\", "/")
+	if not _is_allowed_user_path(path + ".tmp") or not _is_allowed_user_path(path + ".bak"):
+		return _failure("Сохранение/открытие запрещено: временный или резервный путь содержит ссылку на другой объект файловой системы.")
 	var absolute_path := ProjectSettings.globalize_path(path)
 	var absolute_dir := ProjectSettings.globalize_path(path.get_base_dir())
 	var dir_error := DirAccess.make_dir_recursive_absolute(absolute_dir)
@@ -68,6 +70,8 @@ static func load_draft(path: String) -> Dictionary:
 	if not _is_allowed_user_path(path):
 		return _failure("Открывать черновики разрешено только внутри пользовательской папки.")
 	path = path.replace("\\", "/")
+	if not _is_allowed_user_path(path + ".tmp") or not _is_allowed_user_path(path + ".bak"):
+		return _failure("Открытие запрещено: временный или резервный путь содержит ссылку на другой объект файловой системы.")
 	var backup_path := path + ".bak"
 	var temporary_path := path + ".tmp"
 
