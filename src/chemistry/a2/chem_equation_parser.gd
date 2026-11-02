@@ -338,7 +338,7 @@ func _extract_charge(text: String) -> Dictionary:
 
 	return {"ok": true, "body": text, "charge": 0}
 
-func _parse_sequence(text: String, state: Dictionary, nested: bool, group_start: int = -1) -> Array:
+func _parse_sequence(text: String, state: Dictionary, nested: bool, opening_group_start: int = -1) -> Array:
 	var nodes: Array = []
 	while int(state.index) < text.length():
 		var ch := text.substr(int(state.index), 1)
@@ -400,7 +400,7 @@ func _parse_sequence(text: String, state: Dictionary, nested: bool, group_start:
 		state.error = "PARSE_UNSUPPORTED_SYNTAX" if ch == "·" or ch == "[" or ch == "]" else "PARSE_UNEXPECTED_TOKEN"
 		return nodes
 	if nested:
-		state.error_index = group_start
+		state.error_index = opening_group_start
 		state.error = "PARSE_UNCLOSED_GROUP"
 	return nodes
 
