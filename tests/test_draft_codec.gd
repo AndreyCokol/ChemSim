@@ -51,6 +51,12 @@ func _initialize() -> void:
 	var out_of_range_position := payload.duplicate(true)
 	out_of_range_position.components[0].position = [1.01, 0.5]
 	assert(not DraftCodec.decode_payload(out_of_range_position).ok, "Marker coordinates outside the normalized range must be rejected")
+	var clipped_left_position := payload.duplicate(true)
+	clipped_left_position.components[0].position = [0.0, 0.5]
+	assert(not DraftCodec.decode_payload(clipped_left_position).ok, "Marker positions that the visual field would clamp must be rejected")
+	var clipped_bottom_position := payload.duplicate(true)
+	clipped_bottom_position.components[0].position = [0.5, 0.99]
+	assert(not DraftCodec.decode_payload(clipped_bottom_position).ok, "Marker positions outside the visible field inset must be rejected")
 	var partial_unplaced_position := payload.duplicate(true)
 	partial_unplaced_position.components[0].position = [-1.0, 0.5]
 	assert(not DraftCodec.decode_payload(partial_unplaced_position).ok, "Unplaced markers must use the complete [-1, -1] sentinel")
