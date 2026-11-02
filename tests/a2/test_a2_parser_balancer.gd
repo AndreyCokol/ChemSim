@@ -170,6 +170,19 @@ func _test_balance_proposal() -> void:
 	var malformed_sides: Dictionary = balancer.propose_balance({"reactants": "not-an-array", "products": []})
 	assert(malformed_sides.status == "INVALID_INPUT")
 
+	var oversized_search_bound: Dictionary = balancer.propose_balance(parsed.reaction, 1000001, 500000)
+	assert(oversized_search_bound.status == "INVALID_INPUT")
+
+	var inconsistent_ast: Dictionary = parsed.reaction.duplicate(true)
+	inconsistent_ast.reactants[0].species.formula_ast.element_counts["O"] = 1
+	var inconsistent_result: Dictionary = balancer.propose_balance(inconsistent_ast)
+	assert(inconsistent_result.status == "INVALID_INPUT")
+
+	var invalid_source_coefficient: Dictionary = parsed.reaction.duplicate(true)
+	invalid_source_coefficient.reactants[0].stoichiometric_coefficient = 0
+	var invalid_coefficient_result: Dictionary = balancer.propose_balance(invalid_source_coefficient)
+	assert(invalid_coefficient_result.status == "INVALID_INPUT")
+
 	var ionic: Dictionary = parser.parse_reaction("Ag+ + Cl- -> AgCl(s)")
 	assert(ionic.ok)
 	var ionic_result: Dictionary = balancer.propose_balance(ionic.reaction)
