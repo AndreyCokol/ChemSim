@@ -60,7 +60,7 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		var current: Array = []
 		_enumerate_compositions(0, total, current, context)
 		if bool(context.limit_hit):
-			return _result("SEARCH_LIMIT_EXCEEDED", [], "Candidate search limit reached before optimality was proven.")
+			return _result("SEARCH_LIMIT_EXCEEDED", [], "Candidate or recursive search-node limit reached before optimality was proven.")
 		if not context.solutions.is_empty():
 			minimum_sum = total
 			break
@@ -187,10 +187,10 @@ func _solver_term_metadata(terms: Array, sides: Array, source_term_ids: Array) -
 func _enumerate_compositions(position: int, remaining: int, current: Array, context: Dictionary) -> void:
 	if bool(context.limit_hit) or context.solutions.size() > 1:
 		return
-	context.search_node_count = int(context.search_node_count) + 1
-	if int(context.search_node_count) > int(context.search_node_limit):
+	if int(context.search_node_count) >= int(context.search_node_limit):
 		context.limit_hit = true
 		return
+	context.search_node_count = int(context.search_node_count) + 1
 	var term_count: int = context.terms.size()
 	if position == term_count - 1:
 		if remaining < 1:
