@@ -359,6 +359,13 @@ func _test_balance_proposal() -> void:
 	assert(nitrogen_result.proposed_coefficients[0].coefficient == 2)
 	assert(nitrogen_result.proposed_coefficients[1].coefficient == 1)
 
+	var ambiguous_reaction: Dictionary = parser.parse_reaction("H2(g) + H2(l) -> H2(g) + H4(g)")
+	assert(ambiguous_reaction.ok)
+	var ambiguous_result: Dictionary = balancer.propose_balance(ambiguous_reaction.reaction)
+	assert(ambiguous_result.status == "AMBIGUOUS_OPTIMUM")
+	assert(ambiguous_result.optimization.objective_value == 5)
+	assert(ambiguous_result.alternative_solutions.size() == 2)
+
 	var duplicate_terms: Dictionary = parser.parse_reaction("H2 + H2 + O2 -> H2O")
 	assert(duplicate_terms.ok)
 	var duplicate_result: Dictionary = balancer.propose_balance(duplicate_terms.reaction)
