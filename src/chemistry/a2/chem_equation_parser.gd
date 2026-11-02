@@ -382,10 +382,14 @@ func _parse_bounded_integer(digits: String, limit: int) -> int:
 		return -1
 	var value := 0
 	for i in range(digits.length()):
-		var digit := int(digits.substr(i, 1))
+		var character := digits.substr(i, 1)
+		if character < "0" or character > "9":
+			return -1
+		var digit := int(character)
 		# Check before multiplication so even very long tokens cannot overflow
 		# the machine integer and wrap back into the accepted range.
-		if value > limit / 10 or (value == limit / 10 and digit > limit % 10):
+		var quotient := int(limit / 10)
+		if value > quotient or (value == quotient and digit > limit % 10):
 			return -1
 		value = value * 10 + digit
 	return value
