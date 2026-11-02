@@ -24,6 +24,8 @@ func _initialize() -> void:
 	assert(decoded.ok, "A valid UI draft must decode")
 	assert(decoded.data.components.size() == 1, "The component must round-trip")
 	assert(decoded.data.components[0].position == Vector2(0.25, 0.75), "Visual position must round-trip")
+	payload.conditions.pressure_raw = "mutated after decode"
+	assert(decoded.data.conditions.pressure_raw == "1", "Decoded conditions must not alias the caller's mutable payload")
 
 	var unsupported := payload.duplicate(true)
 	unsupported.schema_version = 99
