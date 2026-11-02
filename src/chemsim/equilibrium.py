@@ -387,6 +387,8 @@ def _gas_equilibrium(
         raise EquilibriumInputError("log_kp must be finite")
     for name, amount in species_initial.items():
         _positive(f"initial {name}", amount, allow_zero=True)
+    if not any(amount > 0.0 for amount in species_initial.values()):
+        raise EquilibriumInputError("At least one initial species amount must be positive")
 
     negative = [v for v in stoichiometry.values() if v < 0]
     positive = [v for v in stoichiometry.values() if v > 0]
