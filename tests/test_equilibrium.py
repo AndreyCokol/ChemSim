@@ -26,6 +26,18 @@ class BisectionRobustnessTests(unittest.TestCase):
         self.assertGreater(iterations, 0)
         self.assertAlmostEqual(residual, 0.0, places=12)
 
+    def test_midpoint_does_not_overflow_for_large_same_sign_bounds(self):
+        root, iterations, residual = _bisect(
+            lambda x: x - 1.2e308,
+            1.0e308,
+            1.7e308,
+            x_tol=1e-14,
+            f_tol=1e-290,
+        )
+        self.assertAlmostEqual(root / 1.0e308, 1.2, places=12)
+        self.assertGreater(iterations, 0)
+        self.assertTrue(math.isfinite(residual))
+
     def test_rejects_non_finite_or_reversed_bounds(self):
         with self.assertRaises(EquilibriumInputError):
             _bisect(lambda x: x, 0.0, float("inf"))
@@ -159,6 +171,12 @@ class GasBenchmarkTests(unittest.TestCase):
         p_h2 = result.partial_pressures_pa["H2"] / 100_000.0
         p_i2 = result.partial_pressures_pa["I2(g)"] / 100_000.0
         self.assertAlmostEqual((p_hi * p_hi) / (p_h2 * p_i2), 690.2, delta=1e-5)
+
+    def test_rejects_finite_inputs_that_overflow_output_pressures(self):
+        with self.assertRaises(EquilibriumConvergenceError):
+            solve_h2_i2_hi(
+                1.0e300, 1.0e300, 0.0, 298.15, 1.0e-300, 1.0
+            )
 
     def test_rejects_zero_equilibrium_constant(self):
         with self.assertRaises(EquilibriumInputError):
