@@ -33,6 +33,7 @@ func _test_formula_ast() -> void:
 	var ambiguous: Dictionary = parser.parse_formula("Fe3+")
 	assert(not ambiguous.ok)
 	assert(ambiguous.code == "PARSE_AMBIGUOUS_CHARGE")
+	assert(ambiguous.source_span.start_offset == 3)
 
 	var empty_group: Dictionary = parser.parse_formula("Ca()")
 	assert(not empty_group.ok)
@@ -125,10 +126,13 @@ func _test_negative_cases() -> void:
 	var invalid_charge_digits: Dictionary = parser.parse_formula("Fe^x+")
 	assert(not invalid_charge_digits.ok)
 	assert(invalid_charge_digits.code == "PARSE_INVALID_CHARGE")
+	assert(invalid_charge_digits.source_span.start_offset == 3)
+	assert(invalid_charge_digits.source_span.end_offset == 4)
 	var spaced_invalid_charge: Dictionary = parser.parse_formula("  Fe^x+(aq) ")
 	assert(not spaced_invalid_charge.ok)
 	assert(spaced_invalid_charge.code == "PARSE_INVALID_CHARGE")
 	assert(spaced_invalid_charge.source_span.start_offset == 5)
+	assert(spaced_invalid_charge.source_span.end_offset == 6)
 
 	var oversized_coefficient: Dictionary = parser.parse_reaction("1000001H2 -> H2")
 	assert(not oversized_coefficient.ok)
