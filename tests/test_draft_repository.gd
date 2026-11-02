@@ -146,6 +146,31 @@ func _initialize() -> void:
 	assert(not symlink_load.ok, "Repository must reject reads through a symlink escaping user://")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://experiments/link-outside"))
 	DirAccess.remove_absolute(outside_target)
+
+	# A dangling symlink sidecar is especially dangerous: file_exists() can
+	# report false, while opening it for WRITE would create a file outside user://.
+	var dangling_target := OS.get_cache_dir().path_join("chemsim-dangling-target.json")
+	if FileAccess.file_exists(dangling_target):
+		DirAccess.remove_absolute(dangling_target)
+	var dangling_sidecar := "user://experiments/dangling-sidecar.chemsim.json.tmp"
+	var dangling_link_error := link_directory.create_link(dangling_target, ProjectSettings.globalize_path(dangling_sidecar))
+	assert(dangling_link_error == OK, "CI should create a dangling symlink fixture")
+	var dangling_save := DraftRepository.save_draft("user://experiments/dangling-sidecar.chemsim.json", payload)
+	assert(not dangling_save.ok, "Repository must reject a dangling symlink temp sidecar")
+	assert(not FileAccess.file_exists(dangling_target), "Rejected dangling sidecar must not create a file outside user://")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(dangling_sidecar))
+
+	var backup_link_document := "user://experiments/backup-link.chemsim.json"
+	assert(DraftRepository.save_draft(backup_link_document, payload).ok, "Backup symlink fixture should have a canonical draft")
+	var outside_backup := OS.get_cache_dir().path_join("chemsim-outside-backup.json")
+	_write_text(outside_backup, JSON.stringify(payload))
+	var backup_link_error := link_directory.create_link(outside_backup, ProjectSettings.globalize_path(backup_link_document + ".bak"))
+	assert(backup_link_error == OK, "CI should create a backup symlink fixture")
+	var linked_backup_load := DraftRepository.load_draft(backup_link_document)
+	assert(not linked_backup_load.ok, "Repository must reject symlinked backup sidecars")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_link_document + ".bak"))
+	DirAccess.remove_absolute(outside_backup)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_link_document))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("Draft repository tests passed")
 	quit(0)
