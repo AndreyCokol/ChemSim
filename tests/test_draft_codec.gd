@@ -72,5 +72,18 @@ func _initialize() -> void:
 	missing_document_type.erase("document_type")
 	assert(not DraftCodec.decode_payload(missing_document_type).ok, "Documents without a type marker must be rejected")
 
+	var missing_required_document_field := payload.duplicate(true)
+	missing_required_document_field.erase("experiment_name")
+	assert(not DraftCodec.decode_payload(missing_required_document_field).ok, "Required top-level fields must not be silently defaulted")
+	var missing_required_condition := payload.duplicate(true)
+	missing_required_condition.conditions.erase("pressure_raw")
+	assert(not DraftCodec.decode_payload(missing_required_condition).ok, "Required condition fields must not be silently defaulted")
+	var missing_required_component_field := payload.duplicate(true)
+	missing_required_component_field.components[0].erase("phase")
+	assert(not DraftCodec.decode_payload(missing_required_component_field).ok, "Required component fields must not be silently defaulted")
+	var invalid_chemistry_status := payload.duplicate(true)
+	invalid_chemistry_status.chemistry_status = "validated"
+	assert(not DraftCodec.decode_payload(invalid_chemistry_status).ok, "UI drafts must not claim chemistry validation")
+
 	print("Draft codec tests passed")
 	quit(0)
