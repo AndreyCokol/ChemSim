@@ -50,9 +50,10 @@ func parse_formula(source: String) -> Dictionary:
 	var charge := 0
 	var charge_result := _extract_charge(text)
 	if not charge_result.ok:
-		var charge_error_start := int(charge_result.get("error_offset", text.rfind("^") + 1))
-		if charge_error_start < 0:
-			charge_error_start = maxi(0, text.length() - 1)
+		var fallback_charge_error_start := text.rfind("^")
+		if fallback_charge_error_start < 0:
+			fallback_charge_error_start = maxi(0, text.length() - 1)
+		var charge_error_start := int(charge_result.get("error_offset", fallback_charge_error_start))
 		var absolute_charge_start := maxi(0, trimmed_start) + charge_error_start
 		var absolute_charge_end := mini(original.length(), absolute_charge_start + (1 if absolute_charge_start < original.length() else 0))
 		return _failure(charge_result.code, charge_result.message, absolute_charge_start, absolute_charge_end)
