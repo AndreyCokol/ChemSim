@@ -130,6 +130,14 @@ func _test_negative_cases() -> void:
 	assert(not missing_arrow.ok)
 	assert(missing_arrow.code == "PARSE_MISSING_ARROW")
 
+	# Formula diagnostics in a reaction must use absolute source offsets,
+	# including preceding terms, coefficients, and whitespace.
+	var bad_product_source := " 2H2 + Xx -> H2"
+	var bad_product: Dictionary = parser.parse_reaction(bad_product_source)
+	assert(not bad_product.ok)
+	assert(bad_product.code == "PARSE_UNKNOWN_ELEMENT")
+	assert(bad_product.source_span.start_offset == bad_product_source.find("Xx"))
+
 func _test_balance_validation() -> void:
 	var parser = Parser.new()
 	var unbalanced: Dictionary = parser.parse_reaction("H2 + O2 -> H2O")
