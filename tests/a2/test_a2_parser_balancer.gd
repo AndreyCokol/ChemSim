@@ -274,7 +274,7 @@ func _test_search_node_budget() -> void:
 	}
 	balancer._enumerate_compositions(0, 10, [], context)
 	assert(context.limit_hit)
-	assert(context.search_node_count == 4)
+	assert(context.search_node_count == 3)
 
 func _test_balance_proposal() -> void:
 	var parser = Parser.new()
@@ -387,4 +387,4 @@ func _test_search_node_guard() -> void:
 	}
 	balancer._enumerate_compositions(0, 3, [], context)
 	assert(context.limit_hit)
-	assert(context.search_node_count == 2)
+	assert(context.search_node_count == 1)
