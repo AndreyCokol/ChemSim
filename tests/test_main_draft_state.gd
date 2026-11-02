@@ -1,10 +1,13 @@
 extends SceneTree
 
 const MainScript = preload("res://scripts/main.gd")
-const VisualFieldScript = preload("res://scripts/visual_field.gd")
 
 func _initialize() -> void:
 	var main = MainScript.new()
+	root.add_child(main)
+	assert(main.visual_field != null, "The main workspace must build its visual field")
+	assert(main.status_label != null, "The main workspace must build its status label")
+
 	main.components = [{
 		"id": 7,
 		"name": "Вода",
@@ -14,19 +17,17 @@ func _initialize() -> void:
 		"phase": "Жидкость",
 		"position": Vector2(0.5, 0.5)
 	}]
+	main.visual_field.set_marker(7, "Вода", Vector2(0.5, 0.5))
 	main.draft_dirty = false
 
-	var field = VisualFieldScript.new()
-	field.set_marker(7, "Вода", Vector2(0.5, 0.5))
-	field.marker_moved.connect(main._on_marker_moved)
-
-	assert(field.move_marker_by(7, Vector2.RIGHT, 0.1), "The visual field should emit marker_moved after keyboard movement")
-	assert(main.draft_dirty, "Moving a marker must mark the UI draft dirty")
-	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.6, 0.5)), "The main draft model must receive the new marker position")
+	assert(main.visual_field.move_marker_by(7, Vector2.RIGHT, 0.1), "The real workspace marker should move")
+	assert(main.draft_dirty, "The main workspace signal connection must mark the draft dirty")
+	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.6, 0.5)), "The real main draft model must receive the marker position")
 
 	main.draft_dirty = false
-	main._on_marker_moved(999, Vector2(0.2, 0.2))
-	assert(not main.draft_dirty, "An unknown marker must not dirty or mutate the draft")
+	main.visual_field.marker_moved.emit(999, Vector2(0.2, 0.2))
+	assert(not main.draft_dirty, "An unknown marker must not dirty the draft")
 
+	main.queue_free()
 	print("Main draft-state integration tests passed")
 	quit(0)
