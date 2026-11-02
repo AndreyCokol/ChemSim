@@ -60,6 +60,16 @@ static func load_draft(path: String) -> Dictionary:
 	if not _is_allowed_user_path(path):
 		return _failure("Открывать черновики разрешено только внутри пользовательской папки.")
 	path = path.replace("\\", "/")
+	# Recover the previous committed draft if the process stopped after moving
+	# the target to .bak but before promoting the new temporary file.
+	var backup_path := path + ".bak"
+	if not FileAccess.file_exists(path) and FileAccess.file_exists(backup_path):
+		var recovery_error := DirAccess.rename_absolute(
+			ProjectSettings.globalize_path(backup_path),
+			ProjectSettings.globalize_path(path)
+		)
+		if recovery_error != OK:
+			return _failure("Не удалось восстановить резервную копию черновика: " + str(recovery_error))
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _failure("Не удалось открыть файл: " + str(FileAccess.get_open_error()))
