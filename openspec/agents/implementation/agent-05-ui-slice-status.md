@@ -10,13 +10,13 @@ PR: #3 (draft, not merged)
 - Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label).
 - Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
 - Draft file operation failures are shown in a dedicated modal and the persistent diagnostic area.
-- Separate local draft repository restricted to lexically normalized user:// paths; parent traversal, mixed-separator traversal and the user-data root are rejected.
-- Save replacement uses temporary and backup sidecars. Existing .tmp and .bak files are preserved; a collision aborts the save instead of deleting user data.
+- Separate local draft repository restricted to normalized user:// paths; parent traversal, mixed-separator traversal, symlinks and Windows reparse points in existing path components are rejected using Godot DirAccess.is_link.
+- Save replacement uses temporary and backup sidecars. Existing sidecars are never blindly deleted; a missing canonical file can recover a schema-valid .bak (preferred) or .tmp before another save. Invalid sidecars are preserved and block automatic recovery.
 - Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
 - Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema/ID/text-type checks, round-trip tests, and rejection of unsupported schema versions, duplicate/non-integer IDs, non-finite/out-of-range marker coordinates and partial unplaced-marker sentinels.
-- Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/path/sidecar-collision tests, visual-field movement/bounds tests and a main UI draft-state integration test.
+- Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit tests and a main UI draft-state integration test.
 
 ## Explicitly not implemented
 
@@ -27,7 +27,7 @@ PR: #3 (draft, not merged)
 
 ## Known security limitation
 
-The repository rejects lexical path traversal, but Godot-level path checks currently do not establish canonical containment when a directory inside the user data tree is a filesystem symlink. The repository must not be described as hardened against a hostile local filesystem until symlink handling is implemented and verified on supported platforms.
+Existing symlink/junction/reparse-point components are rejected with Godot 4.3 `DirAccess.is_link()` before repository access. This closes the previously identified static symlink traversal path on the supported Godot platforms. It is not a race-free security boundary against another local process swapping directory entries between validation and file operations (TOCTOU); do not describe the repository as hardened against a hostile concurrent local process.
 
 ## Integration gates
 
@@ -42,7 +42,7 @@ The repository rejects lexical path traversal, but Godot-level path checks curre
 ## Validation status
 
 - GitHub Actions successfully completed the initial scaffold import/startup checks on commit 2c1fc5935d32d7c5e0d12c73dc799c8a2a7ba042.
-- The latest head has a new GitHub Actions run pending/awaiting confirmation; do not treat it as passed until the exact current head SHA has a successful run.
+- The latest code changes have been pushed; current-head GitHub Actions status must be checked against the exact latest SHA before claiming success.
 - No local Godot executable is installed in the authoring environment.
 
 ## Approval boundary
