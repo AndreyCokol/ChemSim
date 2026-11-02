@@ -207,7 +207,21 @@ func check_balance(reaction: Dictionary) -> Dictionary:
 
 
 func serialize_formula(formula_ast: Dictionary, phase: String = "UNSPECIFIED") -> String:
-	var output := _serialize_nodes(formula_ast.get("nodes", []))
+	if typeof(formula_ast.get("schema_version")) != TYPE_INT or int(formula_ast.schema_version) != 1:
+		return ""
+	if typeof(formula_ast.get("source_text")) != TYPE_STRING or typeof(formula_ast.get("nodes")) != TYPE_ARRAY:
+		return ""
+	if typeof(formula_ast.get("element_counts")) != TYPE_DICTIONARY or typeof(formula_ast.get("net_charge")) != TYPE_INT:
+		return ""
+	if not ["UNSPECIFIED", "SOLID", "LIQUID", "GAS", "AQUEOUS"].has(phase):
+		return ""
+	var parsed := parse_formula(String(formula_ast.source_text))
+	if not bool(parsed.get("ok", false)) or String(parsed.phase) != phase:
+		return ""
+	var trusted_ast: Dictionary = parsed.formula_ast
+	if trusted_ast.nodes != formula_ast.nodes or trusted_ast.element_counts != formula_ast.element_counts or int(trusted_ast.net_charge) != int(formula_ast.net_charge):
+		return ""
+	var output := _serialize_nodes(trusted_ast.nodes)
 	var charge := int(formula_ast.get("net_charge", 0))
 	if charge == 1:
 		output += "+"
@@ -227,6 +241,16 @@ func serialize_formula(formula_ast: Dictionary, phase: String = "UNSPECIFIED") -
 	return output
 
 func serialize_reaction(reaction: Dictionary) -> String:
+	if typeof(reaction.get("reactants")) != TYPE_ARRAY or typeof(reaction.get("products")) != TYPE_ARRAY:
+		return ""
+	if reaction.reactants.is_empty() or reaction.products.is_empty():
+		return ""
+	var arrow_type := String(reaction.get("arrow_type", "FORWARD"))
+	if not ["FORWARD", "REVERSIBLE"].has(arrow_type):
+		return ""
+	for term in reaction.reactants + reaction.products:
+		if not _is_valid_reaction_term(term):
+			return ""
 	var left := PackedStringArray()
 	var right := PackedStringArray()
 	for term in reaction.get("reactants", []):
@@ -239,7 +263,7 @@ func serialize_reaction(reaction: Dictionary) -> String:
 		var ast: Dictionary = term.species.formula_ast
 		var formula := serialize_formula(ast, String(term.species.get("phase", "UNSPECIFIED")))
 		right.append(("" if coefficient == 1 else str(coefficient)) + formula)
-	var arrow := " ⇌ " if reaction.get("arrow_type", "FORWARD") == "REVERSIBLE" else " -> "
+	var arrow := " ⇌ " if arrow_type == "REVERSIBLE" else " -> "
 	return " + ".join(left) + arrow + " + ".join(right)
 
 func _serialize_nodes(nodes: Array) -> String:
