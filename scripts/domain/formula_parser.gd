@@ -1,6 +1,9 @@
 class_name FormulaParser
 extends RefCounted
 
+const MAX_FORMULA_LENGTH := 256
+const MAX_NESTING_DEPTH := 32
+const MAX_ATOM_COUNT := 1000000
 const ELEMENTS := {
 	"H": true, "He": true, "Li": true, "Be": true, "B": true, "C": true, "N": true, "O": true, "F": true, "Ne": true,
 	"Na": true, "Mg": true, "Al": true, "Si": true, "P": true, "S": true, "Cl": true, "Ar": true, "K": true, "Ca": true,
@@ -18,16 +21,20 @@ const ELEMENTS := {
 
 var _source: String = ""
 var _index: int = 0
+var _depth: int = 0
 var _error_code: String = ""
 var _error_message: String = ""
 
 func parse(input: String) -> FormulaParseResult:
 	_source = input.strip_edges()
 	_index = 0
+	_depth = 0
 	_error_code = ""
 	_error_message = ""
 	if _source.is_empty():
 		return FormulaParseResult.failure("PARSER_EMPTY_FORMULA", "Введите химическую формулу.")
+	if _source.length() > MAX_FORMULA_LENGTH:
+		return FormulaParseResult.failure("PARSER_INPUT_LIMIT", "Формула превышает допустимую длину.")
 
 	var phase := ""
 	for candidate in ["(aq)", "(s)", "(l)", "(g)"]:
@@ -42,14 +49,14 @@ func parse(input: String) -> FormulaParseResult:
 	var match_result := charge_match.search(_source)
 	if match_result:
 		var magnitude_text: String = match_result.get_string(1)
+		if magnitude_text.length() > 7:
+			return FormulaParseResult.failure("PARSER_CHARGE_LIMIT", "Модуль заряда превышает поддерживаемый предел.")
 		var magnitude := 1 if magnitude_text.is_empty() else int(magnitude_text)
-		if magnitude <= 0:
-			return FormulaParseResult.failure("PARSER_INVALID_CHARGE", "Модуль заряда должен быть положительным.")
+		if magnitude <= 0 or magnitude > MAX_ATOM_COUNT:
+			return FormulaParseResult.failure("PARSER_INVALID_CHARGE", "Модуль заряда должен быть положительным и находиться в поддерживаемом диапазоне.")
 		charge = magnitude if match_result.get_string(2) == "+" else -magnitude
 		_source = _source.substr(0, match_result.get_start())
 	elif _source.ends_with("+") or _source.ends_with("-"):
-		# Краткая запись H+, OH−, Ag+; цифра перед знаком остаётся индексом,
-		# поэтому неоднозначная одноэлементная запись Fe3+ запрещена ниже.
 		var sign := _source.substr(_source.length() - 1, 1)
 		var body := _source.substr(0, _source.length() - 1)
 		var ambiguous := RegEx.new()
@@ -72,12 +79,10 @@ func parse(input: String) -> FormulaParseResult:
 		return FormulaParseResult.failure("PARSER_UNSUPPORTED_SYNTAX", "Неожиданный символ «%s» в позиции %d." % [_source.substr(_index, 1), _index + 1])
 	if counts.is_empty():
 		return FormulaParseResult.failure("PARSER_EMPTY_FORMULA", "Формула не содержит химических элементов.")
-
 	return FormulaParseResult.success(input.strip_edges(), counts, charge, phase)
 
 func _parse_group(nested: bool) -> Dictionary:
 	var result: Dictionary = {}
-	var token_count := 0
 	while _index < _source.length():
 		var ch := _source.substr(_index, 1)
 		if ch == ")":
@@ -87,8 +92,13 @@ func _parse_group(nested: bool) -> Dictionary:
 			_index += 1
 			return result
 		if ch == "(":
+			if _depth >= MAX_NESTING_DEPTH:
+				_fail("PARSER_NESTING_LIMIT", "Превышена максимальная глубина вложенности групп.")
+				return result
 			_index += 1
+			_depth += 1
 			var inner := _parse_group(true)
+			_depth -= 1
 			if not _error_code.is_empty():
 				return result
 			if inner.is_empty():
@@ -96,8 +106,12 @@ func _parse_group(nested: bool) -> Dictionary:
 				return result
 			var multiplier := _parse_positive_integer()
 			for element in inner:
-				result[element] = int(result.get(element, 0)) + int(inner[element]) * multiplier
-			token_count += 1
+				var expanded_count: int = int(inner[element]) * multiplier
+				var combined_count: int = int(result.get(element, 0)) + expanded_count
+				if combined_count > MAX_ATOM_COUNT:
+					_fail("PARSER_COUNT_LIMIT", "Количество атомов превышает поддерживаемый предел.")
+					return result
+				result[element] = combined_count
 			continue
 		if ch >= "A" and ch <= "Z":
 			var symbol := ch
@@ -111,15 +125,17 @@ func _parse_group(nested: bool) -> Dictionary:
 				_fail("PARSER_UNKNOWN_ELEMENT", "Неизвестный символ элемента «%s»." % symbol)
 				return result
 			var amount := _parse_positive_integer()
-			result[symbol] = int(result.get(symbol, 0)) + amount
-			token_count += 1
+			var combined_count: int = int(result.get(symbol, 0)) + amount
+			if combined_count > MAX_ATOM_COUNT:
+				_fail("PARSER_COUNT_LIMIT", "Количество атомов превышает поддерживаемый предел.")
+				return result
+			result[symbol] = combined_count
 			continue
 		if ch >= "0" and ch <= "9":
 			_fail("PARSER_INVALID_INDEX", "Индекс должен следовать за элементом или группой.")
 			return result
 		_fail("PARSER_UNSUPPORTED_SYNTAX", "Символ «%s» не поддерживается в формуле MVP." % ch)
 		return result
-
 	if nested:
 		_fail("PARSER_UNCLOSED_GROUP", "Не закрыта круглая скобка.")
 	return result
@@ -133,9 +149,16 @@ func _parse_positive_integer() -> int:
 		_index += 1
 	if start == _index:
 		return 1
-	var value := int(_source.substr(start, _index - start))
+	var digits := _source.substr(start, _index - start)
+	if digits.length() > 7:
+		_fail("PARSER_COUNT_LIMIT", "Индекс превышает поддерживаемый предел.")
+		return 1
+	var value := int(digits)
 	if value <= 0:
 		_fail("PARSER_INVALID_INDEX", "Индекс элемента или группы должен быть положительным.")
+		return 1
+	if value > MAX_ATOM_COUNT:
+		_fail("PARSER_COUNT_LIMIT", "Индекс превышает поддерживаемый предел.")
 		return 1
 	return value
 
