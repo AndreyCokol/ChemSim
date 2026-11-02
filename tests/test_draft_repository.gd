@@ -97,6 +97,33 @@ func _initialize() -> void:
 	assert(FileAccess.file_exists(recovery_path), "Recovery should restore the canonical draft path")
 	assert(not FileAccess.file_exists(recovery_backup), "Recovery should consume the backup sidecar")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(recovery_path))
+
+	var corrupt_backup_path := "user://experiments/corrupt-backup.chemsim.json"
+	var corrupt_backup := corrupt_backup_path + ".bak"
+	_write_text(corrupt_backup, "{ definitely not valid json")
+	var corrupt_backup_load := DraftRepository.load_draft(corrupt_backup_path)
+	assert(not corrupt_backup_load.ok, "A corrupt backup must not be promoted to the canonical path")
+	assert(not FileAccess.file_exists(corrupt_backup_path), "A corrupt backup must not create a canonical draft")
+	assert(FileAccess.file_exists(corrupt_backup), "A corrupt backup must be preserved for manual recovery")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(corrupt_backup))
+
+	var corrupt_temp_path := "user://experiments/corrupt-temp.chemsim.json"
+	var corrupt_temp := corrupt_temp_path + ".tmp"
+	_write_text(corrupt_temp, "{ incomplete")
+	var corrupt_temp_load := DraftRepository.load_draft(corrupt_temp_path)
+	assert(not corrupt_temp_load.ok, "A corrupt temporary file must not be promoted")
+	assert(not FileAccess.file_exists(corrupt_temp_path), "A corrupt temporary file must not create a canonical draft")
+	assert(FileAccess.file_exists(corrupt_temp), "A corrupt temporary file must be preserved")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(corrupt_temp))
+
+	var temp_recovery_path := "user://experiments/temp-recovery.chemsim.json"
+	var temp_recovery_sidecar := temp_recovery_path + ".tmp"
+	_write_text(temp_recovery_sidecar, JSON.stringify(payload))
+	var temp_recovered := DraftRepository.load_draft(temp_recovery_path)
+	assert(temp_recovered.ok, "A complete schema-valid temporary file should be recoverable when no canonical or backup exists")
+	assert(FileAccess.file_exists(temp_recovery_path), "Recovered temporary content should become canonical")
+	assert(not FileAccess.file_exists(temp_recovery_sidecar), "Successful temporary recovery should consume its sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_recovery_path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	print("Draft repository tests passed")
 	quit(0)
