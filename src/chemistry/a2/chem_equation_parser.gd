@@ -378,12 +378,16 @@ func _read_count(text: String, state: Dictionary) -> int:
 	return value
 
 func _parse_bounded_integer(digits: String, limit: int) -> int:
+	if limit < 0 or digits.is_empty():
+		return -1
 	var value := 0
 	for i in range(digits.length()):
 		var digit := int(digits.substr(i, 1))
-		value = value * 10 + digit
-		if value > limit:
+		# Check before multiplication so even very long tokens cannot overflow
+		# the machine integer and wrap back into the accepted range.
+		if value > limit / 10 or (value == limit / 10 and digit > limit % 10):
 			return -1
+		value = value * 10 + digit
 	return value
 
 func _expand_nodes(nodes: Array, state: Dictionary) -> Dictionary:
