@@ -74,6 +74,9 @@ func _test_nested_and_round_trip() -> void:
 	assert(calcium.formula_ast.element_counts["Ca"] == 1)
 	assert(calcium.formula_ast.element_counts["O"] == 2)
 	assert(calcium.formula_ast.element_counts["H"] == 2)
+	var calcium_solid: Dictionary = parser.parse_formula("Ca(OH)2(s)")
+	assert(calcium_solid.ok)
+	assert(parser.serialize_formula(calcium_solid.formula_ast, calcium_solid.phase) == "Ca(OH)2(s)")
 
 	var alum: Dictionary = parser.parse_formula("Al2(SO4)3")
 	assert(alum.ok)
@@ -309,6 +312,12 @@ func _test_balance_proposal() -> void:
 
 	var ionic: Dictionary = parser.parse_reaction("Ag+ + Cl- -> AgCl(s)")
 	assert(ionic.ok)
+	var ionic_serialized := parser.serialize_reaction(ionic.reaction)
+	assert(ionic_serialized == "Ag+ + Cl- -> AgCl(s)")
+	var ionic_round_trip: Dictionary = parser.parse_reaction(ionic_serialized)
+	assert(ionic_round_trip.ok)
+	assert(ionic_round_trip.reaction.reactants[0].species.formula_ast.net_charge == 1)
+	assert(ionic_round_trip.reaction.products[0].species.phase == "SOLID")
 	var ionic_result: Dictionary = balancer.propose_balance(ionic.reaction)
 	assert(ionic_result.status == "UNIQUE_OPTIMUM")
 	assert(ionic_result.proposed_coefficients[0].coefficient == 1)
