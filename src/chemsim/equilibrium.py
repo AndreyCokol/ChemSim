@@ -15,7 +15,7 @@ fixed to one; callers must not use this module outside that approximation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite, isnan, log, log10, nextafter, sqrt
+from math import exp, isfinite, isnan, log, log10, nextafter, sqrt
 from typing import Callable
 
 
@@ -59,6 +59,17 @@ class GasResult:
     total_pressure_pa: float
     extent_mol: float
     diagnostics: SolverDiagnostics
+
+
+def _ideal_gas_pressure(amount_mol: float, temperature_k: float, volume_m3: float) -> float:
+    """Compute nRT/V without overflowing an avoidable intermediate product."""
+    if amount_mol == 0.0:
+        return 0.0
+    log_pressure = log(amount_mol) + log(R) + log(temperature_k) - log(volume_m3)
+    try:
+        return exp(log_pressure)
+    except OverflowError:
+        return float("inf")
 
 
 def _positive(name: str, value: float, *, allow_zero: bool = False) -> None:
@@ -394,16 +405,16 @@ def _gas_equilibrium(
         raise EquilibriumInputError("No positive-composition interval for gas equilibrium")
     extent, iterations, f_residual = _bisect(residual, lo, hi, f_tol=1e-11)
     final = amounts(extent)
-    total_moles = sum(final.values())
     partials = {
-        name: amount * R * temperature_k / volume_m3
+        name: _ideal_gas_pressure(amount, temperature_k, volume_m3)
         for name, amount in final.items()
     }
-    total_pressure = total_moles * R * temperature_k / volume_m3
+    # Summing partial pressures avoids overflowing an intermediate total-mole
+    # sum when the final pressure itself is representable.
+    total_pressure = sum(partials.values())
 
     if (
         any(not isfinite(amount) or amount < 0.0 for amount in final.values())
-        or not isfinite(total_moles)
         or any(not isfinite(pressure) or pressure < 0.0 for pressure in partials.values())
         or not isfinite(total_pressure)
     ):
