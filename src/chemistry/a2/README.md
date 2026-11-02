@@ -43,7 +43,7 @@ The current solver enumerates positive integer coefficient vectors in increasing
 - `check_balance` accepts at most 4,096 total species terms per reaction; this bounds aggregate arithmetic under the parser's formula/charge limits. The solver applies a stricter 128-term cap to bound recursive search depth.
 - Source coefficients must be positive integers no greater than 1,000,000. `propose_balance` validates them but computes a fresh coefficient proposal independently of the entered values.
 - Each species DTO is reparsed from `formula_ast.source_text`; phase, net charge, and elemental composition must match the parsed source formula.
-- Default candidate limit: 500,000.
+- Default candidate limit: 500,000. Recursive search is also capped at 2,000,000 visited nodes so internal composition-tree work cannot grow without bound even when few complete candidates are reached.
 - A structurally impossible element balance returns `NO_POSITIVE_SOLUTION`.
 - If the configured bound is exhausted, the result is `SEARCH_LIMIT_EXCEEDED`, never a false claim of no solution.
 - Terms with identical source formula notation and the same phase are aggregated per reaction side into one solver variable. The proposal returns the aggregate coefficient and all contributing `source_term_ids`; it deliberately does not invent a distribution across duplicate source terms. Different phases and differently written formulas remain distinct; this avoids merging possible isomers that share an elemental composition. The objective is the sum of coefficients over distinct species terms.
