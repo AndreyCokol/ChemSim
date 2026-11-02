@@ -15,8 +15,8 @@ PR: #3 (draft, not merged)
 - Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
 - Raw reaction text and raw pressure/volume fields.
 - Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
-- Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema-v1 field allowlists, ID/text-type checks, fixed 298.15 K isothermal condition, round-trip tests, and rejection of unsupported schema versions, unknown fields, duplicate/non-integer IDs, non-finite/out-of-range marker coordinates and non-exact unplaced-marker sentinels.
-- Headless Godot import/startup CI, draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit tests and a main UI draft-state integration test covering graph selection, component CRUD, placement, save/load and discard confirmation.
+- Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema-v1 field allowlists, ID/text-type checks, fixed 298.15 K isothermal condition, round-trip tests, and rejection of unsupported schema versions, unknown fields, duplicate/non-integer IDs, non-finite/out-of-visible-field marker coordinates and non-exact unplaced-marker sentinels.
+- Headless Godot import/startup CI (also manually dispatchable), draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit tests and a main UI draft-state integration test covering graph selection, component CRUD/custom metadata, placement, full save/load, Open/New discard confirmation and dirty-state transitions.
 
 ## Explicitly not implemented
 
