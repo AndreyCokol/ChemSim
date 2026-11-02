@@ -337,7 +337,16 @@ func _extract_charge(text: String) -> Dictionary:
 			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge marker must be followed by an optional magnitude and a sign.", "error_offset": caret + 1}
 		var sign_text := suffix.substr(suffix.length() - 1, 1)
 		if sign_text != "+" and sign_text != "-" and sign_text != "−":
-			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge must end with + or -.", "error_offset": caret + 1 + suffix.length() - 1}
+			var missing_sign := true
+			for suffix_index in range(suffix.length()):
+				var suffix_character := suffix.substr(suffix_index, 1)
+				if suffix_character < "0" or suffix_character > "9":
+					missing_sign = false
+					break
+			var invalid_sign_offset := caret + 1 + suffix.length() - 1
+			if missing_sign:
+				invalid_sign_offset = caret + 1 + suffix.length()
+			return {"ok": false, "code": "PARSE_INVALID_CHARGE", "message": "Charge must end with + or -.", "error_offset": invalid_sign_offset}
 		var magnitude_text := suffix.substr(0, suffix.length() - 1)
 		var magnitude := 1
 		if not magnitude_text.is_empty():
