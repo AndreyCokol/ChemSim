@@ -248,4 +248,65 @@ public sealed class KineticsSimulatorTests
         Assert.Equal(SimulationStatus.InvalidInput, result.Status);
     }
 
+
+    [Fact]
+    public void PreCancelledRequest_ReturnsCancelledWithoutAdvancingState()
+    {
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(1d, 0d))
+            ]);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 1d,
+            OutputIntervalSeconds = 0.1d
+        }, cancellation.Token);
+
+        Assert.Equal(SimulationStatus.Cancelled, result.Status);
+        Assert.Single(result.Samples);
+        Assert.Equal(1d, result.Samples[0].AmountsMol["A"]);
+        Assert.Equal(0d, result.Samples[0].AmountsMol["B"]);
+    }
+
+    [Fact]
+    public void NonFiniteReactionRate_ReturnsNumericalFailureWithoutPublishingInvalidSample()
+    {
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(double.MaxValue, 0d))
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 2d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 1d,
+            OutputIntervalSeconds = 0.1d
+        });
+
+        Assert.Equal(SimulationStatus.NumericalFailure, result.Status);
+        Assert.Single(result.Samples);
+        Assert.Equal(2d, result.Samples[0].AmountsMol["A"]);
+        Assert.Equal(0d, result.Samples[0].AmountsMol["B"]);
+    }
+
 }
