@@ -83,6 +83,13 @@ class BisectionRobustnessTests(unittest.TestCase):
 
 
 class AqueousBenchmarkTests(unittest.TestCase):
+    def test_zero_inventory_precipitation_limit_has_finite_physical_result(self):
+        result = solve_agcl_precipitation(0.0, 0.0, 0.0, 0.0, 1.8e-10, 1.0e-14)
+        self.assertTrue(all(math.isfinite(value) for value in result.species_mol_l.values()))
+        self.assertEqual(result.solid_mol_l, 0.0)
+        self.assertTrue(math.isfinite(result.pH))
+        self.assertEqual(result.diagnostics.residual, float("-inf"))
+
     def test_w01_acetic_acid(self):
         ka = 10 ** -4.756
         result = solve_weak_acid(0.01000, ka, 1.0e-14)
