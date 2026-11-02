@@ -7,6 +7,9 @@ func _initialize() -> void:
 	root.add_child(main)
 	assert(main.visual_field != null, "The main workspace must build its visual field")
 	assert(main.status_label != null, "The main workspace must build its status label")
+	main.graph_buttons["rate"].pressed.emit()
+	assert(main.active_graph == "rate", "Selecting a graph tab should update the active graph mode")
+	assert(main.graph_title.text == "СКОРОСТЬ · ВРЕМЯ", "Selecting a graph tab should update its title")
 
 	main.components = [{
 		"id": 7,
