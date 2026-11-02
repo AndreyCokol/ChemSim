@@ -141,6 +141,12 @@ func _test_negative_cases() -> void:
 	assert(invalid_charge_digits.code == "PARSE_INVALID_CHARGE")
 	assert(invalid_charge_digits.source_span.start_offset == 3)
 	assert(invalid_charge_digits.source_span.end_offset == 4)
+
+	var missing_charge_sign: Dictionary = parser.parse_formula("Fe^3")
+	assert(not missing_charge_sign.ok)
+	assert(missing_charge_sign.code == "PARSE_INVALID_CHARGE")
+	assert(missing_charge_sign.source_span.start_offset == 4)
+	assert(missing_charge_sign.source_span.end_offset == 4)
 	var spaced_invalid_charge: Dictionary = parser.parse_formula("  Fe^x+(aq) ")
 	assert(not spaced_invalid_charge.ok)
 	assert(spaced_invalid_charge.code == "PARSE_INVALID_CHARGE")
