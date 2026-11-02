@@ -37,7 +37,7 @@ if parsed.ok:
     var proposal := balancer.propose_balance(parsed.reaction)
 ```
 
-Parsing never changes coefficients and never balances implicitly. `check_balance` validates entered coefficients. `propose_balance` returns a separate proposal.
+Parsing never changes coefficients and never balances implicitly. `check_balance` validates entered coefficients. `propose_balance` returns a separate proposal. Canonical serializers reparse and validate FormulaAST data; they return an empty string for malformed or stale DTOs rather than serializing a mutated node tree.
 
 ## Balancer guarantees and limits
 
