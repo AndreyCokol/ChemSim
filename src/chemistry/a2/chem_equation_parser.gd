@@ -39,6 +39,7 @@ func parse_formula(source: String) -> Dictionary:
 	if text.is_empty():
 		return _failure("PARSE_EMPTY_FORMULA", "Formula is empty.", 0, original.length())
 
+	var trimmed_start := original.find(original.strip_edges())
 	var phase := "UNSPECIFIED"
 	for suffix in PHASES:
 		if text.ends_with(suffix):
@@ -49,14 +50,18 @@ func parse_formula(source: String) -> Dictionary:
 	var charge := 0
 	var charge_result := _extract_charge(text)
 	if not charge_result.ok:
-		return _failure(charge_result.code, charge_result.message, 0, original.length())
+		var charge_error_start := text.rfind("^")
+		if charge_error_start < 0:
+			charge_error_start = maxi(0, text.length() - 1)
+		var absolute_charge_start := maxi(0, trimmed_start) + charge_error_start
+		return _failure(charge_result.code, charge_result.message, absolute_charge_start, original.length())
 	charge = charge_result.charge
 	text = charge_result.body
 
 	if text.is_empty():
-		return _failure("PARSE_EMPTY_FORMULA", "Formula body is empty.", 0, original.length())
+		var empty_body_start := maxi(0, trimmed_start)
+		return _failure("PARSE_EMPTY_FORMULA", "Formula body is empty.", empty_body_start, original.length())
 
-	var trimmed_start := original.find(original.strip_edges())
 	var state := {"index": 0, "error": "", "error_index": 0, "depth": 0}
 	var nodes := _parse_sequence(text, state, false)
 	if not String(state.error).is_empty():
