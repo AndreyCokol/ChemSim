@@ -249,7 +249,7 @@ func _serialize_nodes(nodes: Array) -> String:
 func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 	var text := raw_text.strip_edges()
 	if text.begins_with("-") or text.begins_with("+") or text.begins_with("."):
-		return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
+		return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", formula_offset, mini(global_start + raw_text.length(), formula_offset + 1))
 	var leading := raw_text.find(text)
 	var formula_offset := global_start + leading
 	var coefficient := 1
@@ -260,12 +260,12 @@ func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 		var coefficient_text := text.substr(0, digit_count)
 		var parsed_coefficient := _parse_bounded_integer(coefficient_text, MAX_INTEGER_TOKEN)
 		if parsed_coefficient < 0:
-			return _failure("PARSE_COEFFICIENT_TOO_LARGE", "Stoichiometric coefficient exceeds the configured safe limit.", global_start, global_start + raw_text.length())
+			return _failure("PARSE_COEFFICIENT_TOO_LARGE", "Stoichiometric coefficient exceeds the configured safe limit.", formula_offset, formula_offset + digit_count)
 		coefficient = parsed_coefficient
 		if digit_count < text.length() and text.substr(digit_count, 1) == ".":
-			return _failure("PARSE_INVALID_COEFFICIENT", "Fractional stoichiometric coefficients are not supported.", global_start, global_start + raw_text.length())
+			return _failure("PARSE_INVALID_COEFFICIENT", "Fractional stoichiometric coefficients are not supported.", formula_offset + digit_count, formula_offset + digit_count + 1)
 		if coefficient <= 0:
-			return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
+			return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", formula_offset, formula_offset + digit_count)
 		var formula_remainder := text.substr(digit_count)
 		var formula_text := formula_remainder.strip_edges()
 		if formula_text.is_empty():
