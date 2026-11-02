@@ -54,6 +54,9 @@ func _initialize() -> void:
 	var partial_unplaced_position := payload.duplicate(true)
 	partial_unplaced_position.components[0].position = [-1.0, 0.5]
 	assert(not DraftCodec.decode_payload(partial_unplaced_position).ok, "Unplaced markers must use the complete [-1, -1] sentinel")
+	var approximate_unplaced_position := payload.duplicate(true)
+	approximate_unplaced_position.components[0].position = [-1.000001, -1.0]
+	assert(not DraftCodec.decode_payload(approximate_unplaced_position).ok, "Unplaced marker sentinel values must match exactly")
 
 	var invalid_component := payload.duplicate(true)
 	invalid_component.components[0] = "not-a-dictionary"
