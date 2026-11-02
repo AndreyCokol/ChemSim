@@ -94,7 +94,9 @@ func parse_reaction(source: String) -> Dictionary:
 		return _failure("PARSE_REACTION_TOO_LONG", "Reaction exceeds the configured length limit.", 0, source.length())
 	var arrow_match := _find_arrow(source)
 	if not arrow_match.ok:
-		return _failure(arrow_match.code, arrow_match.message, 0, source.length())
+		var arrow_error_start := int(arrow_match.get("position", source.length()))
+		var arrow_error_end := int(arrow_match.get("end_position", arrow_error_start))
+		return _failure(arrow_match.code, arrow_match.message, arrow_error_start, arrow_error_end)
 
 	var arrow_text: String = arrow_match.arrow
 	var arrow_pos: int = arrow_match.position
@@ -103,9 +105,13 @@ func parse_reaction(source: String) -> Dictionary:
 	var left_terms := _split_side(left_text)
 	var right_terms := _split_side(right_text)
 	if not left_terms.ok:
-		return _failure(left_terms.code, left_terms.message, 0, arrow_pos)
+		var left_error_start := int(left_terms.get("position", 0))
+		var left_error_end := int(left_terms.get("end_position", left_error_start))
+		return _failure(left_terms.code, left_terms.message, left_error_start, left_error_end)
 	if not right_terms.ok:
-		return _failure(right_terms.code, right_terms.message, arrow_pos + arrow_text.length(), source.length())
+		var right_error_start := arrow_pos + arrow_text.length() + int(right_terms.get("position", 0))
+		var right_error_end := arrow_pos + arrow_text.length() + int(right_terms.get("end_position", right_terms.get("position", 0)))
+		return _failure(right_terms.code, right_terms.message, right_error_start, right_error_end)
 	if left_terms.parts.is_empty() or right_terms.parts.is_empty():
 		return _failure("PARSE_EMPTY_SIDE", "Both reaction sides must contain at least one term.", 0, source.length())
 
@@ -501,14 +507,14 @@ func _find_arrow(source: String) -> Dictionary:
 				break
 		if not matched.is_empty():
 			if found_pos >= 0:
-				return {"ok": false, "code": "PARSE_MULTIPLE_ARROWS", "message": "Reaction must contain exactly one arrow."}
+				return {"ok": false, "code": "PARSE_MULTIPLE_ARROWS", "message": "Reaction must contain exactly one arrow.", "position": index, "end_position": index + matched.length()}
 			found = matched
 			found_pos = index
 			index += matched.length()
 		else:
 			index += 1
 	if found_pos < 0:
-		return {"ok": false, "code": "PARSE_MISSING_ARROW", "message": "Reaction arrow is missing."}
+		return {"ok": false, "code": "PARSE_MISSING_ARROW", "message": "Reaction arrow is missing.", "position": source.length(), "end_position": source.length()}
 	return {"ok": true, "arrow": found, "position": found_pos}
 
 func _split_side(side: String) -> Dictionary:
@@ -522,11 +528,14 @@ func _split_side(side: String) -> Dictionary:
 		if left_ws and right_ws:
 			var raw := side.substr(start, i - start)
 			if raw.strip_edges().is_empty():
-				return {"ok": false, "code": "PARSE_INVALID_SEPARATOR", "message": "Empty reaction term around '+' separator."}
+				return {"ok": false, "code": "PARSE_INVALID_SEPARATOR", "message": "Empty reaction term around '+' separator.", "position": i, "end_position": i + 1}
 			parts.append({"text": raw, "start": start})
 			start = i + 1
 	if side.substr(start).strip_edges().is_empty():
-		return {"ok": false, "code": "PARSE_EMPTY_SIDE", "message": "Reaction side is empty."}
+		var empty_position := start
+		while empty_position < side.length() and side.substr(empty_position, 1).strip_edges().is_empty():
+			empty_position += 1
+		return {"ok": false, "code": "PARSE_EMPTY_SIDE", "message": "Reaction side is empty.", "position": empty_position, "end_position": empty_position}
 	parts.append({"text": side.substr(start), "start": start})
 	return {"ok": true, "parts": parts}
 
