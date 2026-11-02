@@ -90,6 +90,15 @@ func _initialize() -> void:
 	var invalid_chemistry_status := payload.duplicate(true)
 	invalid_chemistry_status.chemistry_status = "validated"
 	assert(not DraftCodec.decode_payload(invalid_chemistry_status).ok, "UI drafts must not claim chemistry validation")
+	var unknown_document_field := payload.duplicate(true)
+	unknown_document_field.future_field = "unversioned"
+	assert(not DraftCodec.decode_payload(unknown_document_field).ok, "Schema v1 must reject unknown top-level fields")
+	var unknown_condition_field := payload.duplicate(true)
+	unknown_condition_field.conditions.future_field = "unversioned"
+	assert(not DraftCodec.decode_payload(unknown_condition_field).ok, "Schema v1 must reject unknown condition fields")
+	var unknown_component_field := payload.duplicate(true)
+	unknown_component_field.components[0].future_field = "unversioned"
+	assert(not DraftCodec.decode_payload(unknown_component_field).ok, "Schema v1 must reject unknown component fields")
 
 	print("Draft codec tests passed")
 	quit(0)
