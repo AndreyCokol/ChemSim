@@ -31,5 +31,7 @@ jobs:
         run: godot --headless --path . --script res://tests/test_draft_repository.gd
       - name: Run visual field tests
         run: godot --headless --path . --script res://tests/test_visual_field.gd
+      - name: Run main draft-state integration tests
+        run: godot --headless --path . --script res://tests/test_main_draft_state.gd
       - name: Start main scene
         run: godot --headless --path . --quit-after 3
