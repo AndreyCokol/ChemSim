@@ -256,13 +256,21 @@ func _parse_term(raw_text: String, global_start: int) -> Dictionary:
 			return _failure("PARSE_INVALID_COEFFICIENT", "Fractional stoichiometric coefficients are not supported.", global_start, global_start + raw_text.length())
 		if coefficient <= 0:
 			return _failure("PARSE_INVALID_COEFFICIENT", "Stoichiometric coefficient must be a positive integer.", global_start, global_start + raw_text.length())
-		text = text.substr(digit_count).strip_edges()
-		if text.is_empty():
+		var formula_remainder := text.substr(digit_count)
+		var formula_text := formula_remainder.strip_edges()
+		if formula_text.is_empty():
 			return _failure("PARSE_EMPTY_FORMULA", "A coefficient must be followed by a formula.", global_start, global_start + raw_text.length())
+		var formula_offset := global_start + leading + digit_count + formula_remainder.find(formula_text)
+		text = formula_text
+	else:
+		var formula_offset := global_start + leading + text.find(text)
 
 	var formula_result := parse_formula(text)
 	if not formula_result.ok:
-		return _failure(formula_result.code, formula_result.message, global_start + leading, global_start + raw_text.length())
+		var local_span: Dictionary = formula_result.get("source_span", {"start_offset": 0, "end_offset": text.length()})
+		var error_start := formula_offset + int(local_span.get("start_offset", 0))
+		var error_end := formula_offset + int(local_span.get("end_offset", text.length()))
+		return _failure(formula_result.code, formula_result.message, error_start, error_end)
 	var ast: Dictionary = formula_result.formula_ast
 	var phase: String = formula_result.phase
 	return {
