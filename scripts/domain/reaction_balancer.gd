@@ -40,7 +40,7 @@ func balance(reaction: ReactionParseResult) -> BalanceResult:
 
 	var reduced := _rref(matrix)
 	if not reduced.ok:
-		return BalanceResult.failure("numeric_limit", "BALANCE_EXACT_ARITHMETIC_LIMIT", "Точная рациональная балансировка превысила безопасный диапазон целых промежуточных значений; коэффициенты не были угаданы.")
+		return _arithmetic_limit()
 	var pivots: Array[int] = reduced.pivots
 	var free_columns: Array[int] = []
 	for column in range(terms.size()):
@@ -121,21 +121,21 @@ func _rref(source: Array[Array]) -> Dictionary:
 func _to_positive_integers(vector: Array[Dictionary], original_matrix: Array[Array]) -> BalanceResult:
 	var lcm := 1
 	for value in vector:
-		if value.n == 0:
-			return BalanceResult.failure("no_positive_solution", "BALANCE_NO_POSITIVE_SOLUTION", "Для реакции не найдено решения, в котором все коэффициенты положительны.")
-		if value.n < 0:
+		if value.n <= 0:
 			return BalanceResult.failure("no_positive_solution", "BALANCE_NO_POSITIVE_SOLUTION", "Для реакции не найдено решения, в котором все коэффициенты положительны.")
 		var divisor := _gcd(lcm, value.d)
-		var factor := value.d / divisor
+		# These quotients are exact by construction; cast explicitly because
+		# GDScript's / operator produces a floating-point value for integer inputs.
+		var factor: int = int(value.d / divisor)
 		if not _within_safe(lcm, factor):
 			return _arithmetic_limit()
 		lcm *= factor
 	var coefficients: Array[int] = []
 	for value in vector:
-		var factor := lcm / value.d
+		var factor: int = int(lcm / value.d)
 		if not _within_safe(value.n, factor):
 			return _arithmetic_limit()
-		var coefficient := value.n * factor
+		var coefficient: int = value.n * factor
 		if coefficient <= 0 or coefficient > MAX_COEFFICIENT:
 			return BalanceResult.failure("numeric_limit", "BALANCE_COEFFICIENT_LIMIT", "Точные коэффициенты превышают поддерживаемый предел.")
 		coefficients.append(coefficient)
@@ -143,7 +143,7 @@ func _to_positive_integers(vector: Array[Dictionary], original_matrix: Array[Arr
 	for coefficient in coefficients:
 		divisor = _gcd(divisor, coefficient)
 	for i in range(coefficients.size()):
-		coefficients[i] = coefficients[i] / divisor
+		coefficients[i] = int(coefficients[i] / divisor)
 	if not _verify_integer_balance(coefficients, original_matrix):
 		return BalanceResult.failure("internal_error", "BALANCE_INTERNAL_VERIFICATION_FAILED", "Внутренняя проверка точного баланса не пройдена.")
 	return BalanceResult.success(coefficients)
@@ -169,7 +169,7 @@ func _rat(numerator: int, denominator: int) -> Dictionary:
 	if denominator == 0:
 		return {"n": 0, "d": 1}
 	var divisor := _gcd(numerator, denominator)
-	return {"n": numerator / divisor, "d": denominator / divisor}
+	return {"n": int(numerator / divisor), "d": int(denominator / divisor)}
 
 func _add(a: Dictionary, b: Dictionary) -> Dictionary:
 	var left := _safe_product(a.n, b.d)
@@ -204,12 +204,12 @@ func _divide(a: Dictionary, b: Dictionary) -> Dictionary:
 func _safe_product(a: int, b: int) -> Dictionary:
 	if a == 0 or b == 0:
 		return {"ok": true, "value": 0}
-	if abs(a) > MAX_SAFE_INTEGER / abs(b):
+	if abs(a) > int(MAX_SAFE_INTEGER / abs(b)):
 		return {"ok": false}
 	return {"ok": true, "value": a * b}
 
 func _within_safe(a: int, b: int) -> bool:
-	return a == 0 or b == 0 or abs(a) <= MAX_SAFE_INTEGER / abs(b)
+	return a == 0 or b == 0 or abs(a) <= int(MAX_SAFE_INTEGER / abs(b))
 
 func _negate(value: Dictionary) -> Dictionary:
 	return _rat(-value.n, value.d)
