@@ -44,6 +44,17 @@ class BisectionRobustnessTests(unittest.TestCase):
         with self.assertRaises(EquilibriumConvergenceError):
             _bisect(lambda x: x * x + 1.0, -1.0, 1.0)
 
+    def test_does_not_report_convergence_on_infinite_interior_residual(self):
+        def discontinuous_residual(x):
+            if x == 0.0:
+                return -1.0
+            if x == 1.0:
+                return 1.0
+            return float("inf")
+
+        with self.assertRaises(EquilibriumConvergenceError):
+            _bisect(discontinuous_residual, 0.0, 1.0)
+
 
 class AqueousBenchmarkTests(unittest.TestCase):
     def test_w01_acetic_acid(self):
