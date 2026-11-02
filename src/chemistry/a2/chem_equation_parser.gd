@@ -19,6 +19,7 @@ const ELEMENTS := [
 const PHASES := {"(s)": "SOLID", "(l)": "LIQUID", "(g)": "GAS", "(aq)": "AQUEOUS"}
 const MAX_FORMULA_LENGTH := 4096
 const MAX_REACTION_LENGTH := 16384
+const MAX_BALANCE_TERMS := 4096
 const MAX_GROUP_DEPTH := 64
 const MAX_INTEGER_TOKEN := 1000000
 const MAX_COMPOSITION_COUNT := 1000000000
@@ -131,6 +132,8 @@ func check_balance(reaction: Dictionary) -> Dictionary:
 		return {"ok": false, "balanced": false, "code": "BALANCE_INVALID_REACTION"}
 	if reaction.reactants.is_empty() or reaction.products.is_empty():
 		return {"ok": false, "balanced": false, "code": "BALANCE_EMPTY_SIDE"}
+	if reaction.reactants.size() + reaction.products.size() > MAX_BALANCE_TERMS:
+		return {"ok": false, "balanced": false, "code": "BALANCE_TOO_MANY_TERMS"}
 	for term in reaction.reactants + reaction.products:
 		if not _is_valid_reaction_term(term):
 			return {"ok": false, "balanced": false, "code": "BALANCE_INVALID_TERM"}
