@@ -39,6 +39,7 @@ var phase_input: OptionButton
 var open_dialog: FileDialog
 var save_dialog: FileDialog
 var discard_dialog: ConfirmationDialog
+var io_error_dialog: AcceptDialog
 var pending_open_path: String = ""
 
 func _ready() -> void:
@@ -321,6 +322,10 @@ func _create_add_dialog() -> void:
 	discard_dialog.dialog_text = "Текущий черновик изменён. Продолжить без сохранения?"
 	discard_dialog.confirmed.connect(_confirm_discard_pending_action)
 	add_child(discard_dialog)
+	io_error_dialog = AcceptDialog.new()
+	io_error_dialog.title = "Не удалось выполнить операцию с черновиком"
+	io_error_dialog.dialog_text = ""
+	add_child(io_error_dialog)
 	_create_file_dialogs()
 
 func _open_add_dialog() -> void:
@@ -621,6 +626,8 @@ func _load_draft_from_path(path: String) -> void:
 func _show_io_error(message: String) -> void:
 	status_label.text = "Ошибка работы с файлом"
 	diagnostic_label.text = message
+	io_error_dialog.dialog_text = message
+	io_error_dialog.popup_centered()
 
 func _panel(color: Color, border_width: int) -> PanelContainer:
 	var panel := PanelContainer.new()
