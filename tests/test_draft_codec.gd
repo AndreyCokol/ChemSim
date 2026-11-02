@@ -67,6 +67,9 @@ func _initialize() -> void:
 	var invalid_condition_field := payload.duplicate(true)
 	invalid_condition_field.conditions.pressure_raw = 1
 	assert(not DraftCodec.decode_payload(invalid_condition_field).ok, "Raw condition fields must remain strings")
+	var invalid_temperature := payload.duplicate(true)
+	invalid_temperature.conditions.temperature_k = "300"
+	assert(not DraftCodec.decode_payload(invalid_temperature).ok, "UI drafts must preserve the fixed isothermal temperature contract")
 
 	var missing_document_type := payload.duplicate(true)
 	missing_document_type.erase("document_type")
