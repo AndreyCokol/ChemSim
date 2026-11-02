@@ -84,6 +84,10 @@ func _test_negative_cases() -> void:
 	var unknown: Dictionary = parser.parse_formula("Xx2")
 	assert(not unknown.ok)
 	assert(unknown.code == "PARSE_UNKNOWN_ELEMENT")
+	var embedded_unknown: Dictionary = parser.parse_formula("  H2Xx ")
+	assert(not embedded_unknown.ok)
+	assert(embedded_unknown.code == "PARSE_UNKNOWN_ELEMENT")
+	assert(embedded_unknown.source_span.start_offset == 4)
 
 	var unclosed: Dictionary = parser.parse_formula("Ca(OH2")
 	assert(not unclosed.ok)
