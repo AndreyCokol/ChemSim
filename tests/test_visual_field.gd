@@ -7,6 +7,8 @@ func _initialize() -> void:
 	root.add_child(field)
 	field.set_marker(7, "Вода", Vector2(0.5, 0.5))
 	assert(field.markers.size() == 1, "A visual marker should be added")
+	field.select_marker(7)
+	assert(field.selected_marker_id == 7, "Selecting a component for placement should select its visual marker")
 	assert(field.move_marker_by(7, Vector2.RIGHT, 0.01), "A selected marker should move by keyboard step")
 	assert(Vector2(field.markers[0].position).is_equal_approx(Vector2(0.51, 0.5)), "Keyboard movement should update normalized coordinates")
 	assert(field.move_marker_by(7, Vector2.DOWN, 0.05), "A larger keyboard step should be supported")
