@@ -48,12 +48,9 @@ func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_c
 		"sides": sides,
 		"candidate_count": 0,
 		"candidate_limit": max_candidates,
+		# Bound total recursive work independently of the candidate leaf limit.
 		"search_node_count": 0,
 		"search_node_limit": MAX_SEARCH_NODES,
-		# Bound total recursive work as well as complete coefficient vectors.
-		# A bounded leaf count alone does not bound the search tree.
-		"search_node_count": 0,
-		"search_node_limit": mini(MAX_MAX_CANDIDATES * 4, max_candidates * 4 + terms.size()),
 		"solutions": [],
 		"limit_hit": false
 	}
