@@ -211,3 +211,10 @@ Initial GitHub Actions runner baseline (Release, .NET 10.0.14, Ubuntu 24.04.5 LT
 | Consecutive A→B→C | 1.6192 ms | 1.5940–1.6530 ms | 215,408 B | 59 | 0 | 413 |
 
 Exact source/test commit `e86c50ebe52d10c704d73ff8497dc84859f1ba27` passed .NET 10 Restore, Build and all 34 tests in GitHub Actions run [41617331272](https://github.com/AndreyCokol/ChemSim/actions/runs/41617331272). The values are a first CI-run trend baseline, not portable performance claims: the CPU model is unavailable, runner contention is uncontrolled, and a single CI environment is insufficient for comparative conclusions. Re-run on a pinned local/CI hardware profile and collect repeated independent sessions before using these values to select optimizations or compare solver families.
+
+
+### TOL-04 execution — parallel competing first-order pathways
+
+Added `ToleranceConvergenceBenchmarkTests.ParallelFirstOrderPathways_ProfileErrorDecreasesAsTolerancesTighten` for A → B (k₁=0.7 s⁻¹) and A → C (k₂=0.3 s⁻¹), with initial (A,B,C)=(1,0,0) mol, V=1 m³ and terminal time 5 s. The closed-form reference is A=exp(-(k₁+k₂)t), B=k₁/(k₁+k₂)·(1-A), C=k₂/(k₁+k₂)·(1-A). The test compares all three terminal species amounts at rtol=1e-2, 1e-4 and 1e-6 (atol=1e-14 mol), requires at least a factor-of-two reduction in maximum absolute error at each tightening, and separately checks finite non-negative amounts and A+B+C conservation. This is terminal-state convergence evidence, not a full time-profile sweep.
+
+Exact source/test commit `21c69c84e177312c5b334a3ced10de66bf97cce0` passed .NET 10 Restore, Build and all 35 tests in GitHub Actions run [41617703949](https://github.com/AndreyCokol/ChemSim/actions/runs/41617703949). No wall-clock gate or solver implementation change was introduced.
