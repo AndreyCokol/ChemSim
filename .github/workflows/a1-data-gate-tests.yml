@@ -29,3 +29,5 @@ jobs:
         run: godot --headless --editor --path . --quit
       - name: Run A1 synthetic property and rights gates
         run: godot --headless --path . --script res://tests/a1/test_a1_property_gate.gd
+      - name: Run A1 synthetic identity binding gates
+        run: godot --headless --path . --script res://tests/a1/test_a1_identity_gate.gd
