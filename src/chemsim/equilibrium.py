@@ -173,9 +173,39 @@ def _log_root_positive(
     low_log10: float = -30.0,
     high_log10: float = 2.0,
 ) -> tuple[float, int, float]:
-    """Solve a scalar concentration equation in log10-space."""
+    """Solve a monotone positive-concentration equation in log10-space.
+
+    Expand the initial bracket when valid finite inputs put the root outside
+    the usual chemistry-scale interval. Bounds stop at representable positive
+    float magnitudes rather than silently imposing a 1e-30..1e2 M domain.
+    """
+    min_log10 = -323.0
+    max_log10 = 308.0
+    low = max(min_log10, low_log10)
+    high = min(max_log10, high_log10)
+    if low >= high:
+        raise EquilibriumInputError("Log-root bounds must be finite and ordered")
+
+    while True:
+        f_low = fn(10.0**low)
+        f_high = fn(10.0**high)
+        if isnan(f_low) or isnan(f_high):
+            raise EquilibriumConvergenceError("NaN encountered while bracketing concentration root")
+        if f_low <= 0.0 <= f_high:
+            break
+        if f_low > 0.0:
+            if low <= min_log10:
+                raise EquilibriumConvergenceError("Positive concentration root is below float range")
+            low = max(min_log10, low - 10.0)
+        elif f_high < 0.0:
+            if high >= max_log10:
+                raise EquilibriumConvergenceError("Positive concentration root is above float range")
+            high = min(max_log10, high + 10.0)
+        else:
+            raise EquilibriumConvergenceError("Could not bracket positive concentration root")
+
     root, iterations, residual = _bisect(
-        lambda y: fn(10.0**y), low_log10, high_log10, f_tol=1e-13
+        lambda y: fn(10.0**y), low, high, f_tol=1e-13
     )
     return 10.0**root, iterations, residual
 
