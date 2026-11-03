@@ -11,6 +11,8 @@ on:
       - "project.godot"
       - "Directory.Build.props"
       - ".github/workflows/integrated-smoke.yml"
+      - ".github/scripts/**"
+      - "export_presets.cfg"
 
 jobs:
   linux-real-process-e2e:
@@ -32,18 +34,34 @@ jobs:
           chmod +x bin/chemsim-solver
       - name: Import integrated Godot scripts
         run: timeout 180s godot --headless --editor --path . --quit
-      - name: A2 original parser and balance tests
-        run: timeout 180s godot --headless --path . --script res://tests/a2/test_a2_parser_balancer.gd --quit-after 3
-      - name: A5 original presenter and draft tests
+      - name: A2 original parser and balance tests (strict)
+        run: bash .github/scripts/strict-godot-test.sh res://tests/a2/test_a2_parser_balancer.gd "A2 tests: all assertions passed" 180
+      - name: A5 original presenter and draft tests (strict)
         run: |
-          set -e
-          timeout 180s godot --headless --path . --script res://tests/test_draft_codec.gd --quit-after 3
-          timeout 180s godot --headless --path . --script res://tests/test_draft_repository.gd --quit-after 3
-          timeout 180s godot --headless --path . --script res://tests/test_visual_field.gd --quit-after 3
-          timeout 180s godot --headless --path . --script res://tests/test_graph_series_view.gd --quit-after 3
-          timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd --quit-after 3
-      - name: Actual A2 → .NET 10 CLI → A5 Godot end-to-end
-        run: timeout 180s godot --headless --path . --script res://tests/test_integration_smoke.gd --quit-after 3
+          bash .github/scripts/strict-godot-test.sh res://tests/test_draft_codec.gd "Draft codec tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_draft_repository.gd "Draft repository tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_visual_field.gd "Visual field tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_graph_series_view.gd "Graph series presentation tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_main_draft_state.gd "Main draft-state integration tests passed" 180
+      - name: Actual A2 → .NET 10 CLI → A5 Godot end-to-end (strict)
+        run: bash .github/scripts/strict-godot-test.sh res://tests/test_integration_smoke.gd "A2 → A4 actual process → A5 Godot synthetic integration smoke passed" 3000
+      - name: Install/check Godot Windows export templates
+        run: |
+          set -eu
+          destination="$HOME/.local/share/godot/export_templates/4.3.stable"
+          mkdir -p "$destination"
+          if [ -f /root/.local/share/godot/export_templates/4.3.stable/windows_release_x86_64.exe ]; then
+            cp -a /root/.local/share/godot/export_templates/4.3.stable/. "$destination/"
+          fi
+          if [ ! -f "$destination/windows_release_x86_64.exe" ]; then
+            curl --fail --location --retry 3 \
+              https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz \
+              --output /tmp/chemsim-godot-export-templates.tpz
+            mkdir -p /tmp/chemsim-export-templates
+            python3 -m zipfile -e /tmp/chemsim-godot-export-templates.tpz /tmp/chemsim-export-templates
+            cp -a /tmp/chemsim-export-templates/templates/. "$destination/"
+          fi
+          test -s "$destination/windows_release_x86_64.exe"
       - name: Export Windows x64 Godot app
         run: |
           mkdir -p dist/windows
