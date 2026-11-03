@@ -165,6 +165,42 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertLess(result.diagnostics.component_balance_residual, 1e-11)
         self.assertLess(result.diagnostics.charge_balance_residual, 1e-11)
 
+    def test_agcl_precipitation_resolves_low_solubility_relative_to_feed(self):
+        ksp = 1.0e-24
+        result = solve_agcl_precipitation(
+            1.0e-2, 1.0e-2, 1.0e-2, 1.0e-2, ksp, 1.0e-14
+        )
+        expected_solubility = math.sqrt(ksp)
+        self.assertAlmostEqual(
+            result.species_mol_l["Ag+"], expected_solubility,
+            delta=expected_solubility * 1.0e-10,
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Cl-"], expected_solubility,
+            delta=expected_solubility * 1.0e-10,
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Ag+"] * result.species_mol_l["Cl-"],
+            ksp, delta=ksp * 1.0e-10,
+        )
+
+    def test_agcl_precipitation_resolves_trace_limiting_ion_with_excess_counterion(self):
+        ksp = 1.0e-24
+        silver, chloride = 1.0e-2, 9.0e-3
+        excess = silver - chloride
+        expected_cl = 2.0 * ksp / (excess + math.sqrt(excess * excess + 4.0 * ksp))
+        result = solve_agcl_precipitation(
+            silver, chloride, chloride, silver, ksp, 1.0e-14
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Cl-"], expected_cl,
+            delta=expected_cl * 1.0e-10,
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Ag+"] * result.species_mol_l["Cl-"],
+            ksp, delta=ksp * 1.0e-10,
+        )
+
     def test_precipitation_is_inactive_when_undersaturated(self):
         result = solve_agcl_precipitation(
             1e-6, 1e-6, 1e-6, 1e-6, 10 ** -9.748, 1e-14
