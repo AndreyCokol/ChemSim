@@ -419,6 +419,7 @@ func _confirm_add_component() -> void:
 		status_label.text = "Добавлен черновик: " + str(item.name)
 	editing_component_id = -1
 	draft_dirty = true
+	graph_view.clear_series()
 	_refresh_composition()
 
 func _refresh_composition() -> void:
@@ -469,6 +470,7 @@ func _remove_component(component_id: int) -> void:
 		selected_component_id = -1
 	visual_field.remove_marker(component_id)
 	draft_dirty = true
+	graph_view.clear_series()
 	_refresh_composition()
 	status_label.text = "Черновая запись удалена"
 
@@ -518,10 +520,12 @@ func _on_experiment_name_changed(value: String) -> void:
 
 func _on_reaction_changed(_value: String) -> void:
 	draft_dirty = true
+	graph_view.clear_series()
 	_set_draft_status()
 
 func _on_condition_changed(_value: String) -> void:
 	draft_dirty = true
+	graph_view.clear_series()
 	_set_draft_status()
 
 func _set_draft_status() -> void:
@@ -573,6 +577,7 @@ func _new_experiment() -> void:
 	pressure_input.text = ""
 	volume_input.text = ""
 	visual_field.clear_markers()
+	graph_view.clear_series()
 	current_draft_path = ""
 	_refresh_composition()
 	draft_dirty = false
@@ -667,6 +672,7 @@ func _load_draft_from_path(path: String) -> void:
 		return
 	var data: Dictionary = decoded.data
 	components = data.components
+	graph_view.clear_series()
 	visual_field.clear_markers()
 	var max_id := 0
 	for item in components:
