@@ -51,3 +51,57 @@ A row can be closed only when:
 - the relevant approval gate is satisfied.
 
 Until then, retain the ownership checkbox as open. A documentation commit alone does not close an ownership item. No implementation is authorized before explicit product-owner baseline approval.
+
+
+## 5. A1 pre-test release sequence (operational closure plan)
+
+This sequence narrows the A1 contribution to the minimum data/domain work needed for a controlled test build. It does not expand A1 into implementation owned by A2–A5.
+
+### Gate A — contract authority
+- Product owner explicitly approves the OpenSpec baseline or returns a bounded revision request.
+- Integrator records the shared phase vocabulary, schema/version envelope, Unit Registry, ErrorEnvelope, ReliabilityVector and adapter ownership.
+- A2 confirms the final identity/phase boundary against the approved contract.
+- A4 confirms the exact rate-constant consumer requirements; A5 confirms the HazardRecord presentation minimum.
+- Until these decisions exist, A1 may document requirements and test vectors, but must not publish competing wire tokens or DTOs.
+
+### Gate B — test-scope manifest
+For each of the seven current benchmarks (AQ-01..AQ-05, GAS-01..GAS-02), maintain one manifest row containing:
+1. benchmark ID and exact reaction/equilibrium statement;
+2. species identity references and phase for each occurrence;
+3. consumed property/constant identity and required model convention;
+4. numeric value and unit/dimension, where applicable;
+5. standard state/basis, medium, temperature and pressure applicability;
+6. source record, source field, source version/date and retrieval timestamp;
+7. uncertainty/method and origin/quality/review state;
+8. model eligibility decision and explicit reasons;
+9. redistribution disposition for the intended test-build channel;
+10. positive and negative validation case IDs.
+
+A row is test-data admitted only when all mandatory fields for that benchmark's current model are evidenced and validated. A row with no numerical value/source is blocked_missing_evidence; a row with unknown or restricted rights is blocked_license; an incompatible convention/phase/condition is blocked_inapplicable. These are proposed logical dispositions, not frozen serialized enum values.
+
+### Gate C — fail-closed fixture admission
+- Never fill a missing constant with a guessed value, generic textbook default or assumed 25 °C.
+- Never infer I2 phase for GAS-02; the benchmark owner must select phase and temperature together.
+- Never treat A3's gamma=1, proton, water or p°=1 bar conventions as universal chemistry defaults; they are scoped to the current fixture models.
+- Never treat successful solver convergence as evidence that input data, provenance or licensing are valid.
+- Keep local-review-only evidence out of redistributable test bundles unless the owner explicitly selects a local-only test channel and its storage/export boundaries are documented.
+- Preserve blocked rows in the manifest so the test scope is auditable; do not silently omit a failed benchmark while reporting the full seven-case suite as ready.
+
+### Gate D — A1 validation evidence
+For every admitted row, attach:
+- a positive case proving a valid, applicable, permitted record passes;
+- negative cases for missing/unknown basis, phase or condition mismatch, incompatible unit/dimension, non-finite/non-numeric value, insufficient provenance, unresolved conflict and disallowed redistribution, as relevant to that model;
+- exact test owner and evidence location (A1 semantic test vs consumer adapter test);
+- exact contract/schema version against which the test was run.
+
+A1 may certify the semantic data gate only. A2/A3/A4/A5 owners certify their adapters and implementations; integrator certifies cross-module compatibility.
+
+### Gate E — release statement
+A1's pre-test sign-off must report separately:
+- admitted benchmark rows / total rows;
+- blocked rows and reason categories;
+- whether the bundle is local-only or redistributable;
+- contract and schema versions tested;
+- passing A1 semantic tests and unresolved consumer/integrator dependencies.
+
+No percentage completion or blanket chemistry-data-ready statement substitutes for these facts. This sequence is a proposal pending baseline approval; it authorizes no imports, DTO freeze, implementation or redistribution.
