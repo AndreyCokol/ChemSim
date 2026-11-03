@@ -87,6 +87,8 @@ func _test_unknown_and_measured_zero() -> void:
 	_ok(measured, "explicit present zero must be preserved")
 	_expect(measured["availability"]["status"] == "present", "present remains distinct from unknown")
 	_expect(measured["availability"]["quantity"]["value"] == 0.0, "zero remains measured zero")
+	_code(Gate.convert_availability({"status": "unknown"}, "mol/kg", ctx), "A1_UNIT_UNREGISTERED", "unknown is not permission to use an unregistered unit")
+	_code(Gate.convert_availability({"status": "unknown"}, "mol/m3", _context("amount")), "A1_UNIT_REQUIREMENT_MISMATCH", "unknown cannot evade declared expected dimension")
 	_code(Gate.convert_availability({"status": "unknown", "quantity": null}, "mol/m3", ctx), "A1_UNIT_AVAILABILITY_INVALID", "unknown cannot carry null quantity")
 	_code(Gate.convert_availability({"status": "present"}, "mol/m3", ctx), "A1_UNIT_AVAILABILITY_INVALID", "present requires a quantity")
 	_code(Gate.convert_availability({"status": "present", "quantity": null}, "mol/m3", ctx), "A1_UNIT_QUANTITY_INVALID", "present cannot carry null")
@@ -116,6 +118,9 @@ func _test_numeric_range_and_unit_aliases() -> void:
 	_code(Gate.convert_quantity(_q(1.0, "mol/kg"), "mol/L", _context("concentration", "aqueous_molality")), "A1_UNIT_UNREGISTERED", "molal unit not currently registered for direct conversion")
 	_code(Gate.convert_quantity(_q(1.0, "mL"), "L", _context("volume")), "A1_UNIT_UNREGISTERED", "unregistered alias rejected")
 	_code(Gate.convert_quantity(_q(1.0, "g"), "KG", _context("mass")), "A1_UNIT_UNREGISTERED", "case-sensitive registered units")
+	var bad_requirement: Dictionary = _context("mass")
+	bad_requirement["model_accepted"] = true
+	_code(Gate.convert_quantity(_q(1.0, "g"), "kg", bad_requirement), "A1_UNIT_REQUIREMENT_FIELD_UNSUPPORTED", "unit conversion cannot accept an implicit model certification")
 	var unexpected: Dictionary = _q(1.0, "g")
 	unexpected["model_accepted"] = true
 	_code(Gate.convert_quantity(unexpected, "kg", _context("mass")), "A1_UNIT_QUANTITY_FIELD_UNSUPPORTED", "unit helper cannot assign model eligibility")
