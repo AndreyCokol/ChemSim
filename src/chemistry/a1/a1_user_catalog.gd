@@ -167,7 +167,17 @@ static func deserialize_document(text: String) -> Dictionary:
 	var check: Dictionary = validate_document(data)
 	if not check["ok"]:
 		return {"ok": false, "errors": check["errors"]}
-	return {"ok": true, "errors": [], "document": data}
+	# Godot JSON.parse returns integral JSON tokens as float. Restore the
+	# declared revision keys to int after strict, bounded validation.
+	var restored: Dictionary = (data as Dictionary).duplicate(true)
+	restored["schema_version"] = int(restored["schema_version"])
+	for row in restored["records"]:
+		var item: Dictionary = row
+		item["record_revision"] = int(item["record_revision"])
+		var formula_ref: Variant = item.get("formula_ast_ref")
+		if formula_ref is Dictionary:
+			formula_ref["record_revision"] = int(formula_ref["record_revision"])
+	return {"ok": true, "errors": [], "document": restored}
 
 
 static func save_local(document: Dictionary, test_mode: bool = false) -> Dictionary:
@@ -185,7 +195,9 @@ static func save_local(document: Dictionary, test_mode: bool = false) -> Diction
 	handle.close()
 	# Re-parse the staged bytes before touching the previous snapshot.
 	var staged: Dictionary = load_local_from_path(temporary)
-	if not staged["ok"] or staged["document"] != document:
+	# Compare exact stored bytes to the serialized payload, not raw Variant
+	# dictionaries (JSON may normalize numeric types during parsing).
+	if not staged["ok"] or FileAccess.get_file_as_string(temporary) != packed["json"]:
 		return _failure("A1_CATALOG_STAGING_FAILED")
 	var source_full: String = ProjectSettings.globalize_path(destination)
 	var temp_full: String = ProjectSettings.globalize_path(temporary)
