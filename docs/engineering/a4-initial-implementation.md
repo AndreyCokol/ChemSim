@@ -42,6 +42,18 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 - RHS evaluation diagnostics count actual RHS delegate invocations, including the invocation that throws an arithmetic failure; failed trial steps preserve both the count and original failure message.
 - The output-time ULP calculation uses the inward representable spacing at `double.MaxValue`, avoiding an infinite spacing result from `Math.BitIncrement(double.MaxValue)`.
 
+## Dormand–Prince IEEE-754 audit (2026-11-03)
+
+Reviewed the adaptive RK 5(4) error norm and accept/reject controller at the current A4 implementation head.
+
+- The component scale is `atol + rtol * max(|y_old|, |y_new|)`; validated `atol` is finite and strictly positive, so the denominator cannot become zero. If the scale overflows to positive infinity, the configured tolerance itself exceeds the finite representable state/error range; a zero normalized error is therefore not an unsafe acceptance of a finite error.
+- The RMS error norm uses a scaled sum-of-squares (LASSQ) accumulation rather than directly squaring normalized components. Ratios are bounded by one during accumulation, avoiding intermediate square overflow; the final RMS is bounded by the largest normalized component.
+- Non-finite normalized errors produce positive infinity and are rejected. Non-finite stage/state arithmetic is trapped before acceptance. Non-physical intermediate stages are rejected without clipping the state.
+- Accepted/rejected step factors are bounded; multiplication overflow on accepted growth is capped by `MaximumStepSeconds`. A reduced step that underflows or falls below the configured minimum is detected before another trial. A final interval shorter than the minimum remains intentionally allowed.
+- The elapsed-time coordinate and final-step clipping were checked against large absolute timestamps and IEEE-754 rounding. The existing output-time validation handles representability at the public simulation boundary.
+
+No reproducible correctness defect was found in this review. Consequently, no solver-code change or speculative regression test was introduced. This is a bounded audit of the current explicit RK45 implementation, not a proof for arbitrary floating-point inputs or a stiffness guarantee. Scalar component tolerances and explicit-solver limitations remain as documented.
+
 ## Explicitly not implemented
 
 - Chemical formula parsing or balancing (A2).
