@@ -806,4 +806,56 @@ public sealed class KineticsSimulatorTests
             "Fine sampling incurred repeated RHS warm-up work beyond its additional output segments.");
     }
 
+    [Fact]
+    public void MaximumInternalSteps_IsSharedAcrossOutputIntervals()
+    {
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(0.1d, 0d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 0.2d,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-6,
+                AbsoluteToleranceMol = 1e-12,
+                InitialStepSeconds = 0.1d,
+                MinimumStepSeconds = 1e-12,
+                MaximumStepSeconds = 0.1d,
+                MaximumInternalSteps = 1
+            }
+        });
+
+        Assert.Equal(SimulationStatus.MaximumStepsExceeded, result.Status);
+        Assert.Equal(1, result.Diagnostics.AcceptedSteps + result.Diagnostics.RejectedSteps);
+        Assert.Equal(1, result.Diagnostics.AcceptedSteps);
+        Assert.Equal(0, result.Diagnostics.RejectedSteps);
+
+        // The first output interval completed and is published. The second one
+        // cannot start because the single simulation-wide step budget is spent.
+        Assert.Equal(2, result.Samples.Count);
+        Assert.Equal(0d, result.Samples[0].TimeSeconds);
+        Assert.Equal(0.1d, result.Samples[1].TimeSeconds);
+        Assert.InRange(Math.Abs(result.Samples[1].AmountsMol["A"] - Math.Exp(-0.01d)), 0d, 2e-8);
+        Assert.InRange(Math.Abs(result.Samples[1].AmountsMol.Values.Sum() - 1d), 0d, 2e-10);
+    }
+
 }
