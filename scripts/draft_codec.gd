@@ -41,7 +41,9 @@ static func decode_payload(payload: Variant) -> Dictionary:
 		return _failure("Документ содержит неизвестные поля для схемы v1.")
 	if typeof(payload.document_type) != TYPE_STRING or payload.document_type != DOCUMENT_TYPE:
 		return _failure("Неизвестный тип документа.")
-	if typeof(payload.schema_version) != TYPE_INT or payload.schema_version != SCHEMA_VERSION:
+	# Godot JSON parses numeric tokens as floats. A stored schema_version=1
+	# must round-trip as a strictly integral number, not be rejected as 1.0.
+	if not _is_json_integer(payload.schema_version) or int(payload.schema_version) != SCHEMA_VERSION:
 		return _failure("Неподдерживаемая версия черновика.")
 	if typeof(payload.chemistry_status) != TYPE_STRING or payload.chemistry_status != "unvalidated_draft":
 		return _failure("Недопустимый статус химической проверки черновика.")
@@ -83,7 +85,7 @@ static func decode_payload(payload: Variant) -> Dictionary:
 		if not _is_valid_position(raw_position):
 			return _failure("Координаты должны находиться в видимой области поля (x: 0.03–0.97, y: 0.05–0.95) либо быть парой -1 для неразмещённого маркера.")
 		var raw_id: Variant = raw_item.id
-		if typeof(raw_id) != TYPE_INT:
+		if not _is_json_integer(raw_id):
 			return _failure("Идентификатор компонента должен быть целым числом.")
 		var component_id := int(raw_id)
 		if component_id <= 0 or seen_ids.has(component_id):
@@ -111,6 +113,13 @@ static func _has_only_fields(value: Dictionary, allowed_fields: Array) -> bool:
 		if not allowed_fields.has(field):
 			return false
 	return true
+
+# Preserve integer semantic constraints across JSON stringify/parse. A
+# fractional float remains invalid, and string values never coerce to ints.
+static func _is_json_integer(value: Variant) -> bool:
+	if typeof(value) == TYPE_INT:
+		return true
+	return typeof(value) == TYPE_FLOAT and is_finite(value) and float(value) == floorf(float(value)) and absf(float(value)) <= 9007199254740991.0
 
 static func _is_number(value: Variant) -> bool:
 	return typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT
