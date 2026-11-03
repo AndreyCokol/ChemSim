@@ -209,6 +209,21 @@ func _initialize() -> void:
 	assert(not main.draft_dirty, "Save As to the current path should clear dirty state after a successful write")
 	assert(main.current_draft_path == save_as_path, "Save As to the current path must retain the selected path")
 
+	# An empty Open selection must fail closed. It must not be confused with
+	# New, and must not change the active path or clean experiment state.
+	main.discard_dialog.hide()
+	var clean_title_before_empty_open: String = main.experiment_name
+	var clean_path_before_empty_open: String = main.current_draft_path
+	var clean_count_before_empty_open: int = main.components.size()
+	main._request_load_draft("")
+	assert(main.io_error_dialog.visible, "Empty clean Open must show an error")
+	assert(not main.discard_dialog.visible, "Empty clean Open must not request discard confirmation")
+	assert(main.experiment_name == clean_title_before_empty_open, "Empty clean Open must preserve the experiment title")
+	assert(main.components.size() == clean_count_before_empty_open, "Empty clean Open must preserve the component list")
+	assert(main.current_draft_path == clean_path_before_empty_open and not main.draft_dirty, "Empty clean Open must preserve the active path and clean state")
+	assert(main.pending_open_path.is_empty(), "Empty clean Open must not retain a pending action")
+	main.io_error_dialog.hide()
+
 	# A failed Open from a clean workspace must preserve the complete current
 	# experiment and its active path, without introducing dirty state.
 	var clean_title_before_failed_open: String = main.experiment_name
@@ -252,6 +267,21 @@ func _initialize() -> void:
 	preserved_sidecar.close()
 	main.io_error_dialog.hide()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(ordinary_save_sidecar))
+
+	# Previously, confirming Open with an empty pending path invoked New and
+	# destroyed unsaved work. Refuse blank/whitespace paths before the dialog.
+	main.discard_dialog.hide()
+	var dirty_title_before_empty_open: String = main.experiment_name
+	var dirty_path_before_empty_open: String = main.current_draft_path
+	var dirty_count_before_empty_open: int = main.components.size()
+	main._request_load_draft("  ")
+	assert(main.io_error_dialog.visible, "Blank dirty Open must show an error")
+	assert(not main.discard_dialog.visible, "Blank dirty Open must never offer a destructive discard confirmation")
+	assert(main.experiment_name == dirty_title_before_empty_open, "Blank dirty Open must preserve unsaved title changes")
+	assert(main.components.size() == dirty_count_before_empty_open, "Blank dirty Open must preserve draft components")
+	assert(main.current_draft_path == dirty_path_before_empty_open and main.draft_dirty, "Blank dirty Open must preserve active path and dirty state")
+	assert(main.pending_open_path.is_empty(), "Blank dirty Open must not retain a pending action")
+	main.io_error_dialog.hide()
 
 	# If the user confirms discarding edits but the requested file cannot be
 	# opened, the current in-memory experiment must still survive unchanged.
