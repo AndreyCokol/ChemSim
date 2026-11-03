@@ -198,12 +198,12 @@ A2 не рассчитывает pH, равновесие, растворимо�
 | Ионное уравнение | `Ag+ + Cl- -> AgCl(s)` | parse succeeds; charge/phase retained |
 | Обратимая стрелка | `N2(g) + 3H2(g) ⇌ 2NH3(g)` | reversible arrow retained; no K or kinetics inferred |
 | Балансировка | `H2 + O2 -> H2O` | propose 2,1,2 |
-| Зарядовая невязка | `Fe^3+ + e- -> Fe^2+` | accepted only if electron notation is explicitly supported; otherwise diagnostic |
+| Зарядовая невязка | `Fe^3+ + 2Cl- -> FeCl2` | parse succeeds; atom counts match, charge residual is +1, so balance check is false; electron notation is outside this MVP |
 | Неверный коэффициент | `0H2 + O2 -> H2O` | rejected |
 | Пустая сторона | `H2 + O2 ->` | rejected with source span |
 | Несколько стрелок | `H2 -> H2 -> H2` | rejected |
 | Несбалансированный заряд | `Na+ + Cl- -> Na+` | atom/charge balance reports residual |
-| Повторный член | `H2 + H2 + O2 -> H2O` | duplicate handling explicit; source IDs preserved |
+| Повторный член | `H2 + H2 + O2 -> H2O` | two H2 source terms remain distinct in the input DTO; solver aggregates them into one variable with both source IDs; proposed aggregate coefficient is 2; no arbitrary split back to source terms |
 
 ## Ограничения и риски
 
