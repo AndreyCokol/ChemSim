@@ -59,6 +59,13 @@ public sealed class ConservationLaw
                 throw new ArgumentOutOfRangeException(nameof(amountsMol), $"Amount for species '{speciesId}' must be finite.");
         }
 
+        var suppliedSpecies = speciesIds.ToHashSet(StringComparer.Ordinal);
+        var missingSpecies = Coefficients.Keys.Where(id => !suppliedSpecies.Contains(id)).ToArray();
+        if (missingSpecies.Length > 0)
+            throw new ArgumentException(
+                $"Evaluation vector is missing species referenced by conservation law '{Id}': {string.Join(", ", missingSpecies)}.",
+                nameof(speciesIds));
+
         double total = 0d;
         for (var i = 0; i < speciesIds.Count; i++)
         {
