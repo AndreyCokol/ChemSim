@@ -10,6 +10,7 @@ on:
       - 'src/ChemSim.Kinetics/**'
       - 'src/ChemSim.Kinetics.Cli/**'
       - 'tests/ChemSim.Kinetics.Tests/**'
+      - 'tests/a4_cross_agent/**'
       - '.github/workflows/a4-dotnet.yml'
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - 'src/ChemSim.Kinetics/**'
       - 'src/ChemSim.Kinetics.Cli/**'
       - 'tests/ChemSim.Kinetics.Tests/**'
+      - 'tests/a4_cross_agent/**'
       - '.github/workflows/a4-dotnet.yml'
   workflow_dispatch:
 
@@ -202,7 +204,7 @@ jobs:
           if-no-files-found: error
 
   a5-graph-cross-consumer:
-    name: Pinned A5 Godot validates actual A4 numeric GraphSeries JSON
+    name: Pinned A5 JSON revision defect diagnostic (test-only normalization)
     needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -226,7 +228,7 @@ jobs:
           name: a4-a5-real-graph-json
           path: a5/tests/a4-graph-fixtures
 
-      - name: Run unmodified A5 Godot graph validator on A4 JSON
+      - name: Assert raw A5 JSON refusal and test normalized non-production payload
         shell: bash
         run: |
           cp a4/tests/a4_cross_agent/validate_a4_graph_json_in_a5.gd a5/tests/a4_graph_consumer_test.gd
