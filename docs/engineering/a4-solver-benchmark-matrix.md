@@ -172,3 +172,12 @@ STIFF-01 now has a provisional Radau/BDF cross-check stored in `docs/engineering
 ## Limitations
 
 This matrix does not validate thermodynamic equilibrium, Arrhenius temperature dependence, reversible kinetics, gas equations of state, open-system forcing, discrete events, finite-rate mixing or Godot presentation. It does not claim that RK45 is appropriate for stiff chemical systems. Those capabilities require their own models, data contracts and validation evidence.
+
+
+### STIFF-01 diagnostic execution — Robertson / explicit RK45
+
+Added `RobertsonStiffBenchmarkTests.RobertsonStiffSystem_ReportsExplicitSolverFeasibilityAgainstProvisionalReference`. The test builds the canonical three-reaction Robertson network (including the catalytic `B + C → A + C` step), starts from (A,B,C)=(1,0,0) mol at V=1 m³, and attempts the [0, 1e6] s horizon with rtol=1e-7, atol=1e-12 mol and a 50,000 internal-step budget. The terminal comparison values are taken from the stored provisional SciPy 1.17.0 Radau/BDF cross-check; they are used only if RK45 reaches the requested endpoint.
+
+Observed on .NET 10 CI: RK45 returned `MaximumStepsExceeded` at t=38.841706914185899 s, after 33,349 accepted and 16,651 rejected steps (50,000 total) and 350,000 RHS evaluations. It therefore did not reach the 1e6 s reference checkpoint, and no terminal accuracy claim is made. The regression asserts the explicit failure status, exact budget accounting, populated RHS work, and positivity/conservation for all states returned by the simulator. This is a concrete feasibility limitation of the current explicit method under the declared budget, not a solver defect by itself and not authorization to add an implicit method.
+
+Source/test commits: `45b1fe3aa562baf24aed06ca87426cf30e3ddba7` (initial diagnostic) and `b5f0a10100011afe15a456b8a0720f812ab38b07` (work-counter output), followed by returned-state assertions in `863aac8f4a432be71f5ee05a78587f27d514ac5b`. The .NET 10 Restore, Build and all 31 tests passed on the exact final source/test commit in GitHub Actions run [41613973771](https://github.com/AndreyCokol/ChemSim/actions/runs/41613973771). The CI test output recorded the status and counters above. The provisional Radau/BDF reference remains a cross-check, not a published authoritative trajectory.
