@@ -64,7 +64,18 @@ internal sealed class DormandPrince54
                 return new(status, y, startTime + elapsed, accepted, rejected, evaluations);
             }
 
-            var step = TryStep(rhsAtAbsoluteTime, elapsed, y, stepSize);
+            TrialStep step;
+            try
+            {
+                step = TryStep(rhsAtAbsoluteTime, elapsed, y, stepSize);
+            }
+            catch (TrialStepException exception)
+            {
+                evaluations += exception.Evaluations;
+                return new(StepStatus.NumericalFailure, y, startTime + elapsed,
+                    accepted, rejected, evaluations, exception.InnerException?.Message ?? exception.Message);
+            }
+
             evaluations += step.Evaluations;
 
             if (step.HasNonFiniteValues)
@@ -134,11 +145,8 @@ internal sealed class DormandPrince54
     private static TrialStep TryStep(Func<double, double[], double[]> rhs, double t, double[] y, double h)
     {
         var evaluations = 0;
-        double[] Eval(double time, double[] state)
-        {
-            evaluations++;
-            return Evaluate(rhs, time, state);
-        }
+        double[] Eval(double time, double[] state) =>
+            Evaluate(rhs, time, state, () => evaluations++);
 
         try
         {
@@ -171,15 +179,24 @@ internal sealed class DormandPrince54
         {
             return new((double[])y.Clone(), new double[y.Length], evaluations, false, true);
         }
+        catch (ArithmeticException exception)
+        {
+            throw new TrialStepException(evaluations, exception);
+        }
     }
 
-    private static double[] Evaluate(Func<double, double[], double[]> rhs, double time, double[] state)
+    private static double[] Evaluate(
+        Func<double, double[], double[]> rhs,
+        double time,
+        double[] state,
+        Action onRhsInvocation)
     {
         if (state.Any(value => !double.IsFinite(value)))
             throw new ArithmeticException("An integration stage produced a non-finite state.");
         if (state.Any(value => value < 0d))
             throw new NonPhysicalStageException();
 
+        onRhsInvocation();
         var derivative = rhs(time, state);
         if (derivative is null || derivative.Length != state.Length)
             throw new ArithmeticException("The right-hand side returned a derivative vector with an invalid dimension.");
@@ -208,6 +225,12 @@ internal sealed class NonPhysicalStageException : Exception
 {
 }
 
+internal sealed class TrialStepException(int evaluations, ArithmeticException innerException)
+    : ArithmeticException(innerException.Message, innerException)
+{
+    public int Evaluations { get; } = evaluations;
+}
+
 internal enum StepStatus
 {
     Success,
@@ -230,4 +253,5 @@ internal sealed record IntegrationOutcome(
     double Time,
     int AcceptedSteps,
     int RejectedSteps,
-    int RightHandSideEvaluations);
+    int RightHandSideEvaluations,
+    string? FailureMessage = null);
