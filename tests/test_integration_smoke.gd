@@ -20,6 +20,14 @@ func _run() -> void:
 	await process_frame
 	assert(main.graph_view.series_by_quantity.is_empty(), "No fabricated data may show before actual A4 execution")
 	assert(main.demo_run_button != null and not main.demo_run_button.disabled, "Synthetic demo start must be enabled")
+	# A user may change conditions while the subprocess is still running.
+	# A late result from that old request must never repaint the edited draft.
+	main._run_demo()
+	assert(main.solver_process.is_busy(), "First CLI invocation must start before cancellation")
+	main._on_condition_changed("changed while A4 computes")
+	assert(not main.solver_process.is_busy(), "A chemistry edit must cancel the in-flight child process")
+	assert(main.playback_history.is_empty() and main.graph_view.series_by_quantity.is_empty(), "Cancelled computation must leave no stale data")
+	assert(not main.demo_run_button.disabled, "The Run button must recover after cancellation")
 	main._run_demo()
 	assert(main.solver_process.is_busy(), "CLI must run as a real separate process, not a fake UI fixture")
 	var elapsed := 0
