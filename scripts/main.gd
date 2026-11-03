@@ -60,7 +60,7 @@ func _build_ui() -> void:
 	body_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	page.add_child(body_scroll)
 
 	var body := HBoxContainer.new()
@@ -79,7 +79,13 @@ func _header() -> Control:
 	panel.custom_minimum_size.y = 66
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
-	panel.add_child(_pad(row, 18, 12, 18, 12))
+	var header_scroll := ScrollContainer.new()
+	header_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	header_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	header_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	header_scroll.add_child(row)
+	panel.add_child(_pad(header_scroll, 18, 8, 18, 8))
 	row.add_child(_label("ChemSim", 23, FG))
 	row.add_child(_label("ЛАБОРАТОРИЯ ОБЩЕЙ ХИМИИ", 10, MUTED))
 	experiment_name_input = LineEdit.new()
