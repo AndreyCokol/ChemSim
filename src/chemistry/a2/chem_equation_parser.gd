@@ -145,6 +145,8 @@ func parse_reaction(source: String) -> Dictionary:
 	}
 
 func check_balance(reaction: Dictionary) -> Dictionary:
+	if not _is_valid_reaction_header(reaction):
+		return {"ok": false, "balanced": false, "code": "BALANCE_INVALID_REACTION"}
 	if typeof(reaction.get("reactants")) != TYPE_ARRAY or typeof(reaction.get("products")) != TYPE_ARRAY:
 		return {"ok": false, "balanced": false, "code": "BALANCE_INVALID_REACTION"}
 	if reaction.reactants.is_empty() or reaction.products.is_empty():
@@ -241,11 +243,13 @@ func serialize_formula(formula_ast: Dictionary, phase: String = "UNSPECIFIED") -
 	return output
 
 func serialize_reaction(reaction: Dictionary) -> String:
+	if not _is_valid_reaction_header(reaction):
+		return ""
 	if typeof(reaction.get("reactants")) != TYPE_ARRAY or typeof(reaction.get("products")) != TYPE_ARRAY:
 		return ""
 	if reaction.reactants.is_empty() or reaction.products.is_empty():
 		return ""
-	var arrow_type := String(reaction.get("arrow_type", "FORWARD"))
+	var arrow_type := String(reaction.arrow_type)
 	if not ["FORWARD", "REVERSIBLE"].has(arrow_type):
 		return ""
 	for term in reaction.reactants + reaction.products:
@@ -494,6 +498,14 @@ func _expand_nodes(nodes: Array, state: Dictionary) -> Dictionary:
 				result[element] = int(result.get(element, 0)) + multiplied
 	return result
 
+func _is_valid_reaction_header(reaction: Dictionary) -> bool:
+	# Local A2 v1 Reaction DTOs must not accept unversioned or future-shaped
+	# external data, nor silently default a missing reaction arrow.
+	if typeof(reaction.get("schema_version")) != TYPE_INT or int(reaction.schema_version) != 1:
+		return false
+	var arrow: Variant = reaction.get("arrow_type")
+	return typeof(arrow) == TYPE_STRING and ["FORWARD", "REVERSIBLE"].has(String(arrow))
+
 func _is_valid_reaction_term(term: Variant) -> bool:
 	if typeof(term) != TYPE_DICTIONARY:
 		return false
@@ -511,7 +523,7 @@ func _is_valid_reaction_term(term: Variant) -> bool:
 		return false
 	if ast.element_counts.is_empty():
 		return false
-	var phase: Variant = species.get("phase", "UNSPECIFIED")
+	var phase: Variant = species.get("phase")
 	if typeof(phase) != TYPE_STRING or not ["UNSPECIFIED", "SOLID", "LIQUID", "GAS", "AQUEOUS"].has(String(phase)):
 		return false
 	for element in ast.element_counts:
@@ -530,7 +542,7 @@ func _is_valid_reaction_term(term: Variant) -> bool:
 	if int(parsed_ast.net_charge) != int(ast.net_charge) or parsed_ast.element_counts != ast.element_counts or parsed_ast.nodes != ast.nodes:
 		return false
 
-	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
+	var coefficient: Variant = term.get("stoichiometric_coefficient")
 	if typeof(coefficient) != TYPE_INT or int(coefficient) <= 0 or int(coefficient) > MAX_INTEGER_TOKEN:
 		return false
 	return true
