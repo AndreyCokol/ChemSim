@@ -204,8 +204,12 @@ def _log_root_positive(
         else:
             raise EquilibriumConvergenceError("Could not bracket positive concentration root")
 
+    # The residual has concentration units and may be arbitrarily small.
+    # An absolute 1e-13 cutoff would accept a bracket endpoint for trace
+    # solutions without locating the root. Convergence is therefore controlled
+    # in log-concentration space by the relative x tolerance.
     root, iterations, residual = _bisect(
-        lambda y: fn(10.0**y), low, high, f_tol=1e-13
+        lambda y: fn(10.0**y), low, high, f_tol=0.0
     )
     return 10.0**root, iterations, residual
 
