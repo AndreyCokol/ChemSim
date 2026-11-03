@@ -582,3 +582,38 @@ A1 acceptance implication: a rate-constant record or adapter must validate the e
 
 
 **Статусное дополнение (2026-11-03):** после первоначальной записи A4 сообщил, что TOL-05 завершён на исправленном commit `32fa6797f58ce55c21d9072f04a016e95855c263`; exact-head runs #41619703969 и #41619711656 прошли все 36 тестов (PR #6 comment `6601214425`, Issue #12). Это подтверждает исправленный размерностный пример, но не закрывает отдельный запрос A1 о полном потребительском контракте RateConstant (`6601102813`).
+
+
+## 22. Internal consistency audit — origin vocabulary and record status (2026-11-03)
+
+A1 review of sections 2, 3 and 19 found two terminology collisions that should be resolved before baseline review. This section is a proposal-level clarification; it does not select serialized enum tokens or a shared DTO.
+
+### 22.1 Keep calculated and estimated origin distinct
+
+Section 3.1 lists `calculated` and `estimated` as distinct origins, while section 19 groups them as `calculated_estimated`. These are not interchangeable scientific claims:
+
+- `calculated`: a value produced by an identified calculation method/model with its inputs and method/version recorded;
+- `estimated`: a value inferred or predicted by an estimation procedure, empirical correlation, analogy or other method explicitly classified as estimation.
+
+A model may choose to apply the same eligibility policy to both, but the source assertion must retain which origin actually applies. Therefore the canonical logical vocabulary in this proposal is separate `calculated` and `estimated` origin values. Section 19's combined label is superseded as a shorthand grouping only, not a valid assertion origin. A migration from a legacy combined value must preserve the ambiguity as `unknown`/unresolved origin unless the original method evidence can distinguish the two; it must not guess.
+
+### 22.2 Do not overload `record_status` with origin
+
+Section 2.1's provisional `record_status` list (reference / user_defined / hypothetical / unknown) overlaps section 3.1's origin dimension and omits experimental/calculated/estimated. These concepts must not share one field:
+
+- **origin** answers how the assertion/record came to exist (curated_reference, experimental, calculated, estimated, user_defined, hypothetical, unknown);
+- **review state** answers whether the assertion was reviewed and accepted/rejected under a named process (section 19);
+- **identity/record lifecycle status**, if needed by catalog operations, answers whether the catalog entity is active, deprecated, withdrawn or superseded. It must not encode scientific origin or calculation eligibility.
+
+Accordingly, treat the section 2.1 `record_status` list as a legacy/provisional naming mistake, not as a second authoritative origin vocabulary. The final logical SubstanceRecord must reference the independent origin/review/lifecycle dimensions as applicable; exact field names and enum serialization remain integrator decisions.
+
+### 22.3 Acceptance cases added
+
+- A calculated value with a reproducible method is not relabelled estimated merely because its uncertainty is large.
+- An estimated value is not promoted to calculated or curated_reference without a new evidenced assertion and review event.
+- A legacy `calculated_estimated` value without method evidence remains unresolved/unknown-origin; no automatic split.
+- A SubstanceRecord lifecycle state such as deprecated does not erase or rewrite its origin, review history, property provenance or historical use.
+- A rejected assertion remains traceable and cannot be made eligible by changing only its record lifecycle status.
+- A change in review state or lifecycle status does not grant redistribution rights or calculation eligibility by itself.
+
+No code, migration mapping, enum wire token or shared schema was changed by this clarification.
