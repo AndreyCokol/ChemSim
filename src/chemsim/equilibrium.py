@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import exp, isfinite, isnan, log, log10, nextafter, sqrt
 from typing import Callable
+from types import MappingProxyType
 
 
 R = 8.31446261815324  # J mol-1 K-1
@@ -127,7 +128,7 @@ def _aqueous_result(
         raise EquilibriumConvergenceError(
             "Aqueous equilibrium produced non-finite or nonphysical result values"
         )
-    return AqueousResult(species_mol_l, pH, diagnostics, solid_mol_l)
+    return AqueousResult(MappingProxyType(dict(species_mol_l)), pH, diagnostics, solid_mol_l)
 
 
 def _finite_number(value: object) -> bool:
