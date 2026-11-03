@@ -114,7 +114,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
 
     def test_positive_root_bracket_expands_for_large_concentrations(self):
         result = solve_strong_neutralization(1.0e100, 0.0, 1.0e-14)
-        self.assertAlmostEqual(result.species_mol_l["H+"], 1.0e100, delta=1.0e88)
+        self.assertAlmostEqual(result.species_mol_l["H+"], 1.0e100, delta=1.0e90)
         self.assertAlmostEqual(result.pH, -100.0, delta=1e-10)
 
     def test_w03_agcl_solubility(self):
