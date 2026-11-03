@@ -1,0 +1,75 @@
+# A3-07 — Equilibrium result scientific handoff to A5 (draft)
+
+Date: 2026-11-03  
+Owner: Agent A3 — Aqueous Chemistry & Equilibrium  
+Working branch: `agent/a3-equilibrium-implementation`  
+Tracking: [A3 Issue #8](https://github.com/AndreyCokol/ChemSim/issues/8), [A3 Draft PR #4](https://github.com/AndreyCokol/ChemSim/pull/4)  
+Consumer evidence: [A5 integration-readiness document](https://github.com/AndreyCokol/ChemSim/blob/feat/godot-workspace-scaffold/openspec/agents/implementation/agent-05-integration-readiness.md), [A5 Draft PR #3](https://github.com/AndreyCokol/ChemSim/pull/3)
+
+**Status: A3-owned scientific/semantic acceptance proposal, NOT a normative shared DTO, serialization schema, approved adapter, or approval to implement.** The product-owner OpenSpec gate and integrator decisions (including INT-13/15/16/19/20) remain open. The seven fixture results in `src/chemsim/equilibrium.py` are Python-local benchmark structures, not ready for automatic export to Godot.
+
+## 1. Verified source baseline
+
+- A3 code at commit `49469d32c0e0773eb8ea21308e835e1a956c4196`; exact-head [CI run #41628054078](https://github.com/AndreyCokol/ChemSim/actions/runs/41628054078) completed successfully. This demonstrates regression execution, not independent validation of thermodynamic data or physical model applicability.
+- A3's `AqueousResult` contains `species_mol_l`, scalar `pH`, `diagnostics`, and scalar `solid_mol_l`; `GasResult` contains `species_mol`, partial/total pressures in Pa, extent in mol, and `diagnostics`.
+- `SolverDiagnostics` has `iterations`, `residual`, `component_balance_residual`, `charge_balance_residual`, `method`, `balance_unit`, `activity_model` and `reliability_status`. A single `balance_unit` is **not** a unit tag for every diagnostic field.
+- A1's [seven-benchmark admission manifest](https://github.com/AndreyCokol/ChemSim/blob/openspec/review-round-1/openspec/reviews/round-1/a1-seven-benchmark-admission-manifest.md) remains a blank proposal: none of the numeric constants in A3 tests is admitted as a versioned, source-backed, distributable scientific reference by this manifest. Do not invent T/source/license/uncertainty or mark the fixtures as scientifically certified.
+- A5's latest consumer contract specifically requires typed basis/standard state, phase, pH convention, dissolved/solid status, residual scaling and units, applicability, provenance, typed termination and warnings. These fields are not all available in the Python fixture result.
+
+## 2. P1 scientific and transport risks observed in the current A3 code
+
+| Ref | Observed behavior | Why a direct consumer mapping is unsafe | Required A3-side correction or gate |
+|---|---|---|---|
+| A3-H01 | `SolverDiagnostics.activity_model` defaults to `ideal_dilute_gamma_equals_1`, also for G01/G02, whose gas helper does not override it | Gas results are incorrectly labelled as using an aqueous activity model | Do not propagate the field for gas as authoritative; after approved baseline, fix A3-owned model-qualified diagnostics and test it |
+| A3-H02 | Gas `charge_balance_residual` is assigned `0.0` in the helper | A numeric zero falsely suggests a charge-balance test was performed; no gas charge constraint is defined for these fixtures | Represent gas charge check as *not applicable/not evaluated* in a future approved result contract; do not infer verified charge balance from zero |
+| A3-H03 | Gas `component_balance_residual` checks `final - initial - stoichiometry × extent` in mol | It is an **extent-update consistency** check, not an independent elemental-matrix balance audit. Separate unit tests check atom invariants for G01/G02 | Name and type the check accurately; do not present it as a general atom-balance certificate |
+| A3-H04 | W03 AgCl solubility uses an **excess solid reservoir**, but returns `solid_mol_l = 0.0` because no initial solid inventory is supplied | Zero is a placeholder in this fixture result, **not** evidence that AgCl(s) is absent. Showing “no solid” would contradict the model assumptions | Consumer must treat actual remaining solid quantity as *unknown/not reported*, while the reservoir is model-assumed present. Do not serialize `0.0` as a measured solid amount |
+| A3-H05 | W05 AgCl precipitation's `solid_mol_l` is the concentration of newly precipitated AgCl(s) (mol/L) from zero initial solid | This is not a solid amount in mol; conversion requires an explicit compatible solution volume. W03 and W05 share a field but not the same inventory semantics | Distinguish precipitate concentration from a known solid inventory; require volume for mol conversion, never infer it |
+| A3-H06 | W05 inactive-solid branch returns `diagnostics.residual = -inf` when a dissolved ion is absent; permitted only with `method = inactive-solid check` | `-inf` is a mathematical limiting log-saturation sentinel, not a finite solver residual; standard JSON has no valid infinity literal. Mapping it to 0, null-as-zero, success score, or raw JSON is wrong | Encode saturation boundary/undersaturation as a distinct *semantic state*, not a numeric finite residual; preserve absence of an ion. Any wire representation awaits integrator approval |
+| A3-H07 | `diagnostics.residual` has different meanings: W01/W02/W04 charge equation (mol/L), W03 closed-form placeholder (0), W05 log-saturation index (dimensionless), G01/G02 log(Qp/Kp) (dimensionless) | Generic rendering with `diagnostics.balance_unit` would mislabel W05/gas residuals; W03 zero is not independent evidence from a numerical iteration | Explicitly type each residual by equation, physical dimension and scaling; do not apply `balance_unit` to `residual` blindly |
+| A3-H08 | W01–W05 pH uses `-log10([H+]/c°)` and assumes gamma=1; scalar `pH` has no convention field | Numerically converged pH is **ideal concentration approximation**, not thermodynamic activity pH. Extreme regression inputs are numerical robustness tests, not validated physical operating ranges | A3 consumer must require the qualifier and a verified model applicability decision before scientific presentation |
+| A3-H09 | G02 explicitly models I2(g), while selected test inputs do not establish iodine phase stability at the supplied T/P | An ideal-gas root does not certify equilibrium with respect to gas/solid iodine; A1 benchmark admission still flags the phase/T evidence gap | Keep G02 as a conditional ideal-gas *mathematical* fixture; block source-backed physical/phase claims pending A1 applicability evidence |
+| A3-H10 | The constants `ka`, `kw`, `ksp`, `kp` are bare numbers; source, phase, T-range, standard-state ID, uncertainty and quality aren't carried through results | A5 cannot reconstruct reliability or applicability after the fact | Shared-approval-gated A3 adapter must validate A1 typed references *before* calculation and preserve provenance/limitations; no guessed metadata |
+
+These are separate concerns: A3-H01/H02/H03/H04/H05/H06/H07 are concrete **consumer-safety defects or ambiguities** in current fixture fields; A3-H08/H09/H10 are **scientific applicability/data-admission gates**. This document does not claim that these findings invalidate the mathematically bounded fixture computations under their explicit assumptions.
+
+## 3. Fixture-by-fixture interpretation boundary
+
+| Fixture | Model and state | Present output semantics | Information that MUST NOT be inferred |
+|---|---|---|---|
+| W01 weak acid | One monoprotic acid, water autoionization, ideal dilute aqueous | species mol/L; pH ideal concentration approximation; charge-equation residual mol/L | Generic/polyprotic speciation, activity pH, measured source validity |
+| W02 strong HCl/NaOH | Fully dissociated, fixed analytical totals, ideal aqueous | species mol/L; pH approximation; charge residual mol/L | Arbitrary strong electrolytes, kinetic neutralization trajectory |
+| W03 AgCl solubility | Pure-water ideal solubility in contact with an excess AgCl(s) reservoir | dissolved Ag+/Cl− mol/L; pH approximation; remaining solid inventory **not supplied** | “0 mol/L solid remaining” or “no solid phase” from fixture's default field |
+| W04 ammonia buffer | NH3/NH4+ using Ka(NH4+), nitrogen/chloride totals, ideal aqueous | species mol/L; pH approximation; charge residual mol/L | A Kb value substituted for Ka; arbitrary buffer mixtures |
+| W05 AgCl precipitation | Initially neutral AgNO3/NaCl feeds, no initial AgCl(s), at most one solid | dissolved species mol/L; new precipitate mol/L; saturation/inactive-solid branch | General precipitation engine, solid amount mol without volume, JSON `-inf` residual |
+| G01 NO2/N2O4 | Fixed T/V, ideal partial-pressure equilibrium, p°=1 bar | species mol; partial/total pressures Pa; extent mol; log(Qp/Kp) residual | Aqueous activity model, independent general element validation, kinetics, nonideal gas |
+| G02 H2/I2(g)/HI | Fixed T/V, ideal partial-pressure equilibrium, p°=1 bar | species mol; partial/total pressures Pa; extent mol; log(Qp/Kp) residual | I2(s) or phase stability, validated 298.15 K iodine vapour assumption, kinetics |
+
+For G01/G02, `charge_balance_residual=0.0` is an implementation placeholder and is not a scientifically measured residual. For W03, the solid-quantity placeholder also must not be interpreted as an observed zero. The future result should distinguish **unknown**, **not applicable**, **not evaluated** and **measured/calculated zero** as separate semantic conditions using integrator-approved shared representations.
+
+## 4. Concrete A3→A5 acceptance cases (proposals, NOT passing tests)
+
+| ID | Given / trigger | Required scientific consumer result | Owner / blocker |
+|---|---|---|---|
+| A3-A5-01 | W01/W02/W04 output with valid ideal model | pH explicitly marked “concentration-based ideal approximation”; separate model applicability and numerical convergence | A3 scientific qualifier; A5 presentation; shared ReliabilityVector |
+| A3-A5-02 | W03 returns `solid_mol_l=0` with assumed excess reservoir | Show/encode *quantity unknown*, not *solid absent*; preserve explicit reservoir assumption | A3 typed semantics; A5 view model; integrator units |
+| A3-A5-03 | W05 with zero Ag or Cl and inactive solid | No non-standard numeric JSON `Infinity`/`-Infinity`/`NaN`; explicit undersaturated/zero-activity boundary; no fake finite SI | A3 state semantics; integrator serializer; A5 acceptance |
+| A3-A5-04 | W05 active precipitate and unknown volume | Concentration in mol/L is permitted; mol-amount conversion is blocked without volume | A3 quantities; Unit Registry; A5 rendering |
+| A3-A5-05 | G01/G02 output | Model label denotes *ideal-gas partial-pressure model*, not aqueous `gamma=1`; charge check is not applicable; extent-update residual is not labelled elemental audit | A3 diagnostics fix after gate; A5 avoids raw fixture mapping |
+| A3-A5-06 | Unsupported/missing source, K basis, standard state, temperature applicability or iodine phase evidence | Block model-dependent physical claim/solve rather than invent constants or silently substitute model | A1 data admission; A3 validation; integrator ErrorEnvelope |
+| A3-A5-07 | One A3 equilibrium result | Exactly one equilibrium state; no auto-generated time series, time axis, or kinetic history | A5 view model; A3/A4 boundary |
+| A3-A5-08 | W05/gas residual display | Dimensionless saturation/log quotient is distinguished from mol/L or mol balance residual; no reuse of generic `balance_unit` | A3 typed residuals; integrator Unit Registry |
+| A3-A5-09 | Scientific source/phase data missing but numerical fixture tests pass | Distinct *numerically converged* versus *model/data unverified* status; no “scientifically verified” badge | A1 admission; A3 applicability; ReliabilityVector |
+| A3-A5-10 | Future A3 typed data adapter meets bare `ka`/`kp` fixture | It performs explicit reaction-direction, unit/basis, standard-state, T/P, phase and model admissibility checks before extracting numbers | A1 + A3, normative DTO gate |
+
+Do not report these acceptance cases as implemented tests. The current 65-unit-test suite checks isolated numerical/scalar behavior and some conservation invariants; A3-A5-01…10 require additional contract/adapter/UI work after approval.
+
+## 5. Resolution ownership, priority, and verification plan
+
+- **P0 — external / BLOCKED:** product owner must approve OpenSpec baseline; integrator must approve Unit Registry, ErrorEnvelope, schema/serialization, ReliabilityVector and adapter boundary. A3 does **not** invent their enums or begin an application adapter. Evidence: accepted decision IDs and exact versioned normative contract.
+- **P1 — A3 / NEEDS_REVIEW:** agree scientific semantics for each ambiguity in section 2 with A5; prepare A3-owned fixes to gas-model diagnostics, not-applicable charge field, accurately named gas balance check, W03 solid reservoir status, W05 non-finite saturation semantics and typed diagnostic units. Implementation remains **BLOCKED** by the baseline gate. Verification after approval: A3-specific regression tests and a versioned consumer compatibility review.
+- **P1 — A1 and owner / BLOCKED:** select source-backed constant records, T/phase/standard-state applicability, provenance and redistribution evidence for any numerical benchmark promoted as scientific reference. A3 cannot claim A1 admission. Verification: populated signed-off manifest, not current regression values alone.
+- **P1 — A5 / BLOCKED:** adapter/view tests listed above once normative A3 result and integrator structures are approved. A3 does not modify Godot.
+- **P2/P3 — deferred:** nonideal activity/fugacity, multi-solid systems, arbitrary speciation, kinetic coupling and chart parameter sweeps. These are not MVP integration work.
+
+**Release claim gate:** A3-07 can be closed only when accepted shared contracts and explicit A3 adapter ownership exist, the A3-owned correction/compatibility tests pass at an exact source SHA, A5 confirms consumption of the scientific qualifiers without falsifying zeros/infinities, and the baseline/product-owner approval is recorded. Until then, PR #4 remains Draft and unmerged.
