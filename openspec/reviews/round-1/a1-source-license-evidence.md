@@ -115,3 +115,52 @@ No values are promoted to calculation-ready merely because they originate from P
 ## Limitations
 
 This is a source-policy research memo, not a legal opinion. It does not establish the license of every PubChem contributor, every NIST WebBook component, or every IUPAC term export. Current terms must be checked again at the time of each import/release. No source is marked approved_for_redistribution by this memo alone.
+
+
+## Import gate procedure — operational proposal (2026-11-03)
+
+The source examples above are evidence of why review is necessary; they are not an allowlist. Apply the following gate to every candidate field before it enters an offline catalog.
+
+### Gate 0 — identify the exact material
+
+Record the provider, dataset/collection, source record, exact field or table, source URL, retrieval timestamp, source release/version, and whether the field is original, third-party supplied, transformed, or derived. If a source page combines multiple contributors or licenses and the field-level origin cannot be established, stop at `blocked_unknown_license`.
+
+### Gate 1 — establish rights for the intended use
+
+Review the terms that apply to the exact field and the intended distribution mode (local-only user import, internal organization distribution, public bundled catalog, or hosted service). Capture license identifier and version where available, canonical terms URL, attribution/notices, share-alike obligations, commercial-use restrictions, database rights or additional permissions, and reviewer/date.
+
+A license allowing access or API retrieval is not automatically permission to redistribute a copy. A source's general copyright notice does not override a dataset- or contributor-specific restriction. If terms are ambiguous, conflicting, missing, or silent on the intended use, do not infer permission.
+
+### Gate 2 — assign a narrow disposition
+
+| Disposition | Meaning | Permitted handling |
+|---|---|---|
+| `approved_for_redistribution` | Evidence supports the exact intended redistribution mode and required notices are captured | May be included only in the approved scope/version |
+| `local_review_only` | A user may inspect/use a locally obtained record under separately reviewed terms, but the project has not approved bundling or redistribution | Never package, sync, publish or upload the record as part of the default catalog |
+| `blocked_unknown_license` | Exact rights or origin cannot be established | Do not import into a distributable catalog; retain only a non-substantive review note |
+| `blocked_restricted` | Terms prohibit the intended use or require permission not obtained | Exclude from that use; do not attempt to bypass source restrictions |
+
+Disposition is purpose-specific. Approval for one deployment mode must not be generalized to another. A future permission grant must identify the covered records/fields, territory, duration, use, redistribution channel and any conditions.
+
+### Gate 3 — scientific and technical validation (independent of license)
+
+Even when redistribution is approved, separately validate identity, property semantics, units/dimensions, basis/standard state, phase/medium, temperature/pressure applicability, method, uncertainty/precision, source evaluation and model eligibility. A license decision must not set `quality_status`, and scientific acceptance must not set `redistribution_status`.
+
+For derived or converted values, retain parent source assertions and a reproducible transformation description (formula/software/version/inputs/conditions). The derived value inherits no broader rights than its inputs; mixed-source derivations require review of all contributing fields and applicable license compatibility.
+
+### Gate 4 — fail-closed import and release checks
+
+- Reject a distributable import if any included field lacks an approved disposition for that exact release mode.
+- Reject records with unresolved third-party origin or unknown field-level license.
+- Ensure required attribution, notices and share-alike/source-offer obligations are included with the artifact where applicable.
+- Keep restricted/local-only records out of generated bundles, exports, telemetry, fixtures, test snapshots and CI artifacts that are published externally.
+- Re-run the review when source terms, dataset version, field origin, transformation, packaging, commercial context or distribution channel changes.
+- Preserve the historical review decision; do not silently rewrite old provenance when a source changes its terms.
+
+### A1 acceptance cases
+
+**Positive:** a field with traceable source-record/field identity, version, exact applicable license, documented permission for the intended distribution mode, complete notices, and independently validated scientific metadata may pass the corresponding import gate.
+
+**Negative:** a PubChem record with unresolved contributor origin; an SRD 69 value without SRD-specific/component rights review; a CAS RN without ACS permission; a whole Gold Book export justified only by the individual-term license; an API-accessible field with no redistribution grant; or a mixed-source derived value with an unreviewed input must not enter a public bundle.
+
+This procedure is a proposed A1 control, not legal advice or a claim that any current candidate source has passed. The current evidence register continues to approve no numerical property/source pair for redistribution.
