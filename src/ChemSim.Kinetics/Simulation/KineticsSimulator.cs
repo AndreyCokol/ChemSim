@@ -12,6 +12,8 @@ public sealed class KineticsSimulator
 {
     public SimulationResult Run(SimulationRequest request, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         try
         {
             request.Validate();
