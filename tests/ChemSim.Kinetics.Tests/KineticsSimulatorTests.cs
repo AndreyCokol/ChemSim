@@ -908,3 +908,67 @@ public sealed class KineticsSimulatorTests
     }
 
 }
+
+    [Fact]
+    public void ReactionNetwork_RejectsUnknownSpeciesReferencedOnlyByKineticOrder()
+    {
+        var reaction = new ReactionDefinition(
+            "A-to-B-with-unknown-catalyst",
+            new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+            new Dictionary<string, double> { ["A"] = 1d, ["X"] = 1d },
+            new RateConstant(1d, -1d));
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            new ReactionNetwork(["A", "B"], [reaction]));
+
+        Assert.Contains("unknown species 'X'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DeclaredCatalystMayAffectKineticRateWithoutStoichiometricTerm()
+    {
+        const double rateConstant = 0.25d;
+        const double catalystAmount = 2d;
+        const double endTime = 3d;
+
+        var network = new ReactionNetwork(
+            ["A", "B", "Cat"],
+            [
+                new ReactionDefinition(
+                    "A-to-B-catalysed",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d, ["Cat"] = 1d },
+                    new RateConstant(rateConstant, -1d))
+            ],
+            [
+                new ConservationLaw("A-fragment", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = 1d, ["B"] = 0d, ["Cat"] = catalystAmount
+            },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-9,
+                AbsoluteToleranceMol = 1e-12
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        var expectedA = Math.Exp(-rateConstant * catalystAmount * endTime);
+        var final = result.Samples[^1].AmountsMol;
+        Assert.InRange(Math.Abs(final["A"] - expectedA), 0d, 3e-9);
+        Assert.InRange(Math.Abs(final["A"] + final["B"] - 1d), 0d, 2e-10);
+        Assert.Equal(catalystAmount, final["Cat"]);
+    }
