@@ -109,3 +109,26 @@ godot --headless --path . --script res://tests/a1/test_a1_unit_gate.gd
 ```
 
 The A1 suite is synthetic, not a source-backed chemistry benchmark or an approved shared DTO. Windows execution and cross-agent adapter validation are still outstanding.
+
+
+## A1 independent science/source/rights admission boundary (P1)
+
+`a1_source_admission_gate.gd` is a deliberately **fail-closed** local admission boundary for the seven A3 fixture keys `AQ-01`…`AQ-05` and `GAS-01`/`GAS-02`. It runs the existing `A1PropertyGate.validate_numeric_contract` (scientific *metadata assertions*) and `validate_distribution_declaration` (claimed *rights metadata*) but **does not trust either result as independent approval**.
+
+The code-owned `REVIEWED_MODEL_ASSERTIONS` and `REVIEWED_RELEASE_ASSERTIONS` allowlists are both **empty**: currently **0/7** benchmark data bundles are scientifically admitted or cleared for redistribution. User-supplied `origin=curated_reference`, `quality=verified`, `review=accepted`, `model_eligibility=accepted`, `redistribution.disposition=approved_for_redistribution` and even fake `reviewed_by` values never create allowlist entries. An actual future admission requires **an A1-owned, independently reviewed code change**, exact pinned record and model requirements, independent scientific reviewer evidence, exact source/version/field provenance, and a separate channel-specific legal/release review. An entry cannot be supplied as runtime input. These allowlists are not a trusted release chain until independently populated and reviewed; they are no-op blockers by design.
+
+`assess_assertion(record, required, benchmark_id, requested_channel)` returns local-only booleans `metadata_preflight_ok`, `rights_declaration_preflight_ok`, `reference_admitted`, `redistribution_approved`, `scientific_data_ready` and `release_ready`, plus diagnostic `errors[]`. Only an **independent allowlist match** can move an admission flag. A benchmark typically requires **multiple** assertions, species refs and scientific fixtures: one property passing cannot certify the whole scenario. It is neither the approved interchange `ReliabilityVector` nor a substitute for model-owned numerical validation.
+
+### Current concrete source blocker: AQ-02/W02 water Kw candidate
+
+A3 [review of OpenStax *Chemistry* first edition §14.1](https://github.com/AndreyCokol/ChemSim/pull/4#issuecomment-6607758791) confirms only **conditional educational model compatibility** for 298.15 K, ideal dilute `c°=1 mol/L`, `gamma=1`, hydrated-H+ shorthand and final-mixture analytical feeds. It does not endorse nonideal thermodynamic accuracy, default T, published uncertainty, general applicability or fixture admission. This book's [edition-specific preface](https://openstax.org/books/chemistry/pages/preface) currently contains a historical `CC BY 4.0` statement alongside later restrictive `CC BY-NC-SA`/noncommercial and LLM/AI reuse wording; [OpenStax licensing help](https://help.openstax.org/s/article/Openstax-textbook-licensing-and-customization) also describes the restrictive library policy. This is **a license/edition/channel conflict requiring authoritative clarification**, not a permit to redistribute the constant. Original scientific explanation is at [§14.1](https://openstax.org/books/chemistry/pages/14-1-bronsted-lowry-acids-and-bases).
+
+**A1 decision:** `M = conditional_candidate_only`, `R = blocked_unknown_license`, `scientific_reference_admitted = false`, `offline_bundle_approved = false`. No numeric Kw, real H/P safety statement or imported third-party property has been copied into A1 runtime or test fixtures. A3’s synthetic W02 model preflight and the A1 source-review process are separate; neither can promote the other. The project owner/integrator must approve the intended fixture use and obtain exact source/rights evidence before a reviewed allowlist change.
+
+Godot regression:
+
+```sh
+godot --headless --path . --script res://tests/a1/test_a1_source_admission_gate.gd
+```
+
+This verifies that fabricated approval declarations **cannot bypass** the empty reviewed allowlist. It is not a legal conclusion, scientific validation, test of OpenStax content accuracy, or full-app source ingestion pipeline.
