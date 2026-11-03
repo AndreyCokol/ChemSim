@@ -175,3 +175,15 @@ Follow-up evidence: `openspec/reviews/round-1/a1-kw-source-compatibility-review.
 - **USGS PHREEQC:** its source file's `-log_k -14` at 25 °C belongs to an activity-model database with literature-sourced fields. Software availability/public-domain labels do not substitute for per-field license and source-model review.
 
 **Disposition:** research evidence improves the shortlist but the source allowlist still has **no approved Kw field** for redistribution, and none of AQ-01..AQ-05/GAS-01..GAS-02 is admitted. `OpenStax Chemistry` first edition is a P1 **candidate for explicit 25 °C model review**, not an implicit default value, a finalized license decision, or an automatic right to repackage all textbook content. This addendum is A1 review only, not legal advice.
+
+
+## P1 rights-conflict override for OpenStax *Chemistry* first edition (2026-11-03)
+
+**This latest disposition supersedes the earlier simplified first-edition CC BY 4.0 license characterization above; it does not alter the chapter's scientific content.** The [same first-edition preface](https://openstax.org/books/chemistry/pages/preface) states CC BY 4.0 under “Customization” but under “Citation/Attribution” also describes noncommercial use, share-alike, AI/LLM reuse restrictions and commercial-permission requests. [OpenStax's current licensing help](https://help.openstax.org/s/article/Openstax-textbook-licensing-and-customization) describes CC BY-NC-SA/noncommercial terms. These conflicting notices do not supply unambiguous rights for ChemSim's intended offline bundled catalog.
+
+- **Status:** first-edition §14.1 Kw candidate `blocked_unknown_license` for redistribution, pending written source-authoritative clarification for the **specific edition, field and distribution channel**; if restrictions apply incompatibly, set `blocked_restricted`.
+- **Scientific gate separately open:** A3 must accept fixed 298.15 K, ideal dilute gamma=1, c°=1 mol/L normalized dimensionless Kw, approximation and quality context; owner/integrator approval is not inferred.
+- **Scope:** link/citation and examination as a candidate are distinct from importing a protected compilation or republishing source content. Do not silently treat the bare scientific constant as license-cleared catalog evidence, and do not assert that every use of the underlying numerical fact requires permission.
+- **Checks:** A1-KW-N14 conflicting notices prevent automatic redistribution approval; A1-KW-N15 edition/site/version mismatch prevents blanket rights promotion. Record source URLs, check date, written rights decision, permitted use and notices before any R approval.
+
+No source/field has passed the per-field redistribution gate; zero source-backed benchmark rows admitted. A1 documentation-only update; not legal advice.
