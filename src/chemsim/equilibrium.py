@@ -340,9 +340,12 @@ def solve_ammonia_buffer(
         raise EquilibriumInputError("Chloride total cannot exceed total nitrogen for this NH4Cl fixture")
 
     def charge_residual(h: float) -> float:
-        nh4 = _scaled_fraction(total_nitrogen_mol_l, h, ka_nh4)
+        # Evaluate NH4+ - Cl- as (N_total - Cl_total) - NH3.
+        # Directly forming NH4+ rounds it to N_total when NH3 is below one
+        # ULP of a very large inventory, erasing the acid contribution.
+        nh3 = _scaled_fraction(total_nitrogen_mol_l, ka_nh4, h)
         oh = kw / h
-        return nh4 + h - chloride_mol_l - oh
+        return (total_nitrogen_mol_l - chloride_mol_l) - nh3 + h - oh
 
     h, iterations, residual = _log_root_positive(charge_residual)
     nh4 = _scaled_fraction(total_nitrogen_mol_l, h, ka_nh4)
