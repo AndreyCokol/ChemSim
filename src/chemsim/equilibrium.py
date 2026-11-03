@@ -273,7 +273,10 @@ def solve_weak_acid(
     a_minus = _scaled_fraction(total_acid_mol_l, ka, h)
     ha = _scaled_fraction(total_acid_mol_l, h, ka)
     oh = kw / h
-    mass_error = abs((ha + a_minus) - total_acid_mol_l)
+    # Compare against the complementary remainder instead of summing both
+    # species: rounded finite concentrations can overflow when their total is
+    # close to the largest representable float.
+    mass_error = abs(ha - (total_acid_mol_l - a_minus))
     charge_error = abs(h - a_minus - oh)
     return _aqueous_result(
         {"HA": ha, "A-": a_minus, "H+": h, "OH-": oh},
@@ -357,7 +360,10 @@ def solve_ammonia_buffer(
     nh4 = _scaled_fraction(total_nitrogen_mol_l, h, ka_nh4)
     nh3 = _scaled_fraction(total_nitrogen_mol_l, ka_nh4, h)
     oh = kw / h
-    mass_error = abs(nh3 + nh4 - total_nitrogen_mol_l)
+    # Avoid overflowing NH3 + NH4+ when the finite total is near float max.
+    # Each species is bounded by the total, so compare one against the
+    # complementary remainder instead of forming the potentially overflowing sum.
+    mass_error = abs(nh3 - (total_nitrogen_mol_l - nh4))
     # Match the cancellation-safe algebra used by the root residual; direct
     # NH4+ + H+ - Cl- - OH- can erase trace acid/base charge beside a huge
     # common nitrogen/chloride inventory.
