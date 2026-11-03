@@ -15,7 +15,7 @@ fixed to one; callers must not use this module outside that approximation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import exp, isfinite, isnan, log, log10, nextafter, sqrt
+from math import exp, isclose, isfinite, isnan, log, log10, nextafter, sqrt
 from typing import Callable
 from types import MappingProxyType
 
@@ -642,6 +642,70 @@ def solve_agcl_precipitation(
     )
 
 
+def _gas_result(
+    species_mol: dict[str, float],
+    partial_pressures_pa: dict[str, float],
+    total_pressure_pa: float,
+    extent_mol: float,
+    diagnostics: SolverDiagnostics,
+) -> GasResult:
+    """Fail closed on invalid local ideal-gas values or scientific metadata.
+
+    This is not a v0.1 wire DTO nor a gas phase stability certificate.
+    The component residual checks the extent update, not atom balance.
+    """
+    if (
+        not isinstance(species_mol, dict)
+        or not species_mol
+        or not isinstance(partial_pressures_pa, dict)
+        or set(species_mol) != set(partial_pressures_pa)
+        or any(
+            not isinstance(name, str) or not name.strip()
+            or not _finite_number(amount) or amount < 0.0
+            for name, amount in species_mol.items()
+        )
+        or not any(amount > 0.0 for amount in species_mol.values())
+        or any(
+            not _finite_number(pressure) or pressure < 0.0
+            or (species_mol[name] == 0.0) != (pressure == 0.0)
+            for name, pressure in partial_pressures_pa.items()
+        )
+        or not _finite_number(total_pressure_pa)
+        or total_pressure_pa <= 0.0
+        or not isclose(
+            total_pressure_pa, sum(partial_pressures_pa.values()),
+            rel_tol=1.0e-12,
+        )
+        or not _finite_number(extent_mol)
+        or not isinstance(diagnostics, SolverDiagnostics)
+        or isinstance(diagnostics.iterations, bool)
+        or not isinstance(diagnostics.iterations, int)
+        or diagnostics.iterations < 0
+        or not isinstance(diagnostics.method, str)
+        or not diagnostics.method.strip()
+        or diagnostics.balance_unit != "mol"
+        or diagnostics.activity_model != "gas_ideal_partial_pressure"
+        or diagnostics.reliability_status != "idealized_approximation"
+        or diagnostics.residual_status != "finite"
+        or not _finite_number(diagnostics.residual)
+        or not _finite_number(diagnostics.component_balance_residual)
+        or diagnostics.component_balance_residual < 0.0
+        or diagnostics.charge_balance_residual is not None
+        or not _diagnostic_semantics_valid(diagnostics)
+        or diagnostics.residual_kind != "ideal_gas_log_quotient"
+        or diagnostics.component_balance_kind != "extent_update_consistency"
+        or diagnostics.charge_balance_kind != "not_applicable"
+    ):
+        raise EquilibriumConvergenceError(
+            "Ideal-gas equilibrium produced inconsistent results or diagnostics"
+        )
+    return GasResult(
+        MappingProxyType(dict(species_mol)),
+        MappingProxyType(dict(partial_pressures_pa)),
+        total_pressure_pa, extent_mol, diagnostics,
+    )
+
+
 def _gas_equilibrium(
     species_initial: dict[str, float],
     stoichiometry: dict[str, float],
@@ -751,11 +815,8 @@ def _gas_equilibrium(
         raise EquilibriumConvergenceError(
             "Gas equilibrium produced invalid extent or diagnostic values"
         )
-    return GasResult(
-        MappingProxyType(dict(final)),
-        MappingProxyType(dict(partials)),
-        total_pressure,
-        extent,
+    return _gas_result(
+        final, partials, total_pressure, extent,
         SolverDiagnostics(
             iterations, f_residual, component_balance_residual, None,
             "extent + logQ bisection", "mol",

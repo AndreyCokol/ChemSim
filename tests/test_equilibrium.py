@@ -16,6 +16,7 @@ from chemsim.equilibrium import (
     EquilibriumConvergenceError,
     SolverDiagnostics,
     _aqueous_result,
+    _gas_result,
 )
 
 
@@ -771,6 +772,68 @@ class AqueousConservationAuditTests(unittest.TestCase):
 
 
 class GasBenchmarkTests(unittest.TestCase):
+
+    def test_local_gas_result_rejects_false_scientific_diagnostics(self):
+        """Invalid unit/model/status combinations must fail closed."""
+        result = solve_no2_dimerization(0.01, 0.0, 298.15, 1.0e-3, 6.73)
+        d = result.diagnostics
+        invalid = (
+            replace(d, activity_model="ideal_dilute_gamma_equals_1"),
+            replace(d, residual_kind="aqueous_charge_equation", residual_unit="mol/L"),
+            replace(d, residual_unit="mol"),
+            replace(d, component_balance_kind="aqueous_component_balance", component_balance_unit="mol/L"),
+            replace(d, component_balance_unit="mol/L"),
+            replace(d, charge_balance_kind="aqueous_charge_balance", charge_balance_unit="mol/L",
+                    charge_balance_residual=0.0),
+            replace(d, charge_balance_residual=0.0),
+            replace(d, residual_status="not_assessed", residual=None),
+            replace(d, residual=float("nan")),
+            replace(d, residual=float("inf")),
+            replace(d, component_balance_residual=None),
+            replace(d, component_balance_residual=-1.0),
+            replace(d, reliability_status="verified"),
+            replace(d, iterations=True),
+            replace(d, balance_unit="mol/L"),
+        )
+        for diagnostics in invalid:
+            with self.subTest(diagnostics=diagnostics):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _gas_result(
+                        dict(result.species_mol), dict(result.partial_pressures_pa),
+                        result.total_pressure_pa, result.extent_mol, diagnostics,
+                    )
+
+    def test_local_gas_result_rejects_inconsistent_amounts_pressures_and_extent(self):
+        result = solve_h2_i2_hi(0.01, 0.01, 0.0, 298.15, 1.0e-3, 690.2)
+        species, partials = dict(result.species_mol), dict(result.partial_pressures_pa)
+        cases = (
+            ({**species, "H2": float("nan")}, partials, result.total_pressure_pa, result.extent_mol),
+            ({**species, "H2": -1.0}, partials, result.total_pressure_pa, result.extent_mol),
+            (species, {**partials, "H2": -1.0}, result.total_pressure_pa, result.extent_mol),
+            (species, {**partials, "H2": float("inf")}, result.total_pressure_pa, result.extent_mol),
+            (species, {k: v for k, v in partials.items() if k != "HI"},
+             result.total_pressure_pa, result.extent_mol),
+            (species, {**partials, "H2": 0.0}, result.total_pressure_pa, result.extent_mol),
+            (species, partials, result.total_pressure_pa * 1.01, result.extent_mol),
+            (species, partials, result.total_pressure_pa, float("nan")),
+        )
+        for amounts, pressures, total, extent in cases:
+            with self.subTest(amounts=amounts, pressures=pressures):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _gas_result(amounts, pressures, total, extent, result.diagnostics)
+
+    def test_local_gas_result_accepts_valid_fixtures_with_frozen_maps(self):
+        for result in (
+            solve_no2_dimerization(0.01, 0.0, 298.15, 1.0e-3, 6.73),
+            solve_h2_i2_hi(0.01, 0.01, 0.0, 298.15, 1.0e-3, 690.2),
+        ):
+            with self.subTest(model=tuple(result.species_mol)):
+                self.assertEqual(result.diagnostics.residual_unit, "1")
+                self.assertEqual(result.diagnostics.component_balance_unit, "mol")
+                self.assertIsNone(result.diagnostics.charge_balance_residual)
+                with self.assertRaises(TypeError):
+                    result.species_mol[next(iter(result.species_mol))] = 0.0
+
     def test_large_finite_inputs_do_not_overflow_intermediate_pressure_products(self):
         result = solve_h2_i2_hi(
             1.0e300, 1.0e300, 0.0, 1.0e300, 1.0e300, 1.0
