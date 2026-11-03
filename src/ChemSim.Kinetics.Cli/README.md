@@ -28,7 +28,7 @@ The code bounds input to 1 MiB, response to 4 MiB, species to 32, reactions to 6
 
 **Known limitation:** the CLI relies on the calling application to confine the paths to an approved sandbox. Windows symlink/reparse-point traversal, cancellation/kill races, process/stderr/exit policy and safe concurrent file lifecycle still need integrator/A5 decisions and tests. Do not treat it as hardened for arbitrary untrusted path arguments.
 
-**No Windows certification:** CI build, xUnit tests and a Linux real-process synthetic smoke do NOT establish Windows x64 self-contained bundling, clean offline Godot launch, Unicode paths, permission behavior or release readiness.
+**Windows CI evidence (experimental, not release certification):** a self-contained win-x64 single-file CLI was published and launched on a GitHub-hosted Windows runner with a Unicode temporary path. Exact code/workflow head `f07ee703f79318ffb5b7142b56e136f2b7480914` passed [A4 CI #41659828591](https://github.com/AndreyCokol/ChemSim/actions/runs/41659828591), including analytical validation and experimental binary artifact `a4-windows-x64-cli-experimental`. This validates the A4 CLI Windows-runner smoke only. It does **not** prove installation or full Godot→A4→A5 offline operation on a clean Windows machine, complete A1/A2 admissibility, antivirus/permissions behavior, or a release-ready MVP.
 
 ## Ownership and acceptance
 
