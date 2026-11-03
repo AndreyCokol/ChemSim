@@ -1042,4 +1042,29 @@ public sealed class KineticsSimulatorTests
         Assert.Contains("cannot be empty", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ConservationEvaluation_RejectsMissingSpeciesReferencedByLaw()
+    {
+        var law = new ConservationLaw("A-total", new Dictionary<string, double>
+        {
+            ["A"] = 1d,
+            ["B"] = 2d
+        });
+
+        var exception = Assert.Throws<ArgumentException>(() => law.Evaluate(["A", "C"], [1d, 3d]));
+
+        Assert.Contains("missing species", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("B", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConservationEvaluation_AllowsExtraSpeciesWithoutLawCoefficient()
+    {
+        var law = new ConservationLaw("A-total", new Dictionary<string, double> { ["A"] = 2d });
+
+        var total = law.Evaluate(["A", "B"], [3d, 100d]);
+
+        Assert.Equal(6d, total);
+    }
+
 }
