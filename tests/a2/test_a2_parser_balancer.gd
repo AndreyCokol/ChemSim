@@ -386,6 +386,19 @@ func _test_balance_proposal() -> void:
 	assert(duplicate_terms.reaction.reactants[0].stoichiometric_coefficient == 1)
 	assert(duplicate_terms.reaction.reactants[1].stoichiometric_coefficient == 1)
 
+	# The balancer proposes a fresh vector; entered coefficients remain source data.
+	var entered_coefficients: Dictionary = parser.parse_reaction("7H2 + 3O2 -> 5H2O")
+	assert(entered_coefficients.ok)
+	assert(not parser.check_balance(entered_coefficients.reaction).balanced)
+	var fresh_proposal: Dictionary = balancer.propose_balance(entered_coefficients.reaction)
+	assert(fresh_proposal.status == "UNIQUE_OPTIMUM")
+	assert(fresh_proposal.proposed_coefficients[0].coefficient == 2)
+	assert(fresh_proposal.proposed_coefficients[1].coefficient == 1)
+	assert(fresh_proposal.proposed_coefficients[2].coefficient == 2)
+	assert(entered_coefficients.reaction.reactants[0].stoichiometric_coefficient == 7)
+	assert(entered_coefficients.reaction.reactants[1].stoichiometric_coefficient == 3)
+	assert(entered_coefficients.reaction.products[0].stoichiometric_coefficient == 5)
+
 func _test_search_node_guard() -> void:
 	var balancer = Balancer.new()
 	var context := {
