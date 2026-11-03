@@ -132,11 +132,12 @@ def _aqueous_result(
 
 def _finite_number(value: object) -> bool:
     """Return true only for finite real scalar inputs (booleans are not numbers here)."""
-    return (
-        isinstance(value, (int, float))
-        and not isinstance(value, bool)
-        and isfinite(value)
-    )
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _positive(name: str, value: float, *, allow_zero: bool = False) -> None:
