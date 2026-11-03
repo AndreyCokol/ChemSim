@@ -71,11 +71,12 @@ func _initialize() -> void:
 	assert(main.phase_input.get_item_text(main.phase_input.get_selected()) == "custom phase", "Editing should preserve unknown loaded phases")
 	main._confirm_add_component()
 	assert(main.components[0].name == "Переименованная вода", "Editing should update the existing component rather than append")
-	assert(main.components.size() == 1, "Editing must not create a duplicate component")
+	assert(main.components.size() == 2, "Editing must update the existing component without adding another")
 	assert(main.components[0].unit == "custom unit" and main.components[0].phase == "custom phase", "Editing other fields must not discard custom unit or phase values")
 	assert(main.selected_component_id == added_id, "The edited component should remain selected in the composition")
 	assert(main.visual_field.selected_marker_id == added_id, "Editing a placed component should synchronize visual-marker selection")
 	main._remove_component(2)
+	assert(main.components.size() == 1, "Removing the temporary second component should restore the one-component fixture")
 
 	main._on_field_pressed(Vector2(0.3, 0.4))
 	assert(main.visual_field.selected_marker_id == added_id, "Placing a component should select its visual marker for keyboard movement")
