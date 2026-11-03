@@ -41,6 +41,13 @@ class AqueousResultValidationTests(unittest.TestCase):
             _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
 
 
+    def test_aqueous_result_species_map_cannot_be_mutated_after_validation(self):
+        diagnostics = SolverDiagnostics(0, 0.0, 0.0, 0.0, "test", "mol/L")
+        result = _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
+        with self.assertRaises(TypeError):
+            result.species_mol_l["H+"] = -1.0
+        self.assertEqual(result.species_mol_l["H+"], 1.0e-7)
+
     def test_rejects_non_numeric_and_boolean_species_outputs(self):
         diagnostics = SolverDiagnostics(0, 0.0, 0.0, 0.0, "test", "mol/L")
         for species in ({"H+": True}, {"H+": "1e-7"}, {"H+": float("nan")}, {"": 1.0}):
