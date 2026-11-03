@@ -395,7 +395,7 @@ func _test_balance_validation() -> void:
 
 	# A single H(1e9) term is legal; accumulated element counts only
 	# overflow the 1e18 balance cap when the *sum* is actually too large.
-	var oversized_balance: Dictionary = parser.parse_reaction("1000000H1000000000 -> H2")
+	var oversized_balance: Dictionary = parser.parse_reaction("1000000(H1000000)1000 -> H2")
 	assert(oversized_balance.ok)
 	var large_term: Dictionary = oversized_balance.reaction.reactants[0].duplicate(true)
 	for _i in range(1001):
