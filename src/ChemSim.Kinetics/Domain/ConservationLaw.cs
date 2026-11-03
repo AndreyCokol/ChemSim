@@ -42,8 +42,22 @@ public sealed class ConservationLaw
 
     public double Evaluate(IReadOnlyList<string> speciesIds, IReadOnlyList<double> amountsMol)
     {
+        ArgumentNullException.ThrowIfNull(speciesIds);
+        ArgumentNullException.ThrowIfNull(amountsMol);
         if (speciesIds.Count != amountsMol.Count)
             throw new ArgumentException("Species and amount vectors must have equal lengths.");
+
+        var seenSpecies = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < speciesIds.Count; i++)
+        {
+            var speciesId = speciesIds[i];
+            if (string.IsNullOrWhiteSpace(speciesId))
+                throw new ArgumentException("Species ids in the evaluation vector cannot be empty.", nameof(speciesIds));
+            if (!seenSpecies.Add(speciesId))
+                throw new ArgumentException($"Species '{speciesId}' occurs more than once in the evaluation vector.", nameof(speciesIds));
+            if (!double.IsFinite(amountsMol[i]))
+                throw new ArgumentOutOfRangeException(nameof(amountsMol), $"Amount for species '{speciesId}' must be finite.");
+        }
 
         double total = 0d;
         for (var i = 0; i < speciesIds.Count; i++)
