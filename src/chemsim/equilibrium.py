@@ -91,25 +91,38 @@ def _aqueous_result(
     solid_mol_l: float = 0.0,
 ) -> AqueousResult:
     if (
-        diagnostics.iterations < 0
-        or any(not isfinite(value) or value < 0.0 for value in species_mol_l.values())
-        or not isfinite(pH)
-        or not isfinite(solid_mol_l)
+        not isinstance(species_mol_l, dict)
+        or not species_mol_l
+        or any(
+            not isinstance(name, str) or not name.strip()
+            or not _finite_number(value) or value < 0.0
+            for name, value in species_mol_l.items()
+        )
+        or not _finite_number(pH)
+        or not _finite_number(solid_mol_l)
         or solid_mol_l < 0.0
+        or not isinstance(diagnostics, SolverDiagnostics)
+        or isinstance(diagnostics.iterations, bool)
+        or not isinstance(diagnostics.iterations, int)
+        or diagnostics.iterations < 0
         # Negative infinity is the intentional log-saturation sentinel for
         # an absent dissolved ion in an inactive-solid state. NaN and positive
         # infinity are never valid converged aqueous residuals.
         or (
-            not isfinite(diagnostics.residual)
+            not _finite_number(diagnostics.residual)
             and not (
                 diagnostics.residual == -float("inf")
                 and diagnostics.method == "inactive-solid check"
             )
         )
-        or not isfinite(diagnostics.component_balance_residual)
+        or not _finite_number(diagnostics.component_balance_residual)
         or diagnostics.component_balance_residual < 0.0
-        or not isfinite(diagnostics.charge_balance_residual)
+        or not _finite_number(diagnostics.charge_balance_residual)
         or diagnostics.charge_balance_residual < 0.0
+        or not isinstance(diagnostics.method, str)
+        or not diagnostics.method.strip()
+        or not isinstance(diagnostics.balance_unit, str)
+        or not diagnostics.balance_unit.strip()
     ):
         raise EquilibriumConvergenceError(
             "Aqueous equilibrium produced non-finite or nonphysical result values"
@@ -117,10 +130,19 @@ def _aqueous_result(
     return AqueousResult(species_mol_l, pH, diagnostics, solid_mol_l)
 
 
+def _finite_number(value: object) -> bool:
+    """Return true only for finite real scalar inputs (booleans are not numbers here)."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and isfinite(value)
+    )
+
+
 def _positive(name: str, value: float, *, allow_zero: bool = False) -> None:
-    if not isfinite(value) or (value < 0 if allow_zero else value <= 0):
+    if not _finite_number(value) or (value < 0 if allow_zero else value <= 0):
         qualifier = "non-negative" if allow_zero else "positive"
-        raise EquilibriumInputError(f"{name} must be finite and {qualifier}")
+        raise EquilibriumInputError(f"{name} must be a finite real number and {qualifier}")
 
 
 def _scaled_fraction(total: float, numerator: float, other: float) -> float:
