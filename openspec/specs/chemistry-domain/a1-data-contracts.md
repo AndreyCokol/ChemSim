@@ -563,3 +563,19 @@ Backward readability is not equivalent to calculation eligibility. A record may 
 ### 20.5 Open integration decisions
 
 Integrator/product owner must decide the shared schema-version envelope, version numbering policy, migration registry/runner, unknown-field preservation guarantees, bundle atomicity/quarantine policy, and error mapping. A1 supplies domain invariants and test cases only. No migration code, serialized DTO or baseline implementation is authorized by this proposal.
+
+## 21. A4 dimensional cross-check — fractional kinetic order (2026-11-03)
+
+A4's TOL-05 discussion in PR #6 comments `6601157670` and `6601163898` provides a useful dimensional cross-check for section 15. For the current volumetric power-law rate
+
+`r = k · Π(c_i ^ α_i)`
+
+with `[r] = concentration/time`, the concentration exponent of `k` is:
+
+`e_k = 1 − Σα_i`
+
+and therefore `[k] = concentration^(1 − Σα_i) · time^−1`.
+
+For the half-order A→B case (`Σα_i = 0.5`), `e_k = +0.5`, not `−0.5`. A4 explicitly corrected the fixture's unit exponent in commit `0ee1310ac45919b87bc032769f940280a962351c`; the preceding commit `5f37958df86e0f65f30b8afa459f78d4ccaf741f` had the incorrect exponent and is superseded. The corrected exact-head CI was still queued/in progress in A4's report, so this is recorded as a dimensional correction, not as a passed test or final A4 consumer-contract confirmation.
+
+A1 acceptance implication: a rate-constant record or adapter must validate the exponent/dimension against the independently declared kinetic-order vector and the selected rate-law form. A numerically finite `k` with the wrong concentration exponent is dimensionally incompatible and must be rejected. This does not authorize A1 to define A4's serialized type or change A4 implementation.
