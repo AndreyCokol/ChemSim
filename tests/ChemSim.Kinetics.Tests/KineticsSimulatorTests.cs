@@ -996,4 +996,50 @@ public sealed class KineticsSimulatorTests
         Assert.Contains("Conservation-law entries cannot be null", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ConservationEvaluation_RejectsNullSpeciesVector()
+    {
+        var law = new ConservationLaw("total", new Dictionary<string, double> { ["A"] = 1d });
+
+        Assert.Throws<ArgumentNullException>(() => law.Evaluate(null!, [1d]));
+    }
+
+    [Fact]
+    public void ConservationEvaluation_RejectsNullAmountVector()
+    {
+        var law = new ConservationLaw("total", new Dictionary<string, double> { ["A"] = 1d });
+
+        Assert.Throws<ArgumentNullException>(() => law.Evaluate(["A"], null!));
+    }
+
+    [Fact]
+    public void ConservationEvaluation_RejectsDuplicateSpeciesIdentifiers()
+    {
+        var law = new ConservationLaw("total", new Dictionary<string, double> { ["A"] = 1d });
+
+        var exception = Assert.Throws<ArgumentException>(() => law.Evaluate(["A", "A"], [1d, 2d]));
+
+        Assert.Contains("occurs more than once", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConservationEvaluation_RejectsNonFiniteUnweightedAmounts()
+    {
+        var law = new ConservationLaw("A-only", new Dictionary<string, double> { ["A"] = 1d });
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => law.Evaluate(["A", "B"], [1d, double.NaN]));
+
+        Assert.Contains("Amount for species 'B' must be finite", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConservationEvaluation_RejectsBlankSpeciesIdentifiers()
+    {
+        var law = new ConservationLaw("total", new Dictionary<string, double> { ["A"] = 1d });
+
+        var exception = Assert.Throws<ArgumentException>(() => law.Evaluate(["A", " "], [1d, 2d]));
+
+        Assert.Contains("cannot be empty", exception.Message, StringComparison.Ordinal);
+    }
+
 }
