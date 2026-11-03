@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_test_negative_cases()
 	_test_exact_conservation_admission_vectors()
 	_test_trusted_stoichiometry_handoff()
+	_test_exact_source_conservation_rows()
 	_test_balance_validation()
 	_test_external_reaction_dto_validation()
 	_test_balance_proposal()
@@ -601,6 +602,93 @@ func _test_trusted_stoichiometry_handoff() -> void:
 	var fresh: Dictionary = Stoichiometry.extract_balanced_terms(source)
 	assert(fresh.ok)
 	assert(fresh.terms[0].element_counts["N"] == 2)
+
+
+func _test_exact_source_conservation_rows() -> void:
+	# The A4 N2O4 smoke uses N=(2,1) and O=(4,2), derived from A2
+	# actual FormulaAST, not from a caller-invented numeric weight row.
+	var gas: Dictionary = Stoichiometry.extract_balanced_terms("N2O4(g) -> 2NO2(g)")
+	assert(gas.ok)
+	assert(gas.conservation_rows.size() == 3)
+	var n_row: Dictionary = gas.conservation_rows[0]
+	var o_row: Dictionary = gas.conservation_rows[1]
+	var neutral_charge: Dictionary = gas.conservation_rows[2]
+	assert(n_row.kind == "ELEMENT" and n_row.element == "N")
+	assert(o_row.kind == "ELEMENT" and o_row.element == "O")
+	assert(n_row.coefficients.size() == 2)
+	assert(n_row.coefficients[0].coefficient == 2)
+	assert(n_row.coefficients[1].coefficient == 1)
+	assert(o_row.coefficients.size() == 2)
+	assert(o_row.coefficients[0].coefficient == 4)
+	assert(o_row.coefficients[1].coefficient == 2)
+	assert(neutral_charge.kind == "CHARGE")
+	assert(neutral_charge.coefficients.is_empty())
+	for row in gas.conservation_rows:
+		_assert_source_local_conservation_row(gas.terms, row)
+
+	# The molecule H2 is repeated as two distinct text occurrences. Both
+	# have to survive into an exact source-local law, not be silently
+	# overwritten by an identical formula or source-independent ID.
+	var duplicate: Dictionary = Stoichiometry.extract_balanced_terms("H2 + H2 + O2 -> 2H2O")
+	assert(duplicate.ok)
+	assert(duplicate.conservation_rows.size() == 3)
+	var h_row: Dictionary = duplicate.conservation_rows[0]
+	assert(h_row.kind == "ELEMENT" and h_row.element == "H")
+	assert(h_row.coefficients.size() == 3)
+	assert(h_row.coefficients[0].source_term_id == duplicate.terms[0].source_term_id)
+	assert(h_row.coefficients[1].source_term_id == duplicate.terms[1].source_term_id)
+	assert(h_row.coefficients[0].source_term_id != h_row.coefficients[1].source_term_id)
+	for row in duplicate.conservation_rows:
+		_assert_source_local_conservation_row(duplicate.terms, row)
+
+	# The charge vector retains signed ionic charges and excludes known
+	# zero-charge species; electroneutrality itself is a separate A3 gate.
+	var ions: Dictionary = Stoichiometry.extract_balanced_terms("Ag+(aq) + Cl-(aq) -> AgCl(s)")
+	assert(ions.ok)
+	assert(ions.conservation_rows.size() == 3)
+	assert(ions.conservation_rows[0].element == "Ag")
+	assert(ions.conservation_rows[1].element == "Cl")
+	var charge_row: Dictionary = ions.conservation_rows[2]
+	assert(charge_row.kind == "CHARGE")
+	assert(charge_row.coefficients.size() == 2)
+	assert(charge_row.coefficients[0].coefficient == 1)
+	assert(charge_row.coefficients[1].coefficient == -1)
+	assert(charge_row.coefficients[0].source_term_id == ions.terms[0].source_term_id)
+	assert(charge_row.coefficients[1].source_term_id == ions.terms[1].source_term_id)
+	for row in ions.conservation_rows:
+		_assert_source_local_conservation_row(ions.terms, row)
+
+	# A zero/known charge row remains explicit for source semantics but
+	# must NOT be passed as a meaningless empty A4 numerical law.
+	assert(neutral_charge.coefficients.size() == 0)
+	assert(charge_row.coefficients.size() > 0)
+
+	for source in ["H2 + O2 -> H2O", "Na+ -> Na", "H2 + O2"]:
+		var refused: Dictionary = Stoichiometry.extract_balanced_terms(source)
+		assert(not refused.ok)
+		assert(not refused.has("conservation_rows"))
+		assert(not refused.has("terms"))
+
+	# No internal cache/back-reference to a previously issued result.
+	gas.conservation_rows[0].coefficients[0].coefficient = 999
+	var new_gas: Dictionary = Stoichiometry.extract_balanced_terms("N2O4(g) -> 2NO2(g)")
+	assert(new_gas.ok)
+	assert(new_gas.conservation_rows[0].coefficients[0].coefficient == 2)
+
+
+func _assert_source_local_conservation_row(terms: Array, row: Dictionary) -> void:
+	var signed_total := 0
+	var known_term_ids: Dictionary = {}
+	for term in terms:
+		known_term_ids[term.source_term_id] = term.signed_stoichiometric_coefficient
+	assert(known_term_ids.size() == terms.size())
+	var included: Dictionary = {}
+	for entry in row.coefficients:
+		assert(known_term_ids.has(entry.source_term_id))
+		assert(not included.has(entry.source_term_id))
+		included[entry.source_term_id] = true
+		signed_total += int(entry.coefficient) * int(known_term_ids[entry.source_term_id])
+	assert(signed_total == 0)
 
 
 func _test_balance_validation() -> void:
