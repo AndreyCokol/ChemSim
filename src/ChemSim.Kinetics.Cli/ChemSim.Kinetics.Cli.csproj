@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>chemsim-solver</AssemblyName>
+    <RootNamespace>ChemSim.Kinetics.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ChemSim.Kinetics/ChemSim.Kinetics.csproj" />
+  </ItemGroup>
+</Project>
