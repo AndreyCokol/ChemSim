@@ -3,8 +3,12 @@ extends SceneTree
 const VisualFieldScript = preload("res://scripts/visual_field.gd")
 
 func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
 	var field = VisualFieldScript.new()
 	root.add_child(field)
+	await process_frame
 	field.size = Vector2(100, 100)
 	field.set_marker(7, "Вода", Vector2(0.5, 0.5))
 	assert(field.markers.size() == 1, "A visual marker should be added")
