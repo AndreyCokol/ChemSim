@@ -907,7 +907,6 @@ public sealed class KineticsSimulatorTests
         Assert.Equal(0d, result.Samples[0].AmountsMol["B"]);
     }
 
-}
 
     [Fact]
     public void ReactionNetwork_RejectsUnknownSpeciesReferencedOnlyByKineticOrder()
