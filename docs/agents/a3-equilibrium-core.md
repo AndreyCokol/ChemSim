@@ -230,3 +230,27 @@ This register records only decisions that block a safe adapter from the current 
 ### Current readiness
 
 The current A3 branch satisfies the numerical-fixture portion of this gate, but not the typed-data, shared DTO, unit, error, reliability or adapter-ownership gates. Therefore no production/normative integration is approved by this document. A3-07 stays open until the integrator records the shared decisions and owners; A3 will then implement only the A3-owned adapter/consumer slice assigned to it.
+
+## A3 handoff readiness checkpoint (2026-11-03)
+
+### Verified fixture readiness
+
+A3-01 through A3-06 are complete for the isolated reference fixtures. The latest exact source/test head is `55a50b74e19ac10b92db023f7c8af1ebc864f89c`; GitHub Actions run [#41624671742](https://github.com/AndreyCokol/ChemSim/actions/runs/41624671742) passed all 63 tests. The fixture layer now rejects malformed/non-finite aqueous inputs and result diagnostics, prevents mutation of validated aqueous species maps, and has independent charge/component checks plus acid/base limiting-regime coverage.
+
+This validation is specific to the seven fixture functions and their documented assumptions. It does not validate a generalized equilibrium network or establish physical applicability outside the idealized models.
+
+### Cross-agent contract review
+
+The current review confirms these ownership boundaries and unresolved handoff requirements:
+
+| Area | A3 consumer requirement | Current status / blocker |
+|---|---|---|
+| A1 thermodynamic data | Typed, reaction-specific constant record with dimensionless basis, standard-state ID, medium/phase, T/P applicability, uncertainty and provenance; no bare numeric K as catalog-ready data | A1 Issue #10 remains in progress; its current main-branch domain spec does not yet freeze the full thermodynamic-record contract. No constants were imported into A3. |
+| A2 parser/balancer | Validated formula composition, charge, occurrence phase, coefficient, direction and parse-local source locators; duplicate aggregation must retain all source locators | A2 parser spec remains DRAFT; A3 consumer requirements are documented, but shared DTO and adapter call site are not approved. |
+| A4 kinetics | Keep thermodynamic K separate from kinetic parameters; equilibrium is a state constraint, not a rate law or time trajectory | A4 currently owns a closed, constant-volume, isothermal RK45 kinetic slice; an approved equilibrium-coupling interface is not present. |
+| A5 Godot | Preserve species identity/phase, units, pH basis, solid state, diagnostics, provenance/model applicability and typed failure; do not turn one equilibrium state into a time series | A5 PR #3 explicitly leaves solver-backed graphs and final result integration pending shared DTOs. |
+| Integrator / owner | Decide canonical phase enum including explicit UNSPECIFIED, Unit Registry, shared DTO/schema version, ErrorEnvelope, ReliabilityVector and single adapter owner | These decisions remain open; A3 does not own or freeze them. |
+
+### A3 integration gate
+
+Until the above shared decisions are recorded and approved, the seven fixture functions remain a reference/benchmark implementation only. The current aqueous model uses gamma=1 and concentration-based pH; the gas model uses ideal partial pressures at p°=1 bar. Neither model supplies non-ideal activities/fugacities, complexes, arbitrary reaction networks or multiple-solid equilibrium. A3-07 therefore remains open for coordination and safe handoff; it is not a claim that production integration is ready.
