@@ -91,6 +91,46 @@ public sealed class KineticsPerformanceBenchmarkTests
                     })
                 ])),
         new BenchmarkCase(
+            "first-order-output-interval-1s",
+            CreateRequest(
+                ["A", "B"],
+                [
+                    new ReactionDefinition(
+                        "A-to-B",
+                        new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                        new Dictionary<string, double> { ["A"] = 1d },
+                        new RateConstant(0.5d, 0d))
+                ],
+                new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+                [
+                    new ConservationLaw("total", new Dictionary<string, double>
+                    {
+                        ["A"] = 1d, ["B"] = 1d
+                    })
+                ],
+                endTimeSeconds: 10d,
+                outputIntervalSeconds: 1d)),
+        new BenchmarkCase(
+            "first-order-output-interval-0.125s",
+            CreateRequest(
+                ["A", "B"],
+                [
+                    new ReactionDefinition(
+                        "A-to-B",
+                        new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                        new Dictionary<string, double> { ["A"] = 1d },
+                        new RateConstant(0.5d, 0d))
+                ],
+                new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+                [
+                    new ConservationLaw("total", new Dictionary<string, double>
+                    {
+                        ["A"] = 1d, ["B"] = 1d
+                    })
+                ],
+                endTimeSeconds: 10d,
+                outputIntervalSeconds: 0.125d)),
+        new BenchmarkCase(
             "second-order-2A-to-B",
             CreateRequest(
                 ["A", "B"],
@@ -182,7 +222,8 @@ public sealed class KineticsPerformanceBenchmarkTests
         IReadOnlyDictionary<string, double> initialAmounts,
         IReadOnlyList<ConservationLaw> conservationLaws,
         double volumeM3 = 1d,
-        double endTimeSeconds = 10d) =>
+        double endTimeSeconds = 10d,
+        double? outputIntervalSeconds = null) =>
         new()
         {
             Network = new ReactionNetwork(species, reactions, conservationLaws),
@@ -190,7 +231,7 @@ public sealed class KineticsPerformanceBenchmarkTests
             VolumeM3 = volumeM3,
             StartTimeSeconds = 0d,
             EndTimeSeconds = endTimeSeconds,
-            OutputIntervalSeconds = endTimeSeconds,
+            OutputIntervalSeconds = outputIntervalSeconds ?? endTimeSeconds,
             Solver = new SolverOptions
             {
                 RelativeTolerance = 1e-8d,
