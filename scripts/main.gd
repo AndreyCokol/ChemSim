@@ -373,6 +373,7 @@ func _confirm_add_component() -> void:
 	var phase := phase_input.get_item_text(phase_input.get_selected())
 	var item_name := display_name if not display_name.is_empty() else formula
 	if editing_component_id >= 0:
+		var marker_is_placed := false
 		for index in range(components.size()):
 			if int(components[index].id) == editing_component_id:
 				components[index].name = item_name
@@ -383,8 +384,10 @@ func _confirm_add_component() -> void:
 				var marker_position: Vector2 = components[index].position
 				if marker_position.x >= 0.0 and marker_position.y >= 0.0:
 					visual_field.set_marker(editing_component_id, item_name, marker_position)
+					marker_is_placed = true
 				break
 		selected_component_id = editing_component_id
+		visual_field.select_marker(editing_component_id if marker_is_placed else -1)
 		status_label.text = "Черновик вещества обновлён: " + item_name
 	else:
 		var item := {
