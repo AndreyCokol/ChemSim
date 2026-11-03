@@ -61,6 +61,13 @@ The manifest keys AQ-01..AQ-05 correspond respectively to A3 fixtures W01..W05; 
 
 The W01–W05/G01–G02 definitions and narrow assumptions above were checked against `docs/agents/a3-equilibrium-core.md` on branch `agent/a3-equilibrium-implementation` (A3 documentation current at this review). The A3 documentation confirms that W02 is fully dissociated HCl/NaOH; source-level audit of `src/chemsim/equilibrium.py` (A3 branch, 2026-11-03) further confirms its required `kw` argument, which must not be omitted; W03 assumes an excess AgCl solid reservoir and does not invent remaining solid mass; W05 is limited to neutral AgNO₃/NaCl feeds, one AgCl(s) phase, no initial solid inventory, and paired analytical-total constraints; W04 uses nitrogen/chloride totals. This is implementation-scope evidence only, not independent scientific validation or fixture admission.
 
+
+### 3.3 AQ-02/W02 Kw candidate evidence — not admitted
+
+See `openspec/reviews/round-1/a1-kw-source-compatibility-review.md` (2026-11-03). IAPWS R11-24 (2024) and USGS PHREEQC `phreeqc.dat` offer traceable primary **source candidates** but have different standard-state/activity conventions from A3's ideal-dilute concentration Kw. The USGS database itself warns that literature-derived log K inputs may lack systematic model consistency. The IAPWS release explicitly permits document publication with attribution; that does not constitute an approved W02 numerical assertion or automatic license for each derivative property. No source/field has passed A1 scientific M or distribution R gates.
+
+**Admission is blocked** until reaction orientation, T/P, c°=1 mol/L ideal-dilute basis, safe transformation (or an independently compatible source), precision/uncertainty, provenance, version/review, and field-specific distribution rights are independently established. A3 must approve model applicability; integrator must approve typed adapter/Unit Registry; owner must approve the OpenSpec baseline. The original seven-row status remains **not admitted**.
+
 ## 4. A4 kinetic data admission sub-record
 
 If a future manifest revision adds an A4 kinetic scenario, do not reuse an equilibrium-constant row. Record separately:
@@ -107,9 +114,3 @@ For each row, populate the required fields with exact evidence references. If an
 ## 7. Current disposition
 
 All seven rows are currently **not admitted**. This is an evidence status, not a claim that the chemistry is invalid. No numerical constants, source-field pairs, licenses, or fixture payloads are selected or approved by this template.
-
-### 3.3 AQ-02/W02 Kw candidate evidence — not admitted
-
-See `openspec/reviews/round-1/a1-kw-source-compatibility-review.md` (2026-11-03). IAPWS R11-24 (2024) and USGS PHREEQC `phreeqc.dat` offer traceable primary **source candidates** but have different standard-state/activity conventions from A3's ideal-dilute concentration Kw. The USGS database itself warns that literature-derived log K inputs may lack systematic model consistency. The IAPWS release explicitly permits document publication with attribution; that does not constitute an approved W02 numerical assertion or automatic license for each derivative property. No source/field has passed A1 scientific M or distribution R gates.
-
-**Admission is blocked** until reaction orientation, T/P, c°=1 mol/L ideal-dilute basis, safe transformation (or an independently compatible source), precision/uncertainty, provenance, version/review, and field-specific distribution rights are independently established. A3 must approve model applicability; integrator must approve typed adapter/Unit Registry; owner must approve the OpenSpec baseline. The original seven-row status remains **not admitted**.
