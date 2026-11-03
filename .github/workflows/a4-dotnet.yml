@@ -87,3 +87,54 @@ jobs:
           name: a4-dotnet-test-results
           path: '**/TestResults/*.trx'
           if-no-files-found: ignore
+
+  windows-cli-smoke:
+    name: Windows x64 self-contained A4 CLI process test
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish experimental Windows x64 self-contained CLI
+        shell: pwsh
+        run: |
+          dotnet publish src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false --output "$env:RUNNER_TEMP/a4-published"
+          if ($LASTEXITCODE -ne 0) { throw "Windows self-contained publish failed" }
+
+      - name: Execute published CLI with Unicode temporary directory
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "Химия-A4-測試"
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          $request = Join-Path $dir "request.json"
+          $response = Join-Path $dir "response.json"
+          Copy-Item "tests/ChemSim.Kinetics.Tests/Fixtures/a4-synthetic-request.json" -Destination $request
+          $exe = Join-Path $env:RUNNER_TEMP "a4-published/chemsim-solver.exe"
+          if (-not (Test-Path -LiteralPath $exe)) { throw "Published CLI executable missing" }
+          & $exe --request $request --response $response
+          if ($LASTEXITCODE -ne 0) { throw "Published CLI returned nonzero exit code" }
+          if (-not (Test-Path -LiteralPath $response)) { throw "CLI response was not written" }
+          $result = Get-Content -LiteralPath $response -Encoding utf8 -Raw | ConvertFrom-Json
+          if ($result.contract_version -ne "0.1" -or $result.kind -ne "simulation_result") { throw "Unexpected response contract" }
+          if ($result.request_message_id -ne "a393bcc5-8ef0-4111-9cf8-a7f4a65fbfc6") { throw "Response request correlation failed" }
+          if ($result.outcome -ne "completed") { throw "Numerical solve did not complete" }
+          if ($result.payload.reliability.data_quality -ne "hypothetical") { throw "Synthetic fixture lost quality marker" }
+          if ($result.payload.samples.Count -ne 3) { throw "Unexpected sample count" }
+          $last = $result.payload.samples[-1]
+          if ([math]::Abs([double]$last.time_s - 1.0) -gt 0) { throw "Unexpected final time" }
+          if ([math]::Abs([double]$last.amounts_mol.A - [math]::Exp(-0.1)) -gt 0.00000005) { throw "Analytical A(t) mismatch" }
+          if ([math]::Abs([double]$last.amounts_mol.A + [double]$last.amounts_mol.B - 1.0) -gt 0.000000001) { throw "Synthetic amount conservation mismatch" }
+
+      - name: Archive experimental Windows CLI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: a4-windows-x64-cli-experimental
+          path: ${{ runner.temp }}/a4-published/*
+          if-no-files-found: error
