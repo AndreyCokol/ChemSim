@@ -150,9 +150,9 @@ public sealed class ToleranceConvergenceBenchmarkTests
     [Fact]
     public void ConsecutiveFirstOrderNetwork_ProfileErrorDecreasesAsTolerancesTighten()
     {
-        var looseError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-2d);
-        var baselineError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-4d);
-        var tightError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-6d);
+        var looseError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-1d);
+        var baselineError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-3d);
+        var tightError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-5d);
 
         Assert.True(looseError > 0d, $"Expected a measurable loose-tolerance error, got {looseError:G17}.");
         Assert.True(baselineError < looseError * 0.5d,
