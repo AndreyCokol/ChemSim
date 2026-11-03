@@ -410,7 +410,7 @@ def solve_agcl_precipitation(
 
         limiting_remaining, iterations, residual = _log_root_positive(
             saturation_of_limiting_remaining,
-            low_log10=-323.0,
+            low_log10=log10(nextafter(0.0, 1.0)),
             high_log10=log10(limiting_total),
         )
         solid = limiting_total - limiting_remaining
