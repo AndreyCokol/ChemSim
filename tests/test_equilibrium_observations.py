@@ -174,6 +174,73 @@ class A3LocalObservationsTests(unittest.TestCase):
                     for v in out["partial_pressures"].values()
                 ))
 
+
+    def test_rejects_cross_fixture_aqueous_species_and_wrong_residual_meaning(self):
+        """Wrong species roster or scientific equations must not pass as W01..W05."""
+        fixtures = _fixtures()
+        weak = fixtures["W01"]
+        w02 = fixtures["W02"]
+        w03 = fixtures["W03"]
+        w05 = fixtures["W05"]
+        bad = (
+            replace(weak, species_mol_l={**weak.species_mol_l, "Na+": 0.0}),
+            replace(weak, species_mol_l={
+                k: v for k, v in weak.species_mol_l.items() if k != "A-"
+            }),
+            replace(weak, species_mol_l=dict(w02.species_mol_l)),
+            replace(w02, diagnostics=replace(
+                w02.diagnostics, component_balance_kind="aqueous_component_balance",
+            )),
+            replace(w03, diagnostics=replace(
+                w03.diagnostics, component_balance_kind="spectator_feed_identity",
+                component_balance_unit="mol/L",
+                component_balance_residual=0.0,
+            )),
+            replace(w05, diagnostics=replace(
+                w05.diagnostics, residual_kind="aqueous_charge_equation",
+                residual_unit="mol/L",
+            )),
+            replace(w05, solid_phase_state="no_precipitate", solid_mol_l=0.0),
+        )
+        for forged in bad:
+            with self.subTest(data=repr(forged)[:100]):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    project_local_equilibrium_observations(forged)
+
+    def test_rejects_pressure_amount_ratio_mismatch_even_when_pressure_sum_matches(self):
+        """An apparently self-consistent P_total can conceal incorrect p_i/n_i."""
+        gas = _fixtures()["G01"]
+        pressures = dict(gas.partial_pressures_pa)
+        pressures["NO2"] *= 1.2
+        forged = replace(
+            gas, partial_pressures_pa=pressures,
+            total_pressure_pa=math.fsum(pressures.values()),
+        )
+        # The existing generic gas builder checks physical values and sum;
+        # A3's scientific projection now enforces the additional gas law.
+        from chemsim.equilibrium import _gas_result
+        self.assertGreater(_gas_result(
+            dict(forged.species_mol), dict(forged.partial_pressures_pa),
+            forged.total_pressure_pa, forged.extent_mol, forged.diagnostics,
+        ).total_pressure_pa, 0)
+        with self.assertRaisesRegex(EquilibriumConvergenceError, "p/n"):
+            project_local_equilibrium_observations(forged)
+
+    def test_rejects_cross_fixture_gas_species_names_and_preserves_large_gas_case(self):
+        gas = _fixtures()["G01"]
+        amounts = dict(gas.species_mol)
+        pressures = dict(gas.partial_pressures_pa)
+        amounts["fake_gas"] = amounts.pop("NO2")
+        pressures["fake_gas"] = pressures.pop("NO2")
+        forged = replace(gas, species_mol=amounts, partial_pressures_pa=pressures)
+        with self.assertRaisesRegex(EquilibriumConvergenceError, "roster"):
+            project_local_equilibrium_observations(forged)
+        # Existing extreme but finite G02 fixture also keeps the ideal p/n
+        # relationship, even with enormous amounts and T/V inputs.
+        large = solve_h2_i2_hi(1e300, 1e300, 0.0, 1e300, 1e300, 1.0)
+        output = project_local_equilibrium_observations(large)
+        self.assertEqual(output["phase"], "gas")
+
     def test_reject_forged_bad_aqueous_or_gas_result_and_unknown_input(self):
         fixtures = _fixtures()
         aqueous = fixtures["W01"]

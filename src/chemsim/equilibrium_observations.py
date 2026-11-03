@@ -9,7 +9,7 @@ unassessed, and inapplicable checks before a reviewed cross-agent mapping.
 
 from __future__ import annotations
 
-from math import isclose, log10
+from math import isclose, log, log10, ulp
 from typing import Any
 
 from chemsim.equilibrium import (
@@ -24,6 +24,117 @@ from chemsim.equilibrium import (
 )
 
 _SCOPE = "a3_local_scientific_observations_only"
+
+
+# These are local reference-fixture species rosters, *not* durable A1 SpeciesRef IDs.
+# The signature only rejects inconsistent A3 result structures; it cannot
+# authenticate chemistry identity, provenance or a general speciation network.
+_AQUEOUS_FIXTURES = {
+    frozenset(("HA", "A-", "H+", "OH-")): (
+        "W01", ("not_modelled",), "aqueous_charge_equation",
+        "aqueous_component_balance", "log-space bisection",
+    ),
+    frozenset(("H+", "OH-", "Na+", "Cl-")): (
+        "W02", ("not_modelled",), "aqueous_charge_equation",
+        "spectator_feed_identity", "log-space bisection",
+    ),
+    frozenset(("Ag+", "Cl-", "H+", "OH-")): (
+        "W03", ("reservoir_inventory_unknown",), "not_assessed",
+        "not_assessed", "closed-form ideal solubility",
+    ),
+    frozenset(("NH3", "NH4+", "H+", "OH-", "Cl-")): (
+        "W04", ("not_modelled",), "aqueous_charge_equation",
+        "aqueous_component_balance", "log-space bisection",
+    ),
+    frozenset(("Ag+", "Cl-", "Na+", "NO3-", "H+", "OH-")): (
+        "W05", ("no_precipitate", "new_precipitate"),
+        "log_saturation_index", "aqueous_component_balance", None,
+    ),
+}
+_GAS_FIXTURE_ROSTERS = (
+    frozenset(("NO2", "N2O4")),
+    frozenset(("H2", "I2(g)", "HI")),
+)
+
+
+def _validate_local_aqueous_signature(result: AqueousResult) -> None:
+    """Reject cross-fixture species/diagnostic/solid-method combinations."""
+    signature = _AQUEOUS_FIXTURES.get(frozenset(result.species_mol_l))
+    if signature is None:
+        raise EquilibriumConvergenceError(
+            "Unsupported or incomplete local aqueous fixture species roster"
+        )
+    fixture, allowed_solid_states, residual_kind, component_kind, method = signature
+    diag = result.diagnostics
+    if (
+        result.solid_phase_state not in allowed_solid_states
+        or diag.residual_kind != residual_kind
+        or diag.component_balance_kind != component_kind
+        or diag.charge_balance_kind != "aqueous_charge_balance"
+        or diag.charge_balance_unit != "mol/L"
+        or (
+            method is not None and diag.method != method
+        )
+        or (
+            fixture == "W03" and diag.residual_status != "not_assessed"
+        )
+        or (
+            fixture != "W03"
+            and fixture != "W05"
+            and diag.residual_status != "finite"
+        )
+        or (
+            fixture == "W05"
+            and (
+                diag.method != (
+                    "active-set + bisection"
+                    if result.solid_phase_state == "new_precipitate"
+                    else "inactive-solid check"
+                )
+                or (
+                    result.solid_phase_state == "new_precipitate"
+                    and diag.residual_status != "finite"
+                )
+            )
+        )
+    ):
+        raise EquilibriumConvergenceError(
+            "Local aqueous fixture diagnostics contradict its species/solid model"
+        )
+
+
+def _validate_local_gas_proportionality(result: GasResult) -> None:
+    """Check p_i / n_i equality under ONE ideal-gas T, V, without needing T/V.
+
+    Uses log differences to avoid intermediate pressure/amount ratio overflow.
+    A pressure near the subnormal float boundary has coarse relative rounding;
+    a local numerical ULP allowance avoids asserting false failure there.
+    """
+    if frozenset(result.species_mol) not in _GAS_FIXTURE_ROSTERS:
+        raise EquilibriumConvergenceError(
+            "Unsupported local gas fixture species roster"
+        )
+    ratios = []
+    for species, amount in result.species_mol.items():
+        if amount > 0.0:
+            pressure = result.partial_pressures_pa[species]
+            # Positive amount & pressure correspondence was already checked
+            # in _gas_result; this is a distinct chemical ideal-gas invariant.
+            ratios.append((
+                log(pressure) - log(amount),
+                ulp(pressure) / pressure,
+            ))
+    if not ratios:
+        raise EquilibriumConvergenceError("No positive gaseous species")
+    reference_log, reference_rounding = ratios[0]
+    for log_ratio, rounding in ratios[1:]:
+        if abs(log_ratio - reference_log) > max(
+            2.0e-12, 4.0 * (reference_rounding + rounding)
+        ):
+            raise EquilibriumConvergenceError(
+                "Local gas partial pressures violate common ideal-gas p/n ratio"
+            )
+
 
 
 def _present(value: int | float, unit_id: str) -> dict[str, Any]:
@@ -138,6 +249,7 @@ def project_local_equilibrium_observations(
             solid_mol_l=result.solid_mol_l,
             solid_phase_state=result.solid_phase_state,
         )
+        _validate_local_aqueous_signature(result)
         h = result.species_mol_l.get("H+")
         if (
             result.pH_method != "ideal_concentration_approximation"
@@ -194,6 +306,7 @@ def project_local_equilibrium_observations(
             dict(result.species_mol), dict(result.partial_pressures_pa),
             result.total_pressure_pa, result.extent_mol, diag,
         )
+        _validate_local_gas_proportionality(result)
         return {
             "scope": _SCOPE,
             "state_kind": "single_equilibrium_state",
