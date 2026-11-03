@@ -274,6 +274,32 @@ A4 опубликовал implementation-aligned consumer contract в `docs/engi
 
 Это подтверждение закрывает запрос A2 к A4 по минимальному parser-consumer набору на уровне текущей модели. Оно **не** утверждает shared Reaction DTO, canonical phase wire enum, Unit Registry, ErrorEnvelope, общую schema-version policy или adapter ownership.
 
+## P1 интеграционные тестовые векторы A2 → A4 / MVP (предложение, 2026-11-03)
+
+**Новый проверяемый mismatch при чтении A4 handoff:** A4's proposed minimum E2E scenario describes abstract `A → B`. Это корректный математический тест A4, но **не является допустимым текстовым химическим уравнением A2**: `A` не является символом элемента, а `B` обозначает бор; A2 обязан отклонить `A -> B` как `PARSE_UNKNOWN_ELEMENT` и не может сертифицировать сохранение элементов в таком исходном тексте. Для полноценного A2→A4→A5 E2E необходим отдельный химически корректный исходник; A4-specific `A→B` остаётся изолированным solver benchmark.
+
+**Предлагаемый химически корректный P1 smoke fixture:** `N2O4(g) -> 2NO2(g)`. Это *условная учебная, заведомо необратимая модель на выбранном интервале*, а не утверждение, что реальная система N₂O₄/NO₂ термодинамически необратима или что применимость закона скорости проверена. Парсер A2 должен вернуть один реагент и один продукт, фазы `GAS`, стрелку `FORWARD`, коэффициенты 1 и 2; обе проверки состава N:2 и O:4 и заряда 0 должны пройти. A2 не создаёт каталоговые IDs и не выбирает кинетику.
+
+Отдельный слой интегратора после утверждения контракта должен:
+- присвоить **различные стабильные species IDs** для N₂O₄(g) и NO₂(g), сохранив исходные `term_id` как parse-local diagnostics и occurrence phase;
+- преобразовать коэффициенты в A4 signed stoichiometry **−1, +2** (A2 передаёт только положительные коэффициенты и стороны);
+- передать **явно выбранные, не выведенные из стехиометрии** rate law `r = k × [N2O4]`, order 1 для N₂O₄, `k = 0.1 s^-1`, `V = 1 m³`, `n₀(N2O4)=1 mol`, `n₀(NO2)=0 mol`, постоянную T и подтверждённую модельную применимость; параметры численные/демонстрационные, не справочные A1;
+- проверить для этой упрощённой модели `n_N2O4(t) = exp(-0.1t) mol`, `n_NO2(t) = 2×(1−exp(-0.1t)) mol`; elemental N-invariant `2 n_N2O4+n_NO2 = 2 mol`, O-invariant `4 n_N2O4+2 n_NO2 = 4 mol`, **в пределах объявленных численных допусков**;
+- при отсутствующем k/order/units, unresolved identity/phase, ошибке charge/atom balance или несовместимом A4-host возвращать явный blocked/error status, а не запускать расчет. Источник/качество/применимость константы и форматы ошибок должны отвечать утверждённым A1/интеграторским правилам.
+
+| A2 source fixture | Проверяемые A2-инварианты | Следующий интеграционный шаг / статус |
+|---|---|---|
+| `A -> B` | `PARSE_UNKNOWN_ELEMENT`, нет допустимого FormulaAST | Нельзя использовать как A2 E2E; A4-only abstract benchmark |
+| `N2O4(g) -> 2NO2(g)` | parse success; `FORWARD`, `GAS`, coefficient 1/2; атом/заряд balanced; round trip | **P1 proposed positive E2E**, зависит от approved SpeciesRef, signed mapping, rate law, Godot↔.NET bridge |
+| `H2 + O2 -> H2O` | parse success, исходный баланс false; предложенные коэффициенты 2/1/2 без мутации входа | UI/adapter не может запускать расчет только по успешному parse |
+| `Ag+ + Cl- -> AgCl(s)` | charges +1/−1/0, product phase `SOLID`, check balance succeeds | Фаза `UNSPECIFIED` у входных ионов требует явной adapter policy; без неё не угадывать `AQUEOUS` |
+| `H2(g) + I2(g) ⇌ 2HI(g)` | reversible arrow retained, balanced, phases `GAS` | K-only не является кинетическим k; A4 irreversible time-series не запускать без отдельной утверждённой модели |
+| `H2 + H2 + O2 -> H2O` | сохраняются оба исходных локатора, solver агрегирует одинаковые входные члены без произвольного распределения коэффициента | Adapter должен сохранить source mapping; без утверждённой identity/aggregation policy блокировать |
+| `Fe^3+ + 2Cl- -> FeCl2` | element residuals 0, charge residual +1 → balance false | Не передавать как валидную реакцию в A3/A4 |
+| `H2 + O2 → H2Xx` | `PARSE_UNKNOWN_ELEMENT` и global character-index span на `Xx` | A5 должен сохранить точный источник/индексы, не переводить в UTF-8 byte offsets |
+
+**Условия выхода из P1:** интегратор утверждает contract/adapter owner и явную обработку `UNSPECIFIED`; владелец утверждает OpenSpec; A2/A4/A5 совместно запускают тесты на одном интегрированном Godot runtime и записывают SHA+CI. До этого таблица — спецификация/hand-off, не исполняемые тесты и не утверждённый DTO. A2 не пишет A4 bridge/UI, не приписывает A1 научной достоверности демо-k и не объявляет общую готовность.
+
 ## Ограничения и риски
 
 - Балансировка — ограниченный точный перебор, а не универсальный ILP solver; статус ограничения поиска не эквивалентен отсутствию решения.
