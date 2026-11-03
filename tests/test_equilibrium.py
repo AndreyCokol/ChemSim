@@ -666,7 +666,8 @@ class AqueousConservationAuditTests(unittest.TestCase):
         species = result.species_mol_l
         charge_residual = abs(math.fsum((species["Ag+"], species["H+"], -species["Cl-"], -species["OH-"])))
         self.assert_scaled_residual(charge_residual, max(species.values()))
-        self.assertEqual(result.solid_mol_l, 0.0)
+        self.assertIsNone(result.solid_mol_l)
+        self.assertEqual(result.solid_phase_state, "reservoir_inventory_unknown")
         self.assertEqual(result.diagnostics.component_balance_residual, 0.0)
 
     def test_agcl_precipitation_silver_chloride_and_charge_balances(self):
