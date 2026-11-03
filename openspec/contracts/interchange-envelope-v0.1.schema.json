@@ -51,7 +51,8 @@
             "mol/L",
             "mol/s",
             "mol/(m3*s)",
-            "J/mol"
+            "J/mol",
+            "derived"
           ]
         },
         "basis": {
@@ -76,7 +77,33 @@
           ]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "unit_id": {
+                "const": "derived"
+              }
+            },
+            "required": [
+              "unit_id"
+            ]
+          },
+          "then": {
+            "required": [
+              "basis",
+              "dimension_exponents"
+            ],
+            "properties": {
+              "dimension_exponents": {
+                "minProperties": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "For rate constants with order-dependent units, use unit_id=derived, explicit basis and dimension_exponents (canonical SI base dimensions); consumers validate exponents against rate law."
     },
     "Availability": {
       "type": "object",
@@ -393,7 +420,8 @@
             "numerical_failure",
             "invariant_violation",
             "cancelled",
-            "partial"
+            "partial",
+            "completed_with_warnings"
           ]
         },
         "payload": {
