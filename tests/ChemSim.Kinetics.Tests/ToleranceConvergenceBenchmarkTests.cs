@@ -335,8 +335,8 @@ public sealed class ToleranceConvergenceBenchmarkTests
     {
         const double initialA = 4d;
         const double volume = 2d;
-        const double rateConstant = 0.4d;
-        const double endTime = 1d;
+        const double rateConstant = 0.6d;
+        const double endTime = 2d;
 
         var network = new ReactionNetwork(
             ["A", "B"],
