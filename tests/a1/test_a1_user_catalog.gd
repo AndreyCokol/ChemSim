@@ -16,6 +16,7 @@ func _run() -> void:
 	_test_provenance_and_false_promotion()
 	_test_snapshot_version_and_json_guards()
 	_test_real_file_round_trip()
+	_test_disk_history_and_recovery_guards()
 	if failures.is_empty():
 		print("PASS: A1 local draft catalog revisions, provenance and disk round-trip")
 		quit(0)
@@ -219,6 +220,75 @@ func _ok(result: Dictionary, description: String) -> void:
 func _code(result: Dictionary, expected: String, description: String) -> void:
 	_expect(result.get("ok", true) == false and result.get("errors", []).has(expected),
 		description + "; expected " + expected + "; got " + str(result.get("errors", [])))
+
+
+func _test_disk_history_and_recovery_guards() -> void:
+	var path: String = Catalog.TEST_PATH
+	var backup_path: String = path + ".bak"
+	var temp_path: String = path + ".tmp"
+	for candidate in [path, backup_path, temp_path]:
+		if FileAccess.file_exists(candidate):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(candidate))
+
+	var first: Dictionary = Catalog.append_draft(Catalog.empty_document(), _draft(), 0)["document"]
+	var second_row: Dictionary = _draft()
+	second_row["record_revision"] = 2
+	second_row["display_name"] = "Second revision, must not be lost"
+	second_row["provenance"]["updated_at_utc"] = "2026-11-03T18:00:00Z"
+	var second: Dictionary = Catalog.append_draft(first, second_row, 1)["document"]
+	_ok(Catalog.save_local(first, true), "first on-disk snapshot")
+	_ok(Catalog.save_local(second, true), "second on-disk snapshot")
+	var saved_bytes: String = FileAccess.get_file_as_string(path)
+	var backup_bytes: String = FileAccess.get_file_as_string(backup_path)
+
+	_code(Catalog.save_local(first, true), "A1_CATALOG_DISK_HISTORY_CONFLICT", "stale writer cannot discard revision 2")
+	_expect(FileAccess.get_file_as_string(path) == saved_bytes, "failed stale save leaves newer primary untouched")
+	_expect(FileAccess.get_file_as_string(backup_path) == backup_bytes, "failed stale save leaves backup untouched")
+
+	var rewritten: Dictionary = second.duplicate(true)
+	rewritten["records"][0]["display_name"] = "Rewritten old revision"
+	_code(Catalog.save_local(rewritten, true), "A1_CATALOG_DISK_HISTORY_CONFLICT", "append cannot rewrite past revisions")
+	_expect(FileAccess.get_file_as_string(path) == saved_bytes, "history mismatch preserves current file")
+
+	var idempotent: Dictionary = Catalog.save_local(second, true)
+	_ok(idempotent, "saving the exact current document is idempotent")
+	_expect(idempotent.get("unchanged", false) == true, "idempotent save avoids destructive backup rotation")
+	_expect(FileAccess.get_file_as_string(backup_path) == backup_bytes, "idempotent save retains backup")
+
+	var preview: Dictionary = Catalog.load_local_backup(true)
+	_ok(preview, "backup is readable without replacing current file")
+	_expect(preview.get("document", {}) == first, "read-only backup contains the previous snapshot")
+	_expect(Catalog.load_local(true).get("document", {}) == second, "preview does not roll back current history")
+
+	# The store must never silently promote an unsupported/corrupted current
+	# catalog into a new file; explicit recovery remains an application task.
+	var disk: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if disk == null:
+		_expect(false, "test can write dedicated primary to simulate future version")
+	else:
+		disk.store_string('{"schema_version":2,"records":[]}')
+		disk.close()
+	_code(Catalog.save_local(second, true), "A1_CATALOG_DISK_INVALID", "future-schema file cannot be overwritten")
+	_expect(FileAccess.get_file_as_string(path) == '{"schema_version":2,"records":[]}', "unknown-version bytes preserved")
+	_expect(FileAccess.get_file_as_string(backup_path) == backup_bytes, "future-schema failure keeps backup")
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_code(Catalog.save_local(second, true), "A1_CATALOG_RECOVERY_REQUIRED", "backup without primary requires explicit recovery")
+	_expect(FileAccess.get_file_as_string(backup_path) == backup_bytes, "orphaned backup not automatically replaced")
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_path))
+	var interrupted: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
+	if interrupted == null:
+		_expect(false, "test can stage only its dedicated test temp file")
+	else:
+		interrupted.store_string("interrupted-save-evidence")
+		interrupted.close()
+	_code(Catalog.save_local(first, true), "A1_CATALOG_RECOVERY_REQUIRED", "orphaned staged file not erased")
+	_expect(FileAccess.get_file_as_string(temp_path) == "interrupted-save-evidence", "interrupted staging evidence preserved")
+
+	for candidate in [path, backup_path, temp_path]:
+		if FileAccess.file_exists(candidate):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(candidate))
 
 
 func _expect(condition: bool, description: String) -> void:
