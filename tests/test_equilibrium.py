@@ -378,6 +378,20 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["NH3"], 1.0, delta=1.0e-8)
         self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
 
+    def test_ammonia_mass_balance_diagnostic_does_not_overflow_near_float_max(self):
+        total = float.fromhex("0x1.fffffffffffffp+1023")
+        # For an NH4Cl-only feed, this Ka gives a small but representable
+        # NH3 fraction while NH4+ rounds close to the full nitrogen inventory.
+        ratio = 4.388057732427192e-5
+        ka_nh4 = ratio * ratio * total
+        result = solve_ammonia_buffer(total, total, ka_nh4, 1.0e-14)
+
+        self.assertTrue(math.isfinite(result.species_mol_l["NH3"]))
+        self.assertTrue(math.isfinite(result.species_mol_l["NH4+"]))
+        self.assertTrue(math.isfinite(result.diagnostics.component_balance_residual))
+        self.assertLess(result.diagnostics.component_balance_residual, total * 1.0e-13)
+        self.assertTrue(math.isfinite(result.diagnostics.charge_balance_residual))
+
     def test_ammonium_only_solution_is_acidic(self):
         result = solve_ammonia_buffer(0.01000, 0.01000, 10 ** -9.245, 1.0e-14)
         self.assertLess(result.pH, 7.0)
