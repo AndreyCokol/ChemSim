@@ -37,7 +37,7 @@ if parsed.ok:
     var proposal := balancer.propose_balance(parsed.reaction)
 ```
 
-Parsing never changes coefficients and never balances implicitly. `check_balance` validates entered coefficients. `propose_balance` returns a separate proposal. Canonical serializers reparse and validate FormulaAST data; they return an empty string for malformed or stale DTOs rather than serializing a mutated node tree.
+Parsing never changes coefficients and never balances implicitly. `check_balance` validates entered coefficients. `propose_balance` returns a separate proposal. Canonical serializers reparse and validate FormulaAST data; they return an empty string for malformed or stale DTOs rather than serializing a mutated node tree. Generated `term_id` values currently use the term's source-character offset and are only parse-local locators; they are not stable across whitespace or text edits. Callers that need persistent source-term identity must manage a stable ID outside the current parser API until the shared DTO/API contract is approved.
 
 ## Balancer guarantees and limits
 
