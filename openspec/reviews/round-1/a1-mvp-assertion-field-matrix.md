@@ -34,17 +34,17 @@ A1 distinguishes immutable assertion **origin** (`curated_reference`, `experimen
 
 ## 3. P1 first-slice selection: AQ-02 / A3 W02 (candidate, **not admitted**)
 
-A3's current W02 fixture is **fully dissociated HCl/NaOH with spectator ions**, not a generic aqueous-equilibrium API. It does not consume a weak-acid/base Ka/Kb property in that fixture. This makes it a useful candidate for the *first identity + user-input + unit/provenance + result-qualifier* integration slice, **without** first selecting a literature Ka/Ksp/Kp numerical record. This is a priority suggestion, not permission to omit any parameter W02 actually requires (including a water-ionization/temperature convention if the exact implementation needs one).
+A3's current W02 fixture is **fully dissociated HCl/NaOH with spectator ions**, not a generic aqueous-equilibrium API. Its exact Python signature is `solve_strong_neutralization(hcl_mol_l, naoh_mol_l, kw)`: it **requires a finite positive Kw** (water autoionization) even though it consumes no weak-acid/base Ka/Kb. This is a promising narrow *identity + typed Kw + user-input + provenance + result-qualifier* integration slice, **not a constant-free case**. A reference-backed Kw with source, standard state and temperature applicability is therefore a P1 blocker for benchmark admission.
 
 Before any smoke test or benchmark admission:
-1. Verify actual W02 input parameter/required-constant contract on the exact A3 head, and record the model version. No assumption that W02 requires *zero* thermodynamic inputs.
+1. Verified A3 source signature `solve_strong_neutralization(hcl_mol_l, naoh_mol_l, kw)` on branch `agent/a3-equilibrium-implementation` (2026-11-03). Record the exact source commit/model version at integration time. Validate `hcl_mol_l` and `naoh_mol_l` as finite nonnegative inputs with at least one positive; `kw` must be finite and positive and mapped from a compatible dimensionless Kw assertion under the A3 `c°=1 mol/L`, `gamma=1` convention. Do not use unitless sample test literals as catalog-certified Kw.
 2. A2 must validate formula, composition and charge; preserve explicit `aq` occurrence phase, spectator-ion mapping, source terms, and a reliable bridge between formula/term descriptors and selected catalog identities. A2 owns parsing; the integrator owns the adapter.
 3. Explicitly specify nonnegative, finite input *scenario* quantities with units and source `user_defined` status, volume if needed to convert amount/concentration, and exact analytical total / electroneutrality constraints. Do not copy source-property provenance rules onto raw user-entered feed amounts or label the feeds reference data.
 4. Preserve A3's `idealized_approximation`, concentration-based pH label, concentrations in mol/L, conservation/charge residual units and termination status. A3's one equilibrium state is **not** an A4 time trajectory or graph.
 5. For a **reference-backed benchmark fixture** or redistributable catalog release, independently verify its input assertions, exact reference values and applicable field-specific rights; an exploratory user-input smoke test does not meet this evidence gate.
 6. Integrator must approve one phase vocabulary, schema/version contract, Unit Registry, ErrorEnvelope, result reliability and call-site mapping; owner must approve OpenSpec baseline before implementation.
 
-**Current status:** `AQ-02 / W02 = NOT ADMITTED`; no validated numeric inputs, source records, rights, adapter or E2E run are claimed. This is a scoped pathway for reducing P1 integration risk, not a replacement for the seven-row admission register.
+**Current status:** `AQ-02 / W02 = NOT ADMITTED`; no validated typed Kw source/conditions/rights, numeric inputs, adapter or E2E run are claimed. This is a scoped pathway for reducing P1 integration risk, not a replacement for the seven-row admission register.
 
 ## 4. Acceptance scenarios — specification only, **none executed**
 
