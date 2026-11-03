@@ -392,6 +392,12 @@ class GasBenchmarkTests(unittest.TestCase):
         p_i2 = result.partial_pressures_pa["I2(g)"] / 100_000.0
         self.assertAlmostEqual((p_hi * p_hi) / (p_h2 * p_i2), 690.2, delta=1e-5)
 
+    def test_rejects_positive_gas_partial_pressure_below_float_range(self):
+        with self.assertRaises(EquilibriumConvergenceError):
+            solve_h2_i2_hi(
+                1.0e-100, 1.0e-100, 0.0, 1.0e-100, 1.0e300, 1.0
+            )
+
     def test_rejects_finite_inputs_that_overflow_output_pressures(self):
         with self.assertRaises(EquilibriumConvergenceError):
             solve_h2_i2_hi(
