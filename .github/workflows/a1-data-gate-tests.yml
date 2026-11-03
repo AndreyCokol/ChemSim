@@ -37,3 +37,5 @@ jobs:
         run: godot --headless --path . --script res://tests/a1/test_a1_hazard_gate.gd
       - name: Run A1 strict registered-unit tests
         run: godot --headless --path . --script res://tests/a1/test_a1_unit_gate.gd
+      - name: Run A1 independent source-admission boundary tests
+        run: godot --headless --path . --script res://tests/a1/test_a1_source_admission_gate.gd
