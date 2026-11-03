@@ -155,7 +155,7 @@ func _run() -> void:
 	assert(main.components.size() == 2, "Editing must update the existing component without adding another")
 	assert(main.components[0].unit == "custom unit" and main.components[0].phase == "custom phase", "Editing other fields must not discard custom unit or phase values")
 	assert(main.selected_component_id == added_id, "The edited component should remain selected in the composition")
-	assert(main.visual_field.selected_marker_id == added_id, "Editing a placed component should synchronize visual-marker selection")
+	assert(main.visual_field.selected_marker_id == -1, "Editing an unplaced component must not select a phantom marker")
 	main._remove_component(2)
 	assert(main.components.size() == 1, "Removing the temporary second component should restore the one-component fixture")
 
