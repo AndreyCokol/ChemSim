@@ -2,10 +2,12 @@ extends SceneTree
 
 const Parser = preload("res://src/chemistry/a2/chem_equation_parser.gd")
 const Balancer = preload("res://src/chemistry/a2/chem_reaction_balancer.gd")
+const SpanCodec = preload("res://src/chemistry/a2/chem_source_span.gd")
 
 func _initialize() -> void:
 	_test_formula_ast()
 	_test_contract_v01_lexer_vectors()
+	_test_source_span_utf8_conversion()
 	_test_reaction_boundaries()
 	_test_nested_and_round_trip()
 	_test_negative_cases()
@@ -90,6 +92,85 @@ func _test_contract_v01_lexer_vectors() -> void:
 	assert(no_arrow.code == "PARSE_MISSING_ARROW")
 	assert(no_arrow.source_span.start_offset == 7)
 	assert(no_arrow.source_span.end_offset == 7)
+
+
+func _test_source_span_utf8_conversion() -> void:
+	# Verify A2's Godot-character offsets and the integrator's UTF-8 byte
+	# offsets without changing or normalizing the original source.
+	var parser = Parser.new()
+	var cyrillic_source := "H2 + O2 → H2Ж"
+	var parsed: Dictionary = parser.parse_reaction(cyrillic_source)
+	assert(not parsed.ok)
+	assert(parsed.code == "PARSE_UNEXPECTED_TOKEN")
+	assert(parsed.source_span == {"start_offset": 12, "end_offset": 13})
+	var converted: Dictionary = SpanCodec.to_utf8_byte_span(cyrillic_source, parsed.source_span)
+	assert(converted.ok)
+	assert(converted.source_span == {"utf8_byte_start": 14, "utf8_byte_end": 16})
+	var reversed: Dictionary = SpanCodec.to_character_span(cyrillic_source, converted.source_span)
+	assert(reversed.ok)
+	assert(reversed.source_span == parsed.source_span)
+
+	var unknown_source := "H2 + O2 → H2Xx"
+	var unknown: Dictionary = parser.parse_reaction(unknown_source)
+	assert(not unknown.ok)
+	assert(unknown.code == "PARSE_UNKNOWN_ELEMENT")
+	var unknown_bytes: Dictionary = SpanCodec.to_utf8_byte_span(unknown_source, unknown.source_span)
+	assert(unknown_bytes.ok)
+	assert(unknown_bytes.source_span == {"utf8_byte_start": 14, "utf8_byte_end": 15})
+
+	var missing_arrow_source := "H2 + O2"
+	var missing_arrow: Dictionary = parser.parse_reaction(missing_arrow_source)
+	assert(not missing_arrow.ok)
+	var insertion: Dictionary = SpanCodec.to_utf8_byte_span(missing_arrow_source, missing_arrow.source_span)
+	assert(insertion.ok)
+	assert(insertion.source_span == {"utf8_byte_start": 7, "utf8_byte_end": 7})
+	assert(SpanCodec.to_character_span(missing_arrow_source, insertion.source_span).source_span == missing_arrow.source_span)
+
+	var no_sign_source := "Fe^3"
+	var no_sign: Dictionary = parser.parse_formula(no_sign_source)
+	assert(not no_sign.ok)
+	assert(no_sign.source_span == {"start_offset": 4, "end_offset": 4})
+	var no_sign_bytes: Dictionary = SpanCodec.to_utf8_byte_span(no_sign_source, no_sign.source_span)
+	assert(no_sign_bytes.ok)
+	assert(no_sign_bytes.source_span == {"utf8_byte_start": 4, "utf8_byte_end": 4})
+
+	# A multibyte UTF-8 scalar must not be truncated or mapped into the
+	# wrong character. This check is independent of chemical input grammar.
+	var emoji_source := "H2😀O"
+	var emoji_bytes: Dictionary = SpanCodec.to_utf8_byte_span(emoji_source, {"start_offset": 2, "end_offset": 3})
+	assert(emoji_bytes.ok)
+	assert(emoji_bytes.source_span == {"utf8_byte_start": 2, "utf8_byte_end": 6})
+	assert(SpanCodec.to_character_span(emoji_source, emoji_bytes.source_span).source_span == {"start_offset": 2, "end_offset": 3})
+	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 3, "utf8_byte_end": 6}).ok)
+	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 2, "utf8_byte_end": 5}).ok)
+	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 6, "utf8_byte_end": 2}).ok)
+	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 6, "utf8_byte_end": 7}).ok)
+	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": "2", "utf8_byte_end": 6}).ok)
+	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 2, "utf8_byte_end": 6.0}).ok)
+
+	var insertion_after_emoji: Dictionary = SpanCodec.to_utf8_byte_span(emoji_source, {"start_offset": 3, "end_offset": 3})
+	assert(insertion_after_emoji.ok)
+	assert(insertion_after_emoji.source_span == {"utf8_byte_start": 6, "utf8_byte_end": 6})
+	assert(SpanCodec.to_character_span(emoji_source, insertion_after_emoji.source_span).source_span == {"start_offset": 3, "end_offset": 3})
+
+	# Fail closed on missing, reversed, out-of-bounds and non-integer ranges.
+	var invalid_spans: Array = [
+		{},
+		{"start_offset": -1, "end_offset": 0},
+		{"start_offset": 2, "end_offset": 1},
+		{"start_offset": 0, "end_offset": 5},
+		{"start_offset": "2", "end_offset": 3},
+		{"start_offset": 2.0, "end_offset": 3}
+	]
+	for invalid_span in invalid_spans:
+		var result: Dictionary = SpanCodec.to_utf8_byte_span(emoji_source, invalid_span)
+		assert(not result.ok)
+		assert(result.code == "A2_INVALID_SOURCE_SPAN")
+	assert(not SpanCodec.to_character_span(emoji_source, {}).ok)
+
+	# Conversion is deterministic and must not change the source text.
+	assert(cyrillic_source == "H2 + O2 → H2Ж")
+	assert(emoji_source == "H2😀O")
 
 
 func _test_reaction_boundaries() -> void:
