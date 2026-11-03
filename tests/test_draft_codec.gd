@@ -67,7 +67,9 @@ func _initialize() -> void:
 	assert(not DraftCodec.decode_payload(approximate_unplaced_position).ok, "Unplaced marker sentinel values must match exactly")
 
 	var invalid_component := payload.duplicate(true)
-	invalid_component.components[0] = "not-a-dictionary"
+	var malformed_components: Array = invalid_component.components.duplicate(true)
+	malformed_components[0] = "not-a-dictionary"
+	invalid_component.components = malformed_components
 	assert(not DraftCodec.decode_payload(invalid_component).ok, "Malformed component records must be rejected")
 	var invalid_component_field := payload.duplicate(true)
 	invalid_component_field.components[0].name = 123
