@@ -299,9 +299,18 @@ func _initialize() -> void:
 	main.io_error_dialog.hide()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_as_path))
 
+	# Deleting a component during an active marker drag must remove both the
+	# model and the visual drag handle, preventing a ghost marker on mouse move.
+	main._select_component_for_placement(added_id)
+	main.visual_field.dragging_marker_id = added_id
 	main._remove_component(added_id)
 	assert(main.components.is_empty(), "Removing a component should delete its draft record")
 	assert(main.visual_field.markers.is_empty(), "Removing a component should remove its marker")
+	assert(main.visual_field.dragging_marker_id == -1, "Deleting a dragged component must stop its visual drag")
+	var deleted_component_motion := InputEventMouseMotion.new()
+	deleted_component_motion.position = Vector2(80, 90)
+	main.visual_field._gui_input(deleted_component_motion)
+	assert(main.visual_field.markers.is_empty(), "Mouse motion after component deletion must not resurrect a visual marker")
 	assert(main.draft_dirty, "Removing a component should mark the draft dirty")
 	assert(main.selected_component_id == -1, "Removing the selected component must clear model selection")
 	assert(main.visual_field.selected_marker_id == -1, "Removing the selected component must clear visual selection")
