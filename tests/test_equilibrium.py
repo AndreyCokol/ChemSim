@@ -35,6 +35,11 @@ class AqueousResultValidationTests(unittest.TestCase):
                 with self.assertRaises(EquilibriumConvergenceError):
                     _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
 
+    def test_rejects_negative_iteration_count(self):
+        diagnostics = SolverDiagnostics(-1, 0.0, 0.0, 0.0, "test", "mol/L")
+        with self.assertRaises(EquilibriumConvergenceError):
+            _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
+
 
 class ScaledFractionRobustnessTests(unittest.TestCase):
     def test_ratio_underflow_does_not_erase_representable_scaled_fraction(self):
