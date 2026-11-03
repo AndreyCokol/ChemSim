@@ -52,14 +52,22 @@ def _diagnostic(
             raise EquilibriumConvergenceError("Present diagnostic requires quantity/unit")
         availability = _present(value, unit_id)
     else:
-        if value is not None or unit_id is not None:
+        # A defined *dimensionless* mathematical check can have no finite
+        # value at a domain boundary while still retaining its unit.
+        # Unit metadata is not a measured Quantity.
+        if value is not None or (
+            unit_id is not None and unit_id not in ("mol/L", "mol", "Pa", "1")
+        ):
             raise EquilibriumConvergenceError("Unavailable diagnostic cannot carry quantity")
         availability = _absent(availability_status)
-    return {
+    diagnostic = {
         "kind": kind,
         "domain_status": domain_status,
         "availability": availability,
     }
+    if unit_id is not None:
+        diagnostic["declared_unit_id"] = unit_id
+    return diagnostic
 
 
 def _observed_diagnostics(diag: SolverDiagnostics) -> dict[str, Any]:

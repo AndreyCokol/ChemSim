@@ -140,7 +140,9 @@ class A3LocalObservationsTests(unittest.TestCase):
         primary = zero_ion["diagnostics"]["primary"]
         self.assertEqual(primary["kind"], "log_saturation_index")
         self.assertEqual(primary["domain_status"], "zero_ion_activity")
+        self.assertEqual(primary["declared_unit_id"], "1")
         self.assertEqual(primary["availability"], {"status": "not_applicable"})
+        self.assertNotIn("quantity", primary["availability"])
 
     def test_gas_amount_pressures_and_no_fabricated_pH_or_charge(self):
         for name in ("G01", "G02"):
