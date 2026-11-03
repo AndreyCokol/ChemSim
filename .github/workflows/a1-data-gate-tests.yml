@@ -35,3 +35,5 @@ jobs:
         run: godot --headless --path . --script res://tests/a1/test_a1_user_catalog.gd
       - name: Run A1 scoped hazard metadata tests
         run: godot --headless --path . --script res://tests/a1/test_a1_hazard_gate.gd
+      - name: Run A1 strict registered-unit tests
+        run: godot --headless --path . --script res://tests/a1/test_a1_unit_gate.gd
