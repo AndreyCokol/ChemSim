@@ -189,12 +189,23 @@ def _log_root_positive(
     the usual chemistry-scale interval. Bounds stop at representable positive
     float magnitudes rather than silently imposing a 1e-30..1e2 M domain.
     """
-    min_log10 = -323.0
+    # Include the smallest positive subnormal float, not merely 1e-323.
+    min_log10 = log10(nextafter(0.0, 1.0))
     max_log10 = 308.0
     low = max(min_log10, low_log10)
     high = min(max_log10, high_log10)
-    if low >= high:
+    if low > high:
+        if high_log10 < min_log10:
+            raise EquilibriumConvergenceError("Positive concentration root is below float range")
         raise EquilibriumInputError("Log-root bounds must be finite and ordered")
+    if low == high:
+        candidate = 10.0**low
+        candidate_residual = fn(candidate)
+        if candidate_residual == 0.0:
+            return candidate, 0, candidate_residual
+        raise EquilibriumConvergenceError(
+            "Positive concentration root cannot be represented within float range"
+        )
 
     while True:
         f_low = fn(10.0**low)
