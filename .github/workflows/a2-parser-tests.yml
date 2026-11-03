@@ -1,0 +1,55 @@
+name: A2 parser and balancer tests
+
+on:
+  pull_request:
+    paths:
+      - "src/chemistry/a2/**"
+      - "tests/a2/**"
+      - ".github/workflows/a2-parser-tests.yml"
+
+concurrency:
+  group: a2-parser-tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  godot-headless:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Create temporary Godot project descriptor
+        run: |
+          cat > project.godot <<'EOF'
+          config_version=5
+          [application]
+          config/name="ChemSim A2 Tests"
+          [rendering]
+          renderer/rendering_method="gl_compatibility"
+          EOF
+      # Godot 4.3 may exit 0 after printing SCRIPT ERROR from a failed
+      # assert(). Merely trusting the process exit status produces false
+      # greens; scan BOTH import and test output, then check the pass marker.
+      - name: Import project and parse scripts (strict)
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --editor --path . --quit 2>&1 | tee a2-import.log
+          if grep -nE 'SCRIPT ERROR:|ERROR:|Parse Error:|Assertion failed' a2-import.log; then
+            echo "::error::Godot project import reported a script/parser error"
+            exit 1
+          fi
+      - name: Run A2 parser and balancer tests (strict)
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/a2/test_a2_parser_balancer.gd 2>&1 | tee a2-tests.log
+          if grep -nE 'SCRIPT ERROR:|ERROR:|Parse Error:|Assertion failed' a2-tests.log; then
+            echo "::error::A2 tests emitted assertion or Godot script errors despite their exit code"
+            exit 1
+          fi
+          if ! grep -Fq 'A2 tests: all assertions passed' a2-tests.log; then
+            echo "::error::A2 test completion marker missing"
+            exit 1
+          fi
