@@ -141,12 +141,11 @@ The following analytic/non-stiff cases now have executable regression coverage i
 | KIN-06 | ParallelFirstOrderPathways_MatchAnalyticalProfileAndBranchingRatio | Competing pathways, all output samples, positivity, invariant and branching ratio |
 | KIN-07 | Integrator_DoesNotTruncateIntervalAtLargeAbsoluteTime | Large absolute timestamp / short elapsed interval |
 | KIN-08 | FractionalOrder_ExtentRateDoesNotUnderflowThroughIntermediateConcentration | Extreme-scale fractional-order extent-rate underflow regression |
-
 | TOL-01 | FirstOrderReaction_ProfileErrorDecreasesAsTolerancesTighten | Loose/baseline/tight relative-tolerance sweep; maximum analytical profile error must clearly decrease without wall-clock thresholds |
 
 Exact validated A4 source/test head: a417ef73fbf96366cbacd4f2b7c9223365a9cece. GitHub Actions run 41608390859 passed .NET 10 Restore, Build and Test on that head. The test cases establish correctness coverage for the listed individual fixtures; they do not yet constitute the full tolerance-convergence campaign or a measured performance report.
 
-The stiff reference cases STIFF-01 and STIFF-02 remain diagnostic benchmark work. No independent reference trajectory, controlled performance comparison, or implicit-method selection is claimed at this checkpoint.
+STIFF-01 now has a provisional Radau/BDF cross-check stored in `docs/engineering/benchmarks/robertson-stiff-reference.csv`; STIFF-02 has a closed-form analytic reference. No controlled performance comparison or implicit-method selection is claimed at this checkpoint.
 
 ## Limitations
 
