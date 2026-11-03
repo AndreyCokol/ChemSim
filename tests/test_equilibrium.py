@@ -358,6 +358,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         result = solve_ammonia_buffer(1.0e308, 1.0e308, 1.0e-308, 1.0e-14)
         self.assertGreater(result.species_mol_l["NH3"], 0.0)
         self.assertAlmostEqual(result.species_mol_l["NH3"], 1.0, delta=1.0e-8)
+        self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
 
     def test_ammonium_only_solution_is_acidic(self):
         result = solve_ammonia_buffer(0.01000, 0.01000, 10 ** -9.245, 1.0e-14)
