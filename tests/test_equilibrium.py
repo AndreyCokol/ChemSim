@@ -349,6 +349,16 @@ class AqueousBenchmarkTests(unittest.TestCase):
         with self.assertRaises(EquilibriumInputError):
             solve_strong_neutralization(0.0, 0.0, 1.0e-14)
 
+    def test_weak_acid_minor_undissociated_species_survives_large_total(self):
+        result = solve_weak_acid(1.0e100, 1.0e308, 1.0e-14)
+        self.assertGreater(result.species_mol_l["HA"], 0.0)
+        self.assertAlmostEqual(result.species_mol_l["HA"], 1.0e-108, delta=1.0e-108 * 1.0e-8)
+
+    def test_ammonia_buffer_minor_nh3_survives_large_total(self):
+        result = solve_ammonia_buffer(1.0e308, 1.0e308, 1.0e-308, 1.0e-14)
+        self.assertGreater(result.species_mol_l["NH3"], 0.0)
+        self.assertAlmostEqual(result.species_mol_l["NH3"], 1.0e7, delta=1.0e7 * 1.0e-8)
+
     def test_ammonium_only_solution_is_acidic(self):
         result = solve_ammonia_buffer(0.01000, 0.01000, 10 ** -9.245, 1.0e-14)
         self.assertLess(result.pH, 7.0)
