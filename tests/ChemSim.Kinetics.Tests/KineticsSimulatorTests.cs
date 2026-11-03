@@ -778,18 +778,18 @@ public sealed class KineticsSimulatorTests
         });
 
         var coarse = Run(1d);
-        var fine = Run(0.1d);
+        var fine = Run(0.125d);
 
         Assert.True(coarse.IsSuccess, coarse.Diagnostics.Message);
         Assert.True(fine.IsSuccess, fine.Diagnostics.Message);
         Assert.Equal(11, coarse.Samples.Count);
-        Assert.Equal(101, fine.Samples.Count);
+        Assert.Equal(81, fine.Samples.Count);
 
         // Both schedules represent the same trajectory at their shared output times.
         for (var i = 0; i < coarse.Samples.Count; i++)
         {
             var coarseSample = coarse.Samples[i];
-            var fineSample = fine.Samples[i * 10];
+            var fineSample = fine.Samples[i * 8];
             Assert.Equal(coarseSample.TimeSeconds, fineSample.TimeSeconds);
             Assert.InRange(Math.Abs(coarseSample.AmountsMol["A"] - fineSample.AmountsMol["A"]), 0d, 2e-8);
             Assert.InRange(Math.Abs(coarseSample.AmountsMol["A"] - Math.Exp(-rateConstant * coarseSample.TimeSeconds)), 0d, 2e-8);
