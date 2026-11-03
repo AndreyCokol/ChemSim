@@ -201,6 +201,35 @@ class AqueousBenchmarkTests(unittest.TestCase):
             ksp, delta=ksp * 1.0e-10,
         )
 
+    def test_agcl_precipitation_handles_near_stoichiometric_feeds_and_small_positive_excess(self):
+        ksp = 1.0e-24
+        chloride = 1.0e-2
+        # Both excesses are representable at this feed scale. The first is
+        # comparable to the dissolved root; the second is much smaller.
+        for excess in (1.0e-12, 1.0e-16):
+            with self.subTest(excess=excess):
+                silver = chloride + excess
+                actual_excess = silver - chloride
+                expected_cl = (
+                    2.0 * ksp
+                    / (actual_excess + math.sqrt(actual_excess * actual_excess + 4.0 * ksp))
+                )
+                result = solve_agcl_precipitation(
+                    silver, chloride, chloride, silver, ksp, 1.0e-14
+                )
+                ag = result.species_mol_l["Ag+"]
+                cl = result.species_mol_l["Cl-"]
+                self.assertAlmostEqual(cl, expected_cl, delta=expected_cl * 1.0e-10)
+                self.assertAlmostEqual(ag, actual_excess + expected_cl, delta=expected_cl * 1.0e-10)
+                self.assertAlmostEqual(ag * cl, ksp, delta=ksp * 1.0e-10)
+                self.assertAlmostEqual(
+                    cl + result.solid_mol_l, chloride, delta=math.ulp(chloride) * 2.0
+                )
+                self.assertAlmostEqual(
+                    ag + result.solid_mol_l, silver, delta=math.ulp(silver) * 2.0
+                )
+                self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
+
     def test_precipitation_is_inactive_when_undersaturated(self):
         result = solve_agcl_precipitation(
             1e-6, 1e-6, 1e-6, 1e-6, 10 ** -9.748, 1e-14
