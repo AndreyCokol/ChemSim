@@ -65,5 +65,23 @@ func _initialize() -> void:
 	assert(Vector2(field.markers[0].position).is_equal_approx(Vector2(0.97, 0.95)), "Marker coordinates must remain clamped")
 	field.remove_marker(7)
 	assert(field.markers.is_empty(), "Removing a marker should clear it from the visual field")
+
+	# If a component is deleted while its marker is actively being dragged,
+	# later mouse motion must not resurrect an orphan marker in the view.
+	field.set_marker(9, "Удаляемый", Vector2(0.5, 0.5))
+	var deletion_mouse_down := InputEventMouseButton.new()
+	deletion_mouse_down.button_index = MOUSE_BUTTON_LEFT
+	deletion_mouse_down.pressed = true
+	deletion_mouse_down.position = Vector2(50, 50)
+	field._gui_input(deletion_mouse_down)
+	assert(field.dragging_marker_id == 9, "Pressing a marker should begin a drag before deletion")
+	field.remove_marker(9)
+	assert(field.dragging_marker_id == -1, "Removing the dragged marker must end the drag")
+	assert(field.selected_marker_id == -1, "Removing the dragged marker must clear selection")
+	var motion_after_deletion := InputEventMouseMotion.new()
+	motion_after_deletion.position = Vector2(60, 60)
+	field._gui_input(motion_after_deletion)
+	assert(field.markers.is_empty(), "Mouse motion after deletion must not recreate the marker")
+	assert(not field.move_marker_by(9, Vector2.RIGHT, 0.01), "Deleted markers must not remain keyboard-movable")
 	print("Visual field tests passed")
 	quit(0)
