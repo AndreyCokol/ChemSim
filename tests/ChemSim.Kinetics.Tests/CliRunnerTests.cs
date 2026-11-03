@@ -155,6 +155,46 @@ public sealed class CliRunnerTests
         Assert.False(File.Exists(result.OutputPath));
     }
 
+    [Theory]
+    [InlineData(1_048_576, true)]
+    [InlineData(1_048_577, false)]
+    [InlineData(1_048_576 + 8192, false)]
+    public void InputByteLimit_IsEnforcedAtBoundary_WithoutWritingOversizedResponse(
+        int requestedBytes, bool shouldAccept)
+    {
+        var sourceBytes = System.Text.Encoding.UTF8.GetByteCount(ValidRequest);
+        Assert.True(sourceBytes < 1_048_576);
+
+        // JSON permits trailing whitespace. Keep the scientific request and
+        // its rate law unchanged, vary ONLY the exact encoded file length.
+        var input = ValidRequest + new string(' ', requestedBytes - sourceBytes);
+        Assert.Equal(requestedBytes, System.Text.Encoding.UTF8.GetByteCount(input));
+        using var run = Run(input);
+        Assert.Equal(shouldAccept ? 0 : 2, run.ExitCode);
+
+        if (shouldAccept)
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(run.OutputPath));
+            Assert.Equal("completed", document.RootElement.GetProperty("outcome").GetString());
+        }
+        else
+        {
+            Assert.False(File.Exists(run.OutputPath));
+            Assert.Contains("size limit", run.Stderr, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{")]
+    [InlineData("{\"contract_version\":\"0.1\",")]
+    public void InvalidOrTruncatedJson_IsRejectedWithoutCreatingResponse(string input)
+    {
+        using var run = Run(input);
+        Assert.Equal(2, run.ExitCode);
+        Assert.False(File.Exists(run.OutputPath));
+    }
+
     [Fact]
     public void ExistingResponseFile_IsNotOverwritten()
     {
