@@ -38,6 +38,7 @@ public sealed class KineticsSimulator
         var accepted = 0;
         var rejected = 0;
         var evaluations = 0;
+        var nextInitialStepSeconds = request.Solver.InitialStepSeconds;
 
         try
         {
@@ -64,7 +65,7 @@ public sealed class KineticsSimulator
                     remainingSteps);
 
                 var outcome = integrator.Integrate(
-                    rhs, time, target, state, request.Solver.InitialStepSeconds, cancellationToken);
+                    rhs, time, target, state, nextInitialStepSeconds, cancellationToken);
 
                 accepted += outcome.AcceptedSteps;
                 rejected += outcome.RejectedSteps;
@@ -84,6 +85,7 @@ public sealed class KineticsSimulator
                         new(accepted, rejected, evaluations, message));
                 }
 
+                nextInitialStepSeconds = outcome.SuggestedNextStep;
                 time = target;
                 state = outcome.State;
 
