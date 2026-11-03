@@ -56,4 +56,4 @@ This is an initial bounded solver, not a general-purpose ILP implementation. Lim
 
 ## Test status
 
-The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The exact current PR head at this review, `c1ec2126bc39d5bba7129a3db83001680633f825`, passed workflow run [41604470348](https://github.com/AndreyCokol/ChemSim/actions/runs/41604470348). This is CI evidence for that exact commit; it does not establish that a later commit has passed. Local execution was not performed in the current environment.
+The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest previously verified A2 documentation head before the current cross-agent review update, `4f1c16c0a08a05dc8d87c816b102d82b0a3b4c36`, passed workflow run [41606851665](https://github.com/AndreyCokol/ChemSim/actions/runs/41606851665). This is CI evidence for that exact commit only; the cross-agent review documentation update is pending its own CI run. Local execution was not performed in the current environment.
