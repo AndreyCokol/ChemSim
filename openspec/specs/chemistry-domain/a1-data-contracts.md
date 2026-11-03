@@ -736,3 +736,46 @@ Review state описывает именно процесс и его резул
 - Неизвестный токен quality/review при миграции не преобразуется в `verified` или `accepted` по умолчанию.
 
 Раздел задаёт семантическое разделение и тестовые ожидания A1. Он не утверждает enum wire tokens, reviewer permissions, общую систему workflow или shared DTO.
+
+
+## 25. Уточнение A1↔A4: кинетическая константа и адаптерный gate (2026-11-03)
+
+A4 опубликовал implementation-aligned consumer note `docs/engineering/a4-kinetics-input-contract.md` на ветке `feature/a4-kinetics-core`, commit `56f4011ed92fb7112c8c04cddb941bce40e4defc`. Настоящий раздел фиксирует требования A1 к данным на основании этого ответа; он не переносит A4-реализацию в A1 и не утверждает общий DTO.
+
+### 25.1 Подтверждённая модель A4
+
+Текущая область A4 — закрытая хорошо перемешанная система постоянного объёма и изотермическая. Состояние: количества (n_i) в mol; концентрации (c_i=n_i/V) в mol·m⁻³. Объёмная скорость:
+`r_j = k_j × ∏ c_i^{α_{ij}}`,
+где (r_j) — mol·m⁻³·s⁻¹, а каждый кинетический порядок `αᵢⱼ` явно задан, конечен и неотрицателен. Порядки не выводятся из стехиометрии или стрелки реакции.
+
+Для (m=Σα_{ij}):
+`[k] = (mol·m⁻³)^(1−m)·s⁻¹`.
+A4 хранит в текущем `RateConstant` только `Value` и `ConcentrationExponent`; `ReactionDefinition` отдельно хранит карту кинетических порядков по species ID. A4 проверяет конечность/положительность значения и соответствие exponent величине (1−Σα). Это implementation snapshot, не универсальная модель всех кинетических законов.
+
+### 25.2 Разделение ответственности
+
+- A1 отвечает за upstream typed assertion: origin, source/field provenance, uncertainty, quality, review state, applicability/validity range и redistribution rights.
+- A4 отвечает за собственную численную валидацию `Value`, `ConcentrationExponent` и соответствие exponent сумме явно заданных порядков.
+- Интеграционный adapter обязан проверить идентичность/уникальность species и membership, полноту initial amounts для точного набора species, явные конверсии amount→mol и volume→m³, отдельную карту кинетических порядков, а также явную идентификацию параметра как константы объёмного power-law rate law.
+- Исходная единица k должна быть размерностно преобразуема в `(mol·m⁻³)^(1−Σα)·s⁻¹`. Неизвестная размерность, mol/L, molality, давление или другая временная база блокируют адаптацию без явного корректного преобразования.
+- Текущая A4-модель не выполняет Arrhenius/температурную коррекцию. Нужна подтверждённая совместимость applicability с изотермическим запуском; нельзя подставлять температуру по умолчанию или экстраполировать.
+- A4 не принимает термодинамические K/Ka/Kb/Ksp/Kp как кинетические параметры. Равновесная константа не может быть преобразована в k без отдельной валидированной модели, которой текущий контракт не предоставляет.
+
+### 25.3 Ограничения текущего A4 RateConstant
+
+Текущий тип A4 **не** хранит и не проверяет unit symbol, time-basis enum, температуру, activation energy/reference temperature, medium/phase, source/provenance, uncertainty, quality/review, validity range или redistribution disposition. Эти сведения должны оставаться в A1-owned upstream assertion и быть проверены до создания A4-объекта. Нельзя трактовать успешную проверку A4 exponent как подтверждение научной применимости или лицензии.
+
+Результат A4 с непустым набором samples и non-success status является частичным результатом; consumer обязан сохранять terminal status/diagnostics и не объявлять траекторию завершённой. Это output/adapter concern, не основание менять A1 PropertyRecord.
+
+### 25.4 A1 acceptance cases
+
+- Параметр с неизвестной единицей или размерностью не проходит A1→A4 eligibility/adapter gate.
+- k с размерностью, не соответствующей (1−Σα), блокируется даже при положительном конечном числе.
+- Порядки, выведенные из стехиометрических коэффициентов, не принимаются вместо явной kinetic-order map.
+- K/Ka/Kb/Ksp/Kp не принимаются как kinetic rate constant.
+- k без provenance, uncertainty status, quality/review, applicability или license disposition не считается полностью проверенным A1 assertion; consumer policy определяет, какие из этих пробелов блокируют конкретный канал/модель, но они не могут быть молча заполнены.
+- Неизвестная/несовместимая температурная область не заменяется 25 °C или иным default.
+- Успешная A4 dimensional validation не повышает A1 quality, review, eligibility или redistribution status.
+- Non-success `SimulationResult.Status` не превращается в completed trajectory из-за наличия опубликованных samples.
+
+Этот ответ закрывает прежний вопрос о минимальной реализации A4 и уточняет разделы 6, 15 и 21. Он не утверждает расширенный A4 RateConstant DTO, общий Unit Registry, shared schema/ErrorEnvelope, OpenSpec baseline или реализацию A1.
