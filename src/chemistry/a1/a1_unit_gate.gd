@@ -186,6 +186,10 @@ static func _convert_scalar(original: float, from_id: String, to_id: String) -> 
 		return {"ok": false, "error": "A1_UNIT_NUMERIC_RANGE"}
 	if UNIT_DEFS[from_id]["dimension"] == "temperature" and canonical < 0.0:
 		return {"ok": false, "error": "A1_UNIT_ABSOLUTE_TEMPERATURE_INVALID"}
+	# Identity conversion must never degrade a valid finite subnormal
+	# through an unnecessary intermediate unit scale.
+	if from_id == to_id:
+		return {"ok": true, "value": original}
 	var converted: float = canonical / float(UNIT_DEFS[to_id]["scale"])
 	if to_id == "degC":
 		converted = canonical - 273.15
@@ -200,6 +204,8 @@ static func _convert_scalar(original: float, from_id: String, to_id: String) -> 
 static func _convert_linear(original: float, from_id: String, to_id: String) -> Dictionary:
 	if UNIT_DEFS[from_id]["dimension"] == "temperature":
 		return {"ok": false, "error": "A1_UNIT_TEMPERATURE_UNCERTAINTY_UNSUPPORTED"}
+	if from_id == to_id:
+		return {"ok": true, "value": original}
 	var canonical: float = original * float(UNIT_DEFS[from_id]["scale"])
 	var converted: float = canonical / float(UNIT_DEFS[to_id]["scale"])
 	if not is_finite(canonical) or not is_finite(converted) or (original != 0.0 and converted == 0.0):
