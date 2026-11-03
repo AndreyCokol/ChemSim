@@ -19,20 +19,21 @@ on:
 jobs:
   headless-validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     container:
       image: barichello/godot-ci:4.3
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Import project and parse scripts
-        run: godot --headless --editor --path . --quit
+        run: timeout 180s godot --headless --editor --path . --quit
       - name: Run draft codec tests
-        run: godot --headless --path . --script res://tests/test_draft_codec.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_draft_codec.gd
       - name: Run draft repository tests
-        run: godot --headless --path . --script res://tests/test_draft_repository.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_draft_repository.gd
       - name: Run visual field tests
-        run: godot --headless --path . --script res://tests/test_visual_field.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_visual_field.gd
       - name: Run main draft-state integration tests
-        run: godot --headless --path . --script res://tests/test_main_draft_state.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd
       - name: Start main scene
-        run: godot --headless --path . --quit-after 3
+        run: timeout 180s godot --headless --path . --quit-after 3
