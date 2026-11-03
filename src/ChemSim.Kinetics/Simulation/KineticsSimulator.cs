@@ -79,8 +79,9 @@ public sealed class KineticsSimulator
                         StepStatus.NonPhysicalState => SimulationStatus.NonPhysicalState,
                         _ => SimulationStatus.NumericalFailure
                     };
+                    var message = outcome.FailureMessage ?? $"Integrator stopped at t={outcome.Time:G17} s.";
                     return new(status, Array.AsReadOnly(samples.ToArray()),
-                        new(accepted, rejected, evaluations, $"Integrator stopped at t={outcome.Time:G17} s."));
+                        new(accepted, rejected, evaluations, message));
                 }
 
                 time = target;
