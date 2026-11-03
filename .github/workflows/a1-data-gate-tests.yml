@@ -31,3 +31,5 @@ jobs:
         run: godot --headless --path . --script res://tests/a1/test_a1_property_gate.gd
       - name: Run A1 synthetic identity binding gates
         run: godot --headless --path . --script res://tests/a1/test_a1_identity_gate.gd
+      - name: Run A1 local draft catalog tests
+        run: godot --headless --path . --script res://tests/a1/test_a1_user_catalog.gd
