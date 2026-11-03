@@ -82,6 +82,8 @@ func _initialize() -> void:
 	main._remove_component(2)
 	assert(main.components.size() == 1, "Removing the temporary second component should restore the one-component fixture")
 
+	main._select_component_for_placement(added_id)
+	assert(main.visual_field.has_focus(), "Selecting a component for placement should move keyboard focus to the visual field")
 	main._on_field_pressed(Vector2(0.3, 0.4))
 	assert(main.visual_field.selected_marker_id == added_id, "Placing a component should select its visual marker for keyboard movement")
 	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
