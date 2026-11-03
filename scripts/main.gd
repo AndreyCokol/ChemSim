@@ -57,6 +57,7 @@ func _build_ui() -> void:
 	page.add_child(_header())
 
 	var body_scroll := ScrollContainer.new()
+	body_scroll.name = "BodyScroll"
 	body_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
@@ -80,6 +81,7 @@ func _header() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	var header_scroll := ScrollContainer.new()
+	header_scroll.name = "HeaderScroll"
 	header_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	header_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	header_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
