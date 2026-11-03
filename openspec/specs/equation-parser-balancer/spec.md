@@ -1,6 +1,6 @@
 # Спецификация: Парсер химических уравнений и балансировщик (A2)
 
-> Статус: DRAFT — подготовлено Agent A2 для межагентного ревью и утверждения владельцем. Эта спецификация описывает наблюдаемое поведение; она не утверждает, что все перечисленные возможности уже реализованы.
+> Статус: **приложение A2 к утверждённому архитектурному baseline v0.1**. Владелец утвердил OpenSpec в `main/openspec/changes/define-chemsim-mvp/APPROVAL.md` (2026-11-03; baseline `02b8b31706807279ee31a78772383e31f425f7d3`) и разрешил поэтапную реализацию A1–A5. Локальные правила A2, помеченные как реализованные, подтверждаются отдельным CI; остальные общие DTO/интеграционные предложения требуют согласования. Этот документ не объявляет весь модуль или MVP завершённым.
 
 ## Область ответственности
 
@@ -225,26 +225,26 @@ A3 предоставил provisional consumer contract в `docs/agents/a3-equil
 
 The canonical reaction DTO emitted by `parse_reaction()` carries top-level `schema_version = 1`. A serializer must fail closed for a missing, non-integer, or unsupported top-level Reaction DTO schema version; it must not silently treat an unversioned or newer DTO as version 1. For the current v1 implementation, `serialize_reaction()` returns an empty string for any reaction DTO whose top-level `schema_version` is not the integer `1`.
 
-Required A2 regression cases before implementation approval:
+A2 regression cases, implemented and checked by Godot 4.3 workflow [#41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795) on source/test HEAD `dd3de4b396e9a38fe0fccb0f043159ac396fadc6`:
 - Parsed v1 reaction DTO serializes to the existing canonical string.
 - Removing top-level `schema_version` makes serialization fail (empty string).
 - Setting top-level `schema_version` to unsupported integer `2` makes serialization fail.
 - Setting top-level `schema_version` to a non-integer value makes serialization fail.
 - Existing malformed/stale FormulaAST, phase, arrow, term, and round-trip rejection tests continue to pass.
 
-This is a focused A2-owned serializer invariant and does not define shared DTO version negotiation, migration, ErrorEnvelope versioning, or compatibility policy. Those remain integrator decisions. The finding was verified against the current A2 branch: `parse_reaction()` emits version 1, while `serialize_reaction()` currently validates sides, arrow and terms but omits the top-level version check. Implementation and tests remain gated by product-owner approval of this DRAFT OpenSpec.
+This is an A2-local v1 serializer invariant, now enforced by `serialize_reaction()` together with the existing formula/term checks. It does **not** define shared DTO version negotiation, migration, ErrorEnvelope versioning, or compatibility policy, which remain integrator-owned. The product-owner baseline approval permits scoped A2 code/testing, but it is **not** proof of the common adapter or integrated Godot↔.NET execution.
 
-## DRAFT: Fail-closed validation of externally supplied Reaction DTO (A2 audit, 2026-11-03)
+## Реализовано: Fail-closed validation of externally supplied Reaction DTO (A2 audit/fix, 2026-11-03)
 
-**New, source-confirmed contract gap; proposed acceptance only.** `parse_reaction()` produces the top-level fields `schema_version = 1`, `arrow_type`, `reactants` and `products`, and each `ReactionTerm` has explicit `stoichiometric_coefficient` and `species.phase`. But the current public A2 entry points accept some malformed, caller-built versions:
+**Исторический аудит до исправления:** `parse_reaction()` already emitted `schema_version = 1`, `arrow_type`, `reactants` and `products`; each `ReactionTerm` already supplied explicit `stoichiometric_coefficient` and `species.phase`. The previous public A2 entry points nevertheless accepted malformed caller-built DTOs with missing fields. All three defects listed next were corrected in A2 code commits `aa8a147` / `9a42aab` and regression tests commit `dd3de4b`:
 
 - `check_balance()` and `propose_balance()` validate term content but do not require the reaction's top-level `schema_version` or `arrow_type`; `serialize_reaction()` likewise omits the top-level version guard (already tracked above).
 - `serialize_reaction()` defaults an absent `arrow_type` to `FORWARD`, potentially rewriting a malformed/reversible DTO as irreversible rather than failing.
 - The A2 term validators use default `stoichiometric_coefficient = 1` and `species.phase = UNSPECIFIED` when these fields are missing. As a result, a missing coefficient/phase can be silently interpreted rather than diagnosed (for an originally phase-unspecified formula, the default phase may even reparse successfully).
 
-**Proposed A2 v1 rule, pending owner approval:** on **externally supplied Reaction DTOs**, the three public consumer operations (`check_balance`, `propose_balance`, `serialize_reaction`) SHALL require a literal integer top-level `schema_version = 1`, a present valid `arrow_type`, explicit positive-integer `stoichiometric_coefficient` per term, and explicit `species.phase` (including the literal `UNSPECIFIED` when no phase was written). Missing data SHALL NOT be synthesized from defaults. This does not prohibit the text parser from assigning coefficient 1 or phase `UNSPECIFIED` during **parsing**, since that successful parse yields an explicit, versioned DTO. No migration or shared-wire contract is implied.
+**Действующее локальное правило A2 v1 под утверждённым baseline:** on **externally supplied Reaction DTOs**, the three public consumer operations (`check_balance`, `propose_balance`, `serialize_reaction`) SHALL require a literal integer top-level `schema_version = 1`, a present valid `arrow_type`, explicit positive-integer `stoichiometric_coefficient` per term, and explicit `species.phase` (including the literal `UNSPECIFIED` when no phase was written). Missing data SHALL NOT be synthesized from defaults. This does not prohibit the text parser from assigning coefficient 1 or phase `UNSPECIFIED` during **parsing**, since that successful parse yields an explicit, versioned DTO. No migration or shared-wire contract is implied.
 
-Proposed regression matrix for a **single parsed v1** fixture such as `2H2 + O2 -> 2H2O` (clone before each mutation):
+Implemented regression matrix for a **single parsed v1** fixture such as `2H2 + O2 -> 2H2O` (clone before each mutation):
 
 | Mutation | `check_balance` | `propose_balance` | `serialize_reaction` |
 |---|---|---|---|
@@ -255,7 +255,7 @@ Proposed regression matrix for a **single parsed v1** fixture such as `2H2 + O2 
 | Remove a term's `stoichiometric_coefficient` | `BALANCE_INVALID_TERM` | `INVALID_INPUT` | empty string |
 | Remove `species.phase` on a phase-unspecified term | `BALANCE_INVALID_TERM` | `INVALID_INPUT` | empty string |
 
-These are **expected future behaviours**, not current test results. They should not be implemented until the product owner approves/revises this DRAFT. Error codes shown are existing A2-local codes, not the undecided shared `ErrorEnvelope`. If legacy/unversioned caller DTOs must be supported, the integrator must define an explicit validated conversion before entering the versioned A2 API; silent defaults at this boundary remain unsafe.
+These local A2 v1 cases are **implemented and tested**, including wrong-type versions, unknown arrows and invalid phases (nine negative mutations × three public operations) in the exact source/test commit `dd3de4b396e9a38fe0fccb0f043159ac396fadc6`, CI [#41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795) completed successfully. Error codes shown are A2-local and not the shared `ErrorEnvelope`. If legacy/unversioned caller DTOs must be supported, the integrator must define an explicit validated conversion before entering the versioned A2 API; silent defaults at this boundary remain unsafe.
 
 ## Межагентное ревью: подтверждённый consumer contract A4 (2026-11-03)
 
@@ -309,11 +309,12 @@ A4 опубликовал implementation-aligned consumer contract в `docs/engi
 - Парсер не проверяет термодинамическую допустимость, фазовое равновесие или кинетическую реализуемость.
 - До интеграции требуется ревью точности смещений, диапазонов чисел, арифметических границ и семантики дублирующихся членов.
 
-## Статус и критерии выхода из DRAFT
+## Статус реализации и интеграционные критерии выхода
 
-Спецификация остаётся DRAFT. A1 дал логическую позицию по Substance ID, unresolved descriptors и duplicate-term policy; A3 дал provisional consumer requirements и подтвердил достаточность parse-local locator для численного решения. Эти позиции отражены здесь, но общий DTO и OpenSpec baseline не утверждены. A4 подтвердил текущий consumer contract и минимальные parser-consumer данные; это отражено выше. Решения интегратора по canonical phase wire contract, adapter/call-site ownership, shared Reaction DTO/schema versioning, Unit Registry и ErrorEnvelope всё ещё ожидаются. До утверждения:
-- реализация не расширяется новыми химическими возможностями;
-- межагентные DTO-контракты не объявляются окончательными;
-- открытые решения фиксируются как вопросы, а не закрываются предположениями.
+**OpenSpec baseline v0.1 утверждён владельцем**: `main/openspec/changes/define-chemsim-mvp/APPROVAL.md`, SHA исходного baseline `02b8b31706807279ee31a78772383e31f425f7d3`. Это разрешает A2 scoped implementation/tests, но не утверждает завершённую общую wire-схему или релиз. A1 подтвердил разграничение FormulaAST/Species ID и phase; A3/A4 предоставили consumer reviews. Общие правила идентичности и сериализации на границах системы нужно проверить отдельными адаптерами.
 
-Спецификация может перейти в статус APPROVED после согласования Reaction DTO, Substance ID, дубликатов, обратимых стрелок и набора эталонных тестов владельцем продукта.
+**Реализовано и проверено отдельно в A2:** парсер формул/реакций; atom/charge balance; bounded explicit balancing; source spans в символьных Godot String offsets; строгая fail-closed валидация `schema_version=1`, arrow, коэффициента и phase во внешних A2 Reaction DTO. Exact code/test HEAD `dd3de4b396e9a38fe0fccb0f043159ac396fadc6` passed CI [#41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795).
+
+**Не завершено:** approved and versioned shared FormulaAST/Reaction/BalanceResult payload shape, stable SpeciesRef/ReactionRef assignment and revision ownership, phase `unspecified` mapping, canonical charge/arrow alias acceptance INT-28/29, UTF-8 byte `SourceSpan` conversion including insertion-point errors (current parser has valid zero-width character spans), namespaced ErrorEnvelope and actual integrated Godot↔.NET / A5 consumer tests. Exact A2 compatibility review: `integrator-v0.1-compatibility-review.md`. Ни один из этих пунктов не считается DONE по факту прохождения изолированного A2 CI.
+
+Любое несовместимое изменение **общего** DTO-контракта требует интеграторского согласования и версии; A2 не создаёт устойчивые Species/Reaction IDs из formula/source offsets и не выводит K, k или kinetic orders.
