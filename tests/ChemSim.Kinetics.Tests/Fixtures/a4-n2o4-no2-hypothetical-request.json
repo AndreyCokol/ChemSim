@@ -1,0 +1,161 @@
+{
+  "contract_version": "0.1",
+  "message_id": "2c08b3c5-12cd-4a30-b4bf-f604975c372f",
+  "kind": "simulation_request",
+  "errors": [],
+  "payload": {
+    "model_kind": "closed_isothermal_irreversible",
+    "data_quality": "hypothetical",
+    "species": [
+      {
+        "species_ref": {
+          "id": "hypothetical:N2O4:g",
+          "record_revision": 1
+        },
+        "initial_amount": {
+          "value": 1,
+          "unit_id": "mol"
+        }
+      },
+      {
+        "species_ref": {
+          "id": "hypothetical:NO2:g",
+          "record_revision": 1
+        },
+        "initial_amount": {
+          "value": 0,
+          "unit_id": "mol"
+        }
+      }
+    ],
+    "reactions": [
+      {
+        "reaction_ref": {
+          "id": "hypothetical:N2O4-to-2NO2:forward",
+          "record_revision": 1
+        },
+        "arrow_type": "forward",
+        "rate_law_id": "irreversible_volumetric_power_law",
+        "stoichiometry": [
+          {
+            "species_ref": {
+              "id": "hypothetical:N2O4:g",
+              "record_revision": 1
+            },
+            "coefficient": -1
+          },
+          {
+            "species_ref": {
+              "id": "hypothetical:NO2:g",
+              "record_revision": 1
+            },
+            "coefficient": 2
+          }
+        ],
+        "kinetic_orders": [
+          {
+            "species_ref": {
+              "id": "hypothetical:N2O4:g",
+              "record_revision": 1
+            },
+            "order": 1
+          }
+        ],
+        "rate_constant": {
+          "value": 0.1,
+          "unit_id": "derived",
+          "basis": "volumetric_power_law",
+          "dimension_exponents": {
+            "mol": 0,
+            "m": 0,
+            "s": -1
+          }
+        },
+        "parameter_temperature": {
+          "value": 298.15,
+          "unit_id": "K"
+        }
+      }
+    ],
+    "conservation_laws": [
+      {
+        "id": "N-atom-count-synthetic",
+        "coefficients": [
+          {
+            "species_ref": {
+              "id": "hypothetical:N2O4:g",
+              "record_revision": 1
+            },
+            "coefficient": 2
+          },
+          {
+            "species_ref": {
+              "id": "hypothetical:NO2:g",
+              "record_revision": 1
+            },
+            "coefficient": 1
+          }
+        ]
+      },
+      {
+        "id": "O-atom-count-synthetic",
+        "coefficients": [
+          {
+            "species_ref": {
+              "id": "hypothetical:N2O4:g",
+              "record_revision": 1
+            },
+            "coefficient": 4
+          },
+          {
+            "species_ref": {
+              "id": "hypothetical:NO2:g",
+              "record_revision": 1
+            },
+            "coefficient": 2
+          }
+        ]
+      }
+    ],
+    "volume": {
+      "value": 1,
+      "unit_id": "m3"
+    },
+    "temperature": {
+      "value": 298.15,
+      "unit_id": "K"
+    },
+    "time_start": {
+      "value": 0,
+      "unit_id": "s"
+    },
+    "time_end": {
+      "value": 1,
+      "unit_id": "s"
+    },
+    "output_interval": {
+      "value": 0.5,
+      "unit_id": "s"
+    },
+    "solver_policy": {
+      "relative_tolerance": 0.000001,
+      "absolute_tolerance": {
+        "value": 1e-12,
+        "unit_id": "mol"
+      },
+      "initial_step": {
+        "value": 0.05,
+        "unit_id": "s"
+      },
+      "minimum_step": {
+        "value": 1e-12,
+        "unit_id": "s"
+      },
+      "maximum_step": {
+        "value": 0.1,
+        "unit_id": "s"
+      },
+      "maximum_internal_steps": 10000
+    }
+  }
+}
