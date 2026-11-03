@@ -18,6 +18,9 @@ const ALLOWED_UNITS := {
 }
 
 var active_quantity: String = "concentration"
+# A visual graph group belongs to exactly one calculation result revision.
+# Never mix a new solver run's rate with an older run's concentration series.
+var active_result_ref: Dictionary = {}
 var series_by_quantity: Dictionary = {}
 var error_by_quantity: Dictionary = {}
 
@@ -33,24 +36,33 @@ func set_active_quantity(quantity: String) -> void:
 	queue_redraw()
 
 func clear_series() -> void:
+	active_result_ref.clear()
 	series_by_quantity.clear()
 	error_by_quantity.clear()
 	queue_redraw()
 
 func submit_series(series: Dictionary, contract_version: String) -> Dictionary:
 	var quantity_key: String = str(series.get("quantity_key", ""))
-	# Rejecting replacement data must not leave a previous trajectory looking
-	# current for the same physical quantity.
-	if ALLOWED_UNITS.has(quantity_key):
-		series_by_quantity.erase(quantity_key)
-		error_by_quantity.erase(quantity_key)
 	var result := validate_series(series, contract_version)
 	if not bool(result.get("ok", false)):
-		if ALLOWED_UNITS.has(quantity_key):
-			error_by_quantity[quantity_key] = str(result.get("error", "Неверный временной ряд"))
+		# Fail closed even for an unknown quantity: otherwise the other tabs
+		# could display old simulation values after a rejected newer payload.
+		clear_series()
+		var target: String = quantity_key if ALLOWED_UNITS.has(quantity_key) else active_quantity
+		error_by_quantity[target] = str(result.get("error", "Неверный временной ряд"))
 		queue_redraw()
 		return result
+	var incoming_ref: Dictionary = result.result_ref
+	if not active_result_ref.is_empty() and (
+		str(active_result_ref.id) != str(incoming_ref.id)
+		or int(active_result_ref.record_revision) != int(incoming_ref.record_revision)
+	):
+		# A new calculation revision supersedes *all* old graph quantities.
+		# Same-result concentration/rate/temperature may still coexist.
+		clear_series()
+	active_result_ref = incoming_ref.duplicate(true)
 	series_by_quantity[quantity_key] = result
+	error_by_quantity.erase(quantity_key)
 	queue_redraw()
 	return {"ok": true, "quantity_key": quantity_key, "valid_points": result.valid_points, "gaps": result.gaps}
 
