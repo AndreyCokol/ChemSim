@@ -144,7 +144,8 @@ func _test_source_span_utf8_conversion() -> void:
 	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 3, "utf8_byte_end": 6}).ok)
 	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 2, "utf8_byte_end": 5}).ok)
 	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 6, "utf8_byte_end": 2}).ok)
-	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 6, "utf8_byte_end": 7}).ok)
+	# Byte span [6,7) is exactly the trailing ASCII O, not out-of-bounds.
+	assert(SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 6, "utf8_byte_end": 7}).source_span == {"start_offset": 3, "end_offset": 4})
 	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": "2", "utf8_byte_end": 6}).ok)
 	assert(not SpanCodec.to_character_span(emoji_source, {"utf8_byte_start": 2, "utf8_byte_end": 6.0}).ok)
 
@@ -392,8 +393,13 @@ func _test_balance_validation() -> void:
 	assert(not term_limit_result.ok)
 	assert(term_limit_result.code == "BALANCE_TOO_MANY_TERMS")
 
-	var oversized_balance: Dictionary = parser.parse_reaction("H1000000000 + H1000000000 -> H2")
+	# A single H(1e9) term is legal; accumulated element counts only
+	# overflow the 1e18 balance cap when the *sum* is actually too large.
+	var oversized_balance: Dictionary = parser.parse_reaction("1000000H1000000000 -> H2")
 	assert(oversized_balance.ok)
+	var large_term: Dictionary = oversized_balance.reaction.reactants[0].duplicate(true)
+	for _i in range(1001):
+		oversized_balance.reaction.reactants.append(large_term.duplicate(true))
 	var overflow_result: Dictionary = parser.check_balance(oversized_balance.reaction)
 	assert(not overflow_result.ok)
 	assert(overflow_result.code == "BALANCE_COUNT_OVERFLOW")
