@@ -466,6 +466,62 @@ class AqueousBenchmarkTests(unittest.TestCase):
 
 
 
+class AqueousConservationAuditTests(unittest.TestCase):
+    def assert_scaled_residual(self, residual, scale, *, relative=2.0e-10):
+        self.assertTrue(math.isfinite(residual))
+        self.assertLessEqual(residual, max(math.ulp(scale) * 8.0, abs(scale) * relative))
+
+    def test_weak_acid_mass_and_charge_balances_across_trace_and_large_scales(self):
+        for total in (1.0e-12, 1.0e-2, 1.0e100):
+            with self.subTest(total=total):
+                result = solve_weak_acid(total, 1.0e-5, 1.0e-14)
+                species = result.species_mol_l
+                mass_residual = abs(math.fsum((species["HA"], species["A-"])) - total)
+                charge_residual = abs(math.fsum((species["H+"], -species["A-"], -species["OH-"])))
+                self.assert_scaled_residual(mass_residual, total)
+                self.assert_scaled_residual(charge_residual, max(total, species["H+"]))
+                self.assert_scaled_residual(result.diagnostics.component_balance_residual, total)
+                self.assert_scaled_residual(result.diagnostics.charge_balance_residual, max(total, species["H+"]))
+
+    def test_strong_neutralization_charge_balance_for_acid_excess_base_excess_and_trace(self):
+        cases = ((1.0e-12, 0.0), (0.01, 0.01), (0.0, 1.0e-12), (1.0e100, 1.0e100))
+        for acid, base in cases:
+            with self.subTest(acid=acid, base=base):
+                result = solve_strong_neutralization(acid, base, 1.0e-14)
+                species = result.species_mol_l
+                charge_residual = abs(math.fsum((species["H+"], species["Na+"], -species["OH-"], -species["Cl-"])))
+                self.assert_scaled_residual(charge_residual, max(acid, base, species["H+"], species["OH-"]))
+                self.assert_scaled_residual(result.diagnostics.charge_balance_residual, max(acid, base, species["H+"], species["OH-"]))
+
+    def test_ammonia_buffer_nitrogen_and_charge_balances_across_scales(self):
+        for total in (1.0e-12, 1.0e-2, 1.0e100):
+            chloride = total * 0.5
+            with self.subTest(total=total):
+                result = solve_ammonia_buffer(total, chloride, 10.0 ** -9.245, 1.0e-14)
+                species = result.species_mol_l
+                nitrogen_residual = abs(math.fsum((species["NH3"], species["NH4+"])) - total)
+                charge_residual = abs(math.fsum((species["NH4+"], species["H+"], -species["OH-"], -species["Cl-"])))
+                self.assert_scaled_residual(nitrogen_residual, total)
+                self.assert_scaled_residual(charge_residual, max(total, species["H+"]))
+                self.assert_scaled_residual(result.diagnostics.component_balance_residual, total)
+                self.assert_scaled_residual(result.diagnostics.charge_balance_residual, max(total, species["H+"]))
+
+    def test_agcl_precipitation_silver_chloride_and_charge_balances(self):
+        for feed in (1.0e-12, 1.0e-2, 1.0e100):
+            with self.subTest(feed=feed):
+                result = solve_agcl_precipitation(feed, feed, feed, feed, 1.0e-24, 1.0e-14)
+                species = result.species_mol_l
+                solid = result.solid_mol_l
+                ag_residual = abs(math.fsum((species["Ag+"], solid)) - feed)
+                cl_residual = abs(math.fsum((species["Cl-"], solid)) - feed)
+                charge_residual = abs(math.fsum((species["Ag+"], species["Na+"], species["H+"], -species["Cl-"], -species["NO3-"], -species["OH-"])))
+                self.assert_scaled_residual(ag_residual, feed)
+                self.assert_scaled_residual(cl_residual, feed)
+                self.assert_scaled_residual(charge_residual, feed)
+                self.assert_scaled_residual(result.diagnostics.component_balance_residual, feed)
+                self.assert_scaled_residual(result.diagnostics.charge_balance_residual, feed)
+
+
 class GasBenchmarkTests(unittest.TestCase):
     def test_large_finite_inputs_do_not_overflow_intermediate_pressure_products(self):
         result = solve_h2_i2_hi(
