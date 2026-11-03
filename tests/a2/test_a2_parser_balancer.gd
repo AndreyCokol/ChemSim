@@ -10,6 +10,7 @@ func _initialize() -> void:
 	_test_source_span_utf8_conversion()
 	_test_reaction_boundaries()
 	_test_nested_and_round_trip()
+	_test_single_charge_canonical_round_trip()
 	_test_negative_cases()
 	_test_exact_conservation_admission_vectors()
 	_test_balance_validation()
@@ -235,6 +236,56 @@ func _test_nested_and_round_trip() -> void:
 	var reparsed: Dictionary = parser.parse_reaction(canonical)
 	assert(reparsed.ok)
 	assert(reparsed.reaction.reactants[0].species.formula_ast.element_counts["H"] == 2)
+
+func _test_single_charge_canonical_round_trip() -> void:
+	var parser = Parser.new()
+	# Canonical one-unit charges must not create an ambiguous trailing
+	# digit-sign shorthand. Named short aliases remain compatible.
+	var cases: Array = [
+		{"source": "SO4^-(aq)", "canonical": "SO4^-(aq)", "charge": -1},
+		{"source": "H2^+(g)", "canonical": "H2^+(g)", "charge": 1},
+		{"source": "Fe2^+", "canonical": "Fe2^+", "charge": 1},
+		{"source": "Fe2^-(aq)", "canonical": "Fe2^-(aq)", "charge": -1},
+		{"source": "Fe^+", "canonical": "Fe^+", "charge": 1},
+		{"source": "Fe^-", "canonical": "Fe^-", "charge": -1},
+		{"source": "NH4^+", "canonical": "NH4+", "charge": 1},
+		{"source": "OH^-", "canonical": "OH-", "charge": -1},
+		{"source": "Ag^+", "canonical": "Ag+", "charge": 1},
+		{"source": "SO4^2-", "canonical": "SO4^2-", "charge": -2},
+		{"source": "Fe^3+", "canonical": "Fe^3+", "charge": 3}
+	]
+	for test_case in cases:
+		var parsed: Dictionary = parser.parse_formula(test_case.source)
+		assert(parsed.ok, test_case.source)
+		assert(parsed.formula_ast.net_charge == test_case.charge, test_case.source)
+		var original: Dictionary = parsed.formula_ast.duplicate(true)
+		var canonical: String = parser.serialize_formula(parsed.formula_ast, parsed.phase)
+		assert(canonical == test_case.canonical, test_case.source)
+		var round_trip: Dictionary = parser.parse_formula(canonical)
+		assert(round_trip.ok, test_case.source)
+		assert(round_trip.formula_ast.element_counts == parsed.formula_ast.element_counts, test_case.source)
+		assert(round_trip.formula_ast.net_charge == parsed.formula_ast.net_charge, test_case.source)
+		assert(round_trip.formula_ast.nodes == parsed.formula_ast.nodes, test_case.source)
+		assert(round_trip.phase == parsed.phase, test_case.source)
+		assert(parsed.formula_ast == original, test_case.source)
+
+	# The formerly emitted shorthand SO4- must remain rejected, not
+	# reinterpreted as a different ion or silently repaired in the lexer.
+	var unsafe_short: Dictionary = parser.parse_formula("SO4-")
+	assert(not unsafe_short.ok)
+	assert(unsafe_short.code == "PARSE_AMBIGUOUS_CHARGE")
+
+	var reaction: Dictionary = parser.parse_reaction("SO4^-(aq) + Na+(aq) -> NaSO4(aq)")
+	assert(reaction.ok)
+	var original_reaction: Dictionary = reaction.reaction.duplicate(true)
+	var reaction_canonical: String = parser.serialize_reaction(reaction.reaction)
+	assert(reaction_canonical == "SO4^-(aq) + Na+(aq) -> NaSO4(aq)")
+	var reparsed_reaction: Dictionary = parser.parse_reaction(reaction_canonical)
+	assert(reparsed_reaction.ok)
+	assert(parser.check_balance(reparsed_reaction.reaction).balanced)
+	assert(reparsed_reaction.reaction.reactants[0].species.formula_ast.net_charge == -1)
+	assert(reaction.reaction == original_reaction)
+
 
 func _test_negative_cases() -> void:
 	var parser = Parser.new()
