@@ -85,7 +85,8 @@ func _draw() -> void:
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			grab_focus()
+			if is_inside_tree():
+				grab_focus()
 			var hit_id := _find_marker_at(event.position)
 			if hit_id >= 0:
 				selected_marker_id = hit_id
