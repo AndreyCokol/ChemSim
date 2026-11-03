@@ -334,6 +334,7 @@ func _create_add_dialog() -> void:
 	discard_dialog.title = "Несохранённые изменения"
 	discard_dialog.dialog_text = "Текущий черновик изменён. Продолжить без сохранения?"
 	discard_dialog.confirmed.connect(_confirm_discard_pending_action)
+	discard_dialog.canceled.connect(_cancel_pending_action)
 	add_child(discard_dialog)
 	io_error_dialog = AcceptDialog.new()
 	io_error_dialog.title = "Не удалось выполнить операцию с черновиком"
@@ -593,6 +594,9 @@ func _request_load_draft(path: String) -> void:
 		discard_dialog.popup_centered()
 		return
 	_load_draft_from_path(path)
+	pending_open_path = ""
+
+func _cancel_pending_action() -> void:
 	pending_open_path = ""
 
 func _confirm_discard_pending_action() -> void:
