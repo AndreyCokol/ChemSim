@@ -44,7 +44,7 @@ These cases are diagnostic stress tests, not current RK45 pass guarantees.
 Use three species A, B, C and the following irreversible power-law reactions:
 
 1. A → B, (r_1=0.04[A]).
-2. B + C → 2C, (r_2=10^4[B][C]).
+2. B + C → A + C, with C acting as a catalyst (zero net stoichiometric coefficient for C, so C appears in the kinetic orders but not the net stoichiometry), (r_2=10^4[B][C]).
 3. 2B → B + C, (r_3=3\times10^7[B]^2).
 
 Initial state: A=1 mol, B=0 mol, C=0 mol; volume 1 m³. The sum A+B+C is invariant. This is a standard stiff kinetic structure with a fast transient and widely separated reaction time scales. The reference trajectory must come from an independently validated high-accuracy implementation or published reference values, not from the solver under test.
