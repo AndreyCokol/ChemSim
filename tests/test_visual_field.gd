@@ -31,6 +31,26 @@ func _initialize() -> void:
 	mouse_up.position = Vector2(75.0, 65.0)
 	field._gui_input(mouse_up)
 	assert(field.dragging_marker_id == -1, "Releasing the mouse should stop marker dragging")
+
+	# Releasing outside the Control must terminate the drag globally; a later
+	# pointer re-entry must not continue moving the marker.
+	var outside_down := InputEventMouseButton.new()
+	outside_down.button_index = MOUSE_BUTTON_LEFT
+	outside_down.pressed = true
+	outside_down.position = Vector2(80.0, 65.0)
+	field._gui_input(outside_down)
+	assert(field.dragging_marker_id == 7, "Pressing a marker should begin a second drag")
+	var outside_release := InputEventMouseButton.new()
+	outside_release.button_index = MOUSE_BUTTON_LEFT
+	outside_release.pressed = false
+	outside_release.position = Vector2(-10.0, -10.0)
+	field._input(outside_release)
+	assert(field.dragging_marker_id == -1, "A global left-button release should stop dragging outside the field")
+	var position_after_outside_release: Vector2 = field.markers[0].position
+	var reentry_motion := InputEventMouseMotion.new()
+	reentry_motion.position = Vector2(50.0, 50.0)
+	field._gui_input(reentry_motion)
+	assert(Vector2(field.markers[0].position).is_equal_approx(position_after_outside_release), "Pointer re-entry after outside release must not resume dragging")
 	var arrow := InputEventKey.new()
 	arrow.keycode = KEY_RIGHT
 	arrow.pressed = true
