@@ -43,6 +43,7 @@ jobs:
           bash .github/scripts/strict-godot-test.sh res://tests/test_draft_repository.gd "Draft repository tests passed" 180
           bash .github/scripts/strict-godot-test.sh res://tests/test_visual_field.gd "Visual field tests passed" 180
           bash .github/scripts/strict-godot-test.sh res://tests/test_graph_series_view.gd "Graph series presentation tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_a5_smoke_admission.gd "A5 smoke admission and negative-result QA tests passed" 180
           bash .github/scripts/strict-godot-test.sh res://tests/test_main_draft_state.gd "Main draft-state integration tests passed" 180
       - name: Actual A2 → .NET 10 CLI → A5 Godot end-to-end (strict)
         run: bash .github/scripts/strict-godot-test.sh res://tests/test_integration_smoke.gd "A2 → A4 actual process → A5 Godot synthetic integration smoke passed" 3000
@@ -137,6 +138,28 @@ jobs:
               throw "Windows Godot startup failed: $($process.ExitCode)"
             }
           } finally { Pop-Location }
+      - name: Real packaged Windows Godot-to-A4 integration QA (Unicode folder)
+        shell: pwsh
+        run: |
+          $qaRoot = Join-Path $env:RUNNER_TEMP "ХимСим Проверка"
+          New-Item -Path $qaRoot -ItemType Directory -Force | Out-Null
+          Copy-Item -Path package/ChemSim/* -Destination $qaRoot -Recurse -Force
+          $exe = Join-Path $qaRoot "ChemSim.exe"
+          $solver = Join-Path $qaRoot "chemsim-solver.exe"
+          if (-not (Test-Path $exe) -or -not (Test-Path $solver)) { throw "Unicode-folder package is missing an executable" }
+          $stdout = Join-Path $env:RUNNER_TEMP "chemsim-qa-stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "chemsim-qa-stderr.log"
+          $args = @("--headless", "--quit-after", "3000", "--", "--qa-packaged-run")
+          $process = Start-Process -FilePath $exe -WorkingDirectory $qaRoot -ArgumentList $args -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $out = (Get-Content $stdout -Raw -ErrorAction SilentlyContinue)
+          $err = (Get-Content $stderr -Raw -ErrorAction SilentlyContinue)
+          Write-Host "PACKAGED STDOUT:"
+          Write-Host $out
+          Write-Host "PACKAGED STDERR:"
+          Write-Host $err
+          if ($null -eq $process -or $process.ExitCode -ne 0) { throw "Packaged Godot->A4 integration failed, exit $($process.ExitCode)" }
+          if ($out -notmatch "CHEMSIM_PACKAGED_WINDOWS_E2E_PASS") { throw "Packaged Godot did not confirm actual A4 calculation and graph admission" }
+          if (($out + $err) -match "SCRIPT ERROR|CHEMSIM_PACKAGED_QA_FAIL") { throw "Packaged Godot emitted a script error" }
       - name: Create portable Windows x64 ZIP
         shell: pwsh
         run: Compress-Archive -Path package/ChemSim/* -DestinationPath ChemSim-synthetic-smoke-win-x64.zip
