@@ -382,6 +382,10 @@ func _test_balance_proposal() -> void:
 	assert(duplicate_result.proposed_coefficients[1].coefficient == 1)
 	assert(duplicate_result.proposed_coefficients[2].coefficient == 2)
 
+	# Proposing coefficients is a pure operation: it must not rewrite parsed source terms.
+	assert(duplicate_terms.reaction.reactants[0].stoichiometric_coefficient == 1)
+	assert(duplicate_terms.reaction.reactants[1].stoichiometric_coefficient == 1)
+
 func _test_search_node_guard() -> void:
 	var balancer = Balancer.new()
 	var context := {
