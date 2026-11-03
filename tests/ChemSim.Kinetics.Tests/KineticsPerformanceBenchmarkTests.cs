@@ -193,9 +193,9 @@ public sealed class KineticsPerformanceBenchmarkTests
                         ["A"] = 1d, ["B"] = 1d, ["C"] = 1d
                     })
                 ])),
-        CreateFirstOrderChainCase(10),
-        CreateFirstOrderChainCase(50),
-        CreateFirstOrderChainCase(100),
+        CreateParallelFirstOrderScaleCase(10),
+        CreateParallelFirstOrderScaleCase(50),
+        CreateParallelFirstOrderScaleCase(100),
         new BenchmarkCase(
             "consecutive-first-order-A-to-B-to-C",
             CreateRequest(
@@ -221,30 +221,35 @@ public sealed class KineticsPerformanceBenchmarkTests
                 ]))
     ];
 
-    private static BenchmarkCase CreateFirstOrderChainCase(int reactionCount)
+    private static BenchmarkCase CreateParallelFirstOrderScaleCase(int reactionCount)
     {
-        var species = Enumerable.Range(0, reactionCount + 1)
-            .Select(index => $"S{index:D3}")
+        var reactants = Enumerable.Range(0, reactionCount)
+            .Select(index => $"A{index:D3}")
             .ToArray();
+        var products = Enumerable.Range(0, reactionCount)
+            .Select(index => $"B{index:D3}")
+            .ToArray();
+        var species = reactants.Concat(products).ToArray();
         var reactions = Enumerable.Range(0, reactionCount)
             .Select(index => new ReactionDefinition(
-                $"S{index:D3}-to-S{index + 1:D3}",
+                $"A{index:D3}-to-B{index:D3}",
                 new Dictionary<string, int>
                 {
-                    [species[index]] = -1,
-                    [species[index + 1]] = 1
+                    [reactants[index]] = -1,
+                    [products[index]] = 1
                 },
-                new Dictionary<string, double> { [species[index]] = 1d },
+                new Dictionary<string, double> { [reactants[index]] = 1d },
                 new RateConstant(0.1d, 0d)))
             .ToArray();
         var initialAmounts = species.ToDictionary(id => id, _ => 0d);
-        initialAmounts[species[0]] = 1d;
+        foreach (var reactant in reactants)
+            initialAmounts[reactant] = 1d / reactionCount;
         var conservation = new ConservationLaw(
             "total",
             species.ToDictionary(id => id, _ => 1d));
 
         return new BenchmarkCase(
-            $"first-order-chain-{reactionCount}-reactions",
+            $"parallel-first-order-network-{reactionCount}-reactions",
             CreateRequest(species, reactions, initialAmounts, [conservation]));
     }
 
