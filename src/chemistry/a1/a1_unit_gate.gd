@@ -37,6 +37,9 @@ static func convert_quantity(quantity: Variant, target_unit_id: String, required
 	var errors: Array[String] = []
 	if not quantity is Dictionary:
 		return _failure("A1_UNIT_QUANTITY_INVALID")
+	for key in required:
+		if not ["dimension_id", "basis", "temperature_kind"].has(key):
+			_flag(errors, "A1_UNIT_REQUIREMENT_FIELD_UNSUPPORTED")
 	for key in quantity:
 		if not ["value", "unit_id", "basis", "uncertainty"].has(key):
 			_flag(errors, "A1_UNIT_QUANTITY_FIELD_UNSUPPORTED")
@@ -145,6 +148,12 @@ static func convert_availability(availability: Variant, target_unit_id: String, 
 		return _failure("A1_UNIT_AVAILABILITY_INVALID")
 	if not VALID_STATUSES.has(availability.get("status")):
 		return _failure("A1_UNIT_AVAILABILITY_INVALID")
+	# Even unavailable data cannot authorize an unregistered destination or
+	# incorrect expected dimension: never fabricate a convertible unit.
+	if not UNIT_DEFS.has(target_unit_id):
+		return _failure("A1_UNIT_UNREGISTERED")
+	if required.get("dimension_id") != UNIT_DEFS[target_unit_id]["dimension"]:
+		return _failure("A1_UNIT_REQUIREMENT_MISMATCH")
 	var status: String = availability["status"]
 	if status != "present":
 		if availability.size() != 1 or availability.has("quantity"):
