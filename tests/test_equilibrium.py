@@ -20,7 +20,7 @@ from chemsim.equilibrium import (
 
 class AqueousResultValidationTests(unittest.TestCase):
     def test_rejects_positive_infinite_and_nan_residuals(self):
-        for residual in (float("inf"), float("nan")):
+        for residual in (float("inf"), float("-inf"), float("nan")):
             diagnostics = SolverDiagnostics(0, residual, 0.0, 0.0, "test", "mol/L")
             with self.subTest(residual=residual):
                 with self.assertRaises(EquilibriumConvergenceError):
