@@ -28,12 +28,12 @@ jobs:
       - name: Import project and parse scripts
         run: timeout 180s godot --headless --editor --path . --quit
       - name: Run draft codec tests
-        run: timeout 180s godot --headless --path . --script res://tests/test_draft_codec.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_draft_codec.gd --quit-after 3
       - name: Run draft repository tests
-        run: timeout 180s godot --headless --path . --script res://tests/test_draft_repository.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_draft_repository.gd --quit-after 3
       - name: Run visual field tests
-        run: timeout 180s godot --headless --path . --script res://tests/test_visual_field.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_visual_field.gd --quit-after 3
       - name: Run main draft-state integration tests
-        run: timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd
+        run: timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd --quit-after 3
       - name: Start main scene
         run: timeout 180s godot --headless --path . --quit-after 3
