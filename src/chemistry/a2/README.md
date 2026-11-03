@@ -7,6 +7,7 @@ This folder contains the first executable A2 domain slice in GDScript 4.x. It ha
 - `chem_equation_parser.gd` — formula/reaction parsing, FormulaAST construction, phase and charge parsing, atom/charge balance validation.
 - `chem_reaction_balancer.gd` — bounded positive-integer search for a minimum-sum coefficient vector.
 - `chem_source_span.gd` — validated A2-only conversions between Godot character spans and original UTF-8 byte spans; no shared ErrorEnvelope construction.
+- `chem_stoichiometry_handoff.gd` — A2-local, trusted original-source-to-exact-atom/charge conservation facts with a separate signed coefficient per source occurrence; not a shared v0.1 payload or a durable identity adapter.
 - `tests/a2/test_a2_parser_balancer.gd` — headless smoke tests.
 
 ## Current supported syntax
@@ -57,6 +58,24 @@ if parsed.ok:
 ```
 
 Parsing never changes coefficients and never balances implicitly. `check_balance` validates entered coefficients. `propose_balance` returns a separate proposal. Canonical serializers reparse and validate FormulaAST data; they return an empty string for malformed or stale DTOs rather than serializing a mutated node tree. Generated `term_id` values currently use the term's source-character offset and are only parse-local locators; they are not stable across whitespace or text edits. Callers that need persistent source-term identity must manage a stable ID outside the current parser API until the shared DTO/API contract is approved.
+
+## Trusted source-text stoichiometry facts (A2-local, P1 integration preparation)
+
+The pure `ChemStoichiometryHandoff.extract_balanced_terms(original_source)` helper **re-invokes the actual A2 parser** and exact `check_balance()`. Its only input is reaction text, not user-supplied or decoded FormulaAST/SpeciesRef dictionaries; it refuses parsing errors, malformed local Reaction DTOs and atom/charge imbalances rather than handing a plausible partial network to A4.
+
+```gdscript
+var result := ChemStoichiometryHandoff.extract_balanced_terms("N2O4(g) -> 2NO2(g)")
+if result.ok:
+    # reactant ν=-1, product ν=+2; explicit N/O counts and GAS phase
+    # The integrator must still resolve stable SpeciesRef IDs/revisions.
+    var terms: Array = result.terms
+```
+
+Successful A2-local output has `schema_version=1`, `arrow_type`, exact `original_input`, `element_residuals` and `charge_residual`, plus one `terms` entry **per original source occurrence**, not per aggregated species. Each entry contains source-local `source_term_id`, Godot-character `source_span`, `side`, positive `stoichiometric_coefficient`, signed `signed_stoichiometric_coefficient` (reactant negative, product positive), `formula_source_text`, copied `element_counts`, `net_charge`, and explicit `phase` including `UNSPECIFIED`. Duplicate terms keep separate offsets and source locators. The signed coefficients follow A4's numeric convention, which is the **negative** of A2's nonzero `check_balance()` residual sign.
+
+Failures have `ok=false` and one of `A2_REACTION_PARSE_FAILED` (includes original parser code/span), `A2_REACTION_VALIDATION_FAILED`, or `A2_REACTION_UNBALANCED` (exact A2 atom/charge residuals), **without** exposing consumable `terms`. This helper does not balance an equation, choose kinetic reaction order, rate constant k, equilibrium K, gas/aqueous model, model units, source provenance, durable SpeciesRef/ReactionRef IDs, cross-agent `ErrorEnvelope`, or a CLI request. The integrator must perform trusted revision/identity/phase admission, signed-stoichiometry aggregation and complete sparse law-row construction before A4. In particular, `UNSPECIFIED` must not become `GAS` by assumption and `REVERSIBLE` must not be sent to the current irreversible A4 kinetics model.
+
+The local helper/test source commits are `c6ffffd1922e8ed7e4254b2134cc0f99bbf4eb8f` and `48e6131900fbd55354645c6b744d52da26193b4a`. This is an **A2-only preparatory handoff**, not integrated A2→A4→A5 E2E.
 
 ## External Reaction DTO validation (local A2 v1)
 
