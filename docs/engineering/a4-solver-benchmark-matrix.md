@@ -242,3 +242,17 @@ Observed on GitHub Actions (.NET 10.0.14, Ubuntu 24.04.5 LTS, linux-x64, 4 logic
 | Parallel A → B / A → C | 1.9418 ms | 1.9113–1.9681 ms | 363,720 B | 100 | 0 | 700 |
 
 These are runner-specific trend observations, not comparative claims or CI thresholds. Re-run on pinned hardware before using elapsed time or allocations to compare solver changes. Exact source/test commit `11e491fa11f95f72e7e8e929487adfea77bbe0dc` passed .NET 10 Restore, Build (0 warnings, 0 errors) and all 36 tests in push run [41620021126](https://github.com/AndreyCokol/ChemSim/actions/runs/41620021126) and PR run [41620031554](https://github.com/AndreyCokol/ChemSim/actions/runs/41620031554).
+
+
+### A4-BENCH-PERF-03 — output-sampling overhead
+
+Added two performance workloads for the identical first-order A → B system (A₀=1 mol, k=0.5 s⁻¹, V=1 m³, t=0–10 s), differing only in requested output interval: 1 s (11 samples) and 0.125 s (81 samples). Both use the existing Release protocol (2 warm-ups, 9 measurements); no timing gate is used. This complements `OutputSamplingInterval_DoesNotResetAdaptiveStepController` by quantifying output/segment overhead while retaining the same ODE and solver options.
+
+Observed on GitHub Actions (.NET 10.0.14, Ubuntu 24.04.5 LTS, linux-x64, 4 logical processors; CPU model not exposed):
+
+| Output interval | Samples | Median | Range | Median allocated | Accepted | Rejected | RHS |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 s | 11 | 0.6428 ms | 0.6370–0.6486 ms | 208,288 B | 65 | 9 | 518 |
+| 0.125 s | 81 | 0.8140 ms | 0.8027–0.8246 ms | 278,152 B | 84 | 0 | 588 |
+
+On this runner, the denser output schedule measured about 26.6% higher median elapsed time and 33.5% more current-thread allocations. These are runner-specific observations, not a general complexity claim or a CI threshold; pin hardware and repeat before performance comparisons. Exact source/test commit `7a4239a4bc9fca14df2ba2c3e800c972750b4bcd` passed .NET 10 Restore, Build and all 36 tests in push run [41620281327](https://github.com/AndreyCokol/ChemSim/actions/runs/41620281327). The associated PR workflow also completed successfully (run [41620281338](https://github.com/AndreyCokol/ChemSim/actions/runs/41620281338); that run used a concurrent PR merge ref and is supplementary, not the exact source-SHA evidence).
