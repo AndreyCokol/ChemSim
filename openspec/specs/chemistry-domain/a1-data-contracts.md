@@ -896,3 +896,31 @@ A1 принимает эти требования как **подтверждё�
 2. Integrator shared schema/version, phase tokens, Unit Registry, ErrorEnvelope, ReliabilityVector, catalog refs and adapter call-sites — не утверждены.
 3. Numerical source/field/conditions/rights and model-specific eligibility — не допущены ни для одного из семи benchmark rows.
 4. A1 contract proposals require A2/A3/A4/A5/integrator tests once implementation is authorized; positive/negative requirements in P1 matrix are **not executed tests**.
+
+## 28. Kw source candidate and A3 W02 P1 handoff (2026-11-03)
+
+**Only A1 domain/data requirements; no baseline approval, source admission, runtime code or shared DTO freeze.** Full scientific, bibliographic and license review: `openspec/reviews/round-1/a1-kw-source-compatibility-review.md`; W02 admission remains `NOT ADMITTED` in `a1-seven-benchmark-admission-manifest.md`.
+
+### 28.1 Checked candidate records
+
+- **IAPWS R11-24 (2024)**: thermodynamic `pKw` with ionic `m°=1 mol/kg`, not directly A3 `c°=1 mol/L`; density/T and basis mapping required. The release grants publication permission with attribution, not automatic A3 model eligibility.
+- **USGS PHREEQC `phreeqc.dat`** (source revision `992c7ec919828ed3edc5ffd2b02a2695e4e0ad4e`): water autoionization `log_k=-14` at 25 °C in a geochemical activity-model database. The public software/license banner is not per-field rights evidence; no direct K-value transfer.
+- **OpenStax *Chemistry* first edition, §14.1 (2015)**: explicit textbook aqueous concentration relation `Kw=[H3O+][OH-]≈1.0e-14` at **25 °C**, two significant figures, with the book-specific `CC BY 4.0` license stated in its preface. This is the **closest candidate for a single-temperature educational ideal-dilute A3 smoke test**, not an approved catalog value. An A3-approved dimensionless normalized interpretation `([H3O+]/c°)([OH-]/c°)`, `c°=1 mol/L`, a version-bound A1 evidence/quality/uncertainty-not-reported policy and per-field attribution/release review remain mandatory.
+- **OpenStax *Chemistry 2e* is a different licensed work**: book-specific preface says `CC BY-NC-SA 4.0`, so never apply the first-edition CC BY license to 2e content. Do not apply any one publisher-level license to all editions/fields.
+- **NIST/CRC 2025** is secondary corroboration of IAPWS update, not an approved field/source license for A3.
+
+A1 keeps provenance of precise book **edition**, source section/URL, accessed date, two-significant-figure display precision, missing published uncertainty, activity/idealization qualifier, explicitly selected T, and the fact that A3's hydrated `H+` shorthand represents the textbook's `H3O+` under the declared aqueous model. No automatically assumed T or extrapolation across the proposed MVP temperature range.
+
+### 28.2 Confirmed A3-09 W02 consumer contract
+
+A3's `docs/agents/a3-w02-neutralization-acceptance.md` (branch `agent/a3-equilibrium-implementation`, commit `8800569688bb08427d26093b679eb5ff29545296`, PR #4) confirms `solve_strong_neutralization(hcl_mol_l, naoh_mol_l, kw)` consumes **final-mixture analytical mol/L concentrations** of fully dissociated HCl/NaOH and a compatible positive dimensionless Kw. It does not consume unconverted amounts, source-vessel concentrations or stream flow rates. Any conversion to final concentrations needs explicit final volume and a separately approved mixing/volume policy; coordinates are not chemical quantities.
+
+The A3 result gives one ideal-dilute equilibrium state, not a time series. In W02 the current `component_balance_residual=0.0` is a **hard-coded placeholder**, not a documented independent conservation calculation. Future model-aware validation must independently check charge, H⁺/OH⁻ water quotient and Na⁺/Cl⁻ spectator totals; reporting a hard-coded zero as scientific confidence is forbidden. A3 owns solver diagnostics tests; A1 owns correct data semantics; integrator owns shared results and error envelope; A5 owns faithful presentation.
+
+### 28.3 Specific P1 evidence and decisions
+
+- **A3 consumer decision requested** in PR #4 (A1 comment `6606375952`): Is the explicitly 298.15 K, 1 mol/L standard-state, gamma=1, two-significant-figure *OpenStax first-edition* educational approximation an acceptable **candidate** for the model, subject to A1 provenance/quality and owner approval? No A3 acceptance is assumed.
+- **Owner/integrator decisions:** first-end-to-end scenario and 25 °C-only educational scope, treatment of source uncertainty-not-reported, review authority and eligibility policy; OpenSpec baseline; shared schema/units/errors/phase/reliability and bridge. No runtime A1 implementation until the approved baseline.
+- **A1 field evidence before any distribution:** verify precise edition/rights/source record, preserve attribution and provenance; keep scientific eligibility separate from distribution. The first-edition CC BY notice is promising but **not** by itself a released/approved Kw field.
+
+All seven benchmark rows remain **NOT ADMITTED**, and no scientific/rights gates are claimed passed by this research.
