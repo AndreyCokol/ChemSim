@@ -1,0 +1,50 @@
+# A5 implementation slice — status and boundaries
+
+Date: 2026-11-02  
+Branch: feat/godot-workspace-scaffold  
+PR: #3 (draft, not merged)
+
+## Implemented in this slice
+
+- Godot 4.x project entry point and Russian-language experiment workspace.
+- Add, edit and remove unvalidated component drafts (name, formula text, amount text, display unit and phase label); loaded custom unit/phase values are preserved when other fields are edited.
+- Editable experiment title and explicit confirmation before discarding a dirty draft on New/Open.
+- Draft file operation failures are shown in a dedicated modal and the persistent diagnostic area.
+- Separate local draft repository restricted to normalized user:// paths; parent traversal, mixed-separator traversal, symlinks and Windows reparse points in existing path components and derived .tmp/.bak sidecar paths are rejected using Godot DirAccess.is_link.
+- Save replacement uses temporary and backup sidecars. Existing sidecars are never blindly deleted; a missing canonical file can recover a schema-valid .bak (preferred) or .tmp before another save. Invalid sidecars are preserved and block automatic recovery.
+- Presentation-only placement, dragging and keyboard positioning of component markers. The workspace body scrolls horizontally on narrow windows; normalized display coordinates are stored separately from chemistry input and are never sent to a solver.
+- Raw reaction text and raw pressure/volume fields.
+- Explicit isothermal presentation; temperature is fixed and not user-editable in the MVP shell.
+- Versioned local UI-draft document (chemsim_ui_draft, schema version 1), with strict schema-v1 field allowlists, ID/text-type checks, fixed 298.15 K isothermal condition, round-trip tests, and rejection of unsupported schema versions, unknown fields, duplicate/non-integer IDs, non-finite/out-of-visible-field marker coordinates and non-exact unplaced-marker sentinels.
+- Headless Godot import/startup CI (also manually dispatchable), draft-codec tests, draft-repository round-trip/path/sidecar-collision/recovery/symlink tests, visual-field movement/bounds/topmost-hit/selection tests and a main UI draft-state integration test covering graph selection, component CRUD/custom metadata, visual-marker selection, placement, full save/load, Open/New discard confirmation and dirty-state transitions.
+
+## Explicitly not implemented
+
+- Formula parsing, reaction parsing, balancing, substance identity, property/unit validation, hazard classification, equilibrium, kinetics, integration, numerical diagnostics, or chemistry DTOs.
+- Solver-backed graphs, interpolation, graph-series adapters, playback, pause, single-step, rewind, event application, replay, or simulation hashing.
+- Final experiment-document persistence, chemistry records, solver history, event logs, migration of the future canonical format, CSV result export, or Windows release packaging.
+- Encyclopedia content. A1 must provide canonical substance/property/provenance/hazard records before the encyclopedia can display scientific claims.
+
+## Known security limitation
+
+Existing symlink/junction/reparse-point components are rejected with Godot 4.3 `DirAccess.is_link()` before repository access. This closes the previously identified static symlink traversal path on the supported Godot platforms. It is not a race-free security boundary against another local process swapping directory entries between validation and file operations (TOCTOU); do not describe the repository as hardened against a hostile concurrent local process.
+
+## Integration gates
+
+| Dependency | A5 work blocked until contract is available |
+|---|---|
+| A1 | Canonical substance IDs/revisions, property/unit/provenance and hazard completeness records |
+| A2 | FormulaAST/reaction contracts, stable IDs, source-span semantics, parser/balancer diagnostics |
+| A3 | Equilibrium result metadata, basis/standard state, activity model, pH convention and diagnostics |
+| A4 | Kinetic model, solver result, graph-series/sample validity, event ordering, history and replay semantics |
+| Integrator / owner | Shared error envelope, unit registry, schema policy, approved OpenSpec baseline and application boundary |
+
+## Validation status
+
+- GitHub Actions successfully completed the initial scaffold import/startup checks on commit 2c1fc5935d32d7c5e0d12c73dc799c8a2a7ba042.
+- The latest code changes have been pushed; current-head GitHub Actions status must be checked against the exact latest SHA before claiming success.
+- No local Godot executable is installed in the authoring environment.
+
+## Approval boundary
+
+This PR is an A5 presentation/application-shell slice. It does not imply that OpenSpec PR #1, A1–A4 contracts, or the final experiment persistence format are approved. PR #3 remains draft and is not merged into main.

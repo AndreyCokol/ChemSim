@@ -1,0 +1,242 @@
+extends SceneTree
+
+const DraftCodec = preload("res://scripts/draft_codec.gd")
+const DraftRepository = preload("res://scripts/draft_repository.gd")
+const MAX_DRAFT_BYTES := 5 * 1024 * 1024
+
+func _write_text(path: String, value: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	assert(file != null, "Test fixture should be writable: " + path)
+	file.store_string(value)
+	file.close()
+
+func _read_text(path: String) -> String:
+	var file := FileAccess.open(path, FileAccess.READ)
+	assert(file != null, "Test fixture should be readable: " + path)
+	var value := file.get_as_text()
+	file.close()
+	return value
+
+func _initialize() -> void:
+	var components: Array[Dictionary] = [{
+		"id": 1,
+		"name": "Тест",
+		"formula": "X",
+		"amount": "raw amount",
+		"unit": "custom unit",
+		"phase": "custom phase",
+		"position": Vector2(0.4, 0.6)
+	}]
+	var payload := DraftCodec.build_payload("Repository test", "raw reaction", "298.15", "raw P", "raw V", components)
+	var path := "user://experiments/repository-test.chemsim.json"
+
+	var saved := DraftRepository.save_draft(path, payload)
+	assert(saved.ok, "Repository should save a valid UI draft")
+	var loaded := DraftRepository.load_draft(path)
+	assert(loaded.ok, "Repository should load a saved UI draft: " + String(loaded.get("error", "no error detail")))
+	assert(loaded.data.experiment_name == "Repository test", "Experiment name must round-trip")
+	assert(loaded.data.components[0].formula == "X", "Raw formula text must round-trip")
+	assert(loaded.data.conditions.pressure_raw == "raw P", "Raw condition text must round-trip")
+
+	var invalid_payload := payload.duplicate(true)
+	invalid_payload.schema_version = 99
+	var invalid_save_path := "user://experiments/invalid-schema.chemsim.json"
+	var invalid_save := DraftRepository.save_draft(invalid_save_path, invalid_payload)
+	assert(not invalid_save.ok, "Repository must reject malformed payloads before writing")
+	assert(not FileAccess.file_exists(invalid_save_path), "Rejected payload must not create a draft file")
+
+	var oversized_save_payload := payload.duplicate(true)
+	oversized_save_payload.experiment_name = "x".repeat(MAX_DRAFT_BYTES + 1)
+	var oversized_save_path := "user://experiments/oversized-save.chemsim.json"
+	var oversized_save := DraftRepository.save_draft(oversized_save_path, oversized_save_payload)
+	assert(not oversized_save.ok, "Repository must reject oversized payloads before writing")
+	assert(not FileAccess.file_exists(oversized_save_path), "Oversized payload must not create a draft file")
+
+	var oversized_path := "user://experiments/oversized.chemsim.json"
+	_write_text(oversized_path, "x".repeat(MAX_DRAFT_BYTES + 1))
+	var oversized_load := DraftRepository.load_draft(oversized_path)
+	assert(not oversized_load.ok, "Repository must reject oversized draft files before JSON parsing")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(oversized_path))
+
+	var rejected_save := DraftRepository.save_draft("res://must-not-write.json", payload)
+	assert(not rejected_save.ok, "Repository must reject writes outside user://")
+	var rejected_load := DraftRepository.load_draft("res://project.godot")
+	assert(not rejected_load.ok, "Repository must reject reads outside user://")
+
+	var traversal_save := DraftRepository.save_draft("user://experiments/../escape.json", payload)
+	assert(not traversal_save.ok, "Repository must reject parent-directory traversal on save")
+	var nested_traversal_load := DraftRepository.load_draft("user://experiments\\..\\escape.json")
+	assert(not nested_traversal_load.ok, "Repository must reject Windows-style parent-directory traversal on load")
+	var empty_path_save := DraftRepository.save_draft("user://", payload)
+	assert(not empty_path_save.ok, "Repository must reject the user data root as a file path")
+
+	var temp_collision_path := "user://experiments/temp-collision.chemsim.json"
+	var temp_sidecar := temp_collision_path + ".tmp"
+	_write_text(temp_sidecar, "user-owned temp data")
+	var temp_collision := DraftRepository.save_draft(temp_collision_path, payload)
+	assert(not temp_collision.ok, "Repository must not overwrite an existing temporary sidecar")
+	assert(_read_text(temp_sidecar) == "user-owned temp data", "Existing temporary sidecar content must be preserved")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_sidecar))
+
+	var backup_collision_path := "user://experiments/backup-collision.chemsim.json"
+	var backup_sidecar := backup_collision_path + ".bak"
+	assert(DraftRepository.save_draft(backup_collision_path, payload).ok, "Backup-collision fixture should be created")
+	_write_text(backup_sidecar, "user-owned backup data")
+	var backup_collision := DraftRepository.save_draft(backup_collision_path, payload)
+	assert(not backup_collision.ok, "Repository must not overwrite an existing backup sidecar")
+	assert(_read_text(backup_sidecar) == "user-owned backup data", "Existing backup sidecar content must be preserved")
+	var original_after_collision := DraftRepository.load_draft(backup_collision_path)
+	assert(original_after_collision.ok, "Original draft must remain readable after sidecar collision")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_sidecar))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_collision_path))
+
+	var stale_temp_path := "user://experiments/stale-temp.chemsim.json"
+	var stale_temp_sidecar := stale_temp_path + ".tmp"
+	assert(DraftRepository.save_draft(stale_temp_path, payload).ok, "Stale-temp fixture should have a canonical draft")
+	_write_text(stale_temp_sidecar, "possibly recoverable user data")
+	var stale_temp_load := DraftRepository.load_draft(stale_temp_path)
+	assert(stale_temp_load.ok, "A valid canonical draft should remain openable beside a stale temp sidecar")
+	assert(String(stale_temp_load.get("recovery_warning", "")).contains(stale_temp_sidecar), "Opening a canonical draft should warn about its stale temp sidecar")
+	assert(_read_text(stale_temp_sidecar) == "possibly recoverable user data", "Opening must preserve stale temp content")
+	var stale_temp_save := DraftRepository.save_draft(stale_temp_path, payload)
+	assert(not stale_temp_save.ok, "Save must not overwrite a stale temp sidecar")
+	assert(String(stale_temp_save.error).contains("вручную"), "Temp collision error should explain the manual recovery action")
+	assert(DraftRepository.load_draft(stale_temp_path).ok, "Temp collision must leave the canonical draft readable")
+	assert(_read_text(stale_temp_sidecar) == "possibly recoverable user data", "Failed save must preserve stale temp content")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_temp_sidecar))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_temp_path))
+
+	var stale_backup_path := "user://experiments/stale-backup.chemsim.json"
+	var stale_backup_sidecar := stale_backup_path + ".bak"
+	assert(DraftRepository.save_draft(stale_backup_path, payload).ok, "Stale-backup fixture should have a canonical draft")
+	_write_text(stale_backup_sidecar, "possibly recoverable backup data")
+	var stale_backup_load := DraftRepository.load_draft(stale_backup_path)
+	assert(stale_backup_load.ok, "A valid canonical draft should remain openable beside a stale backup sidecar")
+	assert(String(stale_backup_load.get("recovery_warning", "")).contains(stale_backup_sidecar), "Opening a canonical draft should warn about its stale backup sidecar")
+	var stale_backup_save := DraftRepository.save_draft(stale_backup_path, payload)
+	assert(not stale_backup_save.ok, "Save must not overwrite a stale backup sidecar")
+	assert(String(stale_backup_save.error).contains("вручную"), "Backup collision error should explain the manual recovery action")
+	assert(DraftRepository.load_draft(stale_backup_path).ok, "Backup collision must leave the canonical draft readable")
+	assert(_read_text(stale_backup_sidecar) == "possibly recoverable backup data", "Failed save must preserve stale backup content")
+	assert(not FileAccess.file_exists(stale_backup_path + ".tmp"), "Failed backup collision must clean up the new temporary file")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_backup_sidecar))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_backup_path))
+
+	var recovery_path := "user://experiments/recovery-test.chemsim.json"
+	var recovery_backup := recovery_path + ".bak"
+	assert(DraftRepository.save_draft(recovery_path, payload).ok, "Recovery fixture should be saved")
+	var move_to_backup := DirAccess.rename_absolute(
+		ProjectSettings.globalize_path(recovery_path),
+		ProjectSettings.globalize_path(recovery_backup)
+	)
+	assert(move_to_backup == OK, "Test should simulate interruption after moving the previous draft to backup")
+	assert(not FileAccess.file_exists(recovery_path), "Canonical draft should be absent during simulated interruption")
+	var recovered := DraftRepository.load_draft(recovery_path)
+	assert(recovered.ok, "Load should recover the previous committed draft from .bak")
+	assert(FileAccess.file_exists(recovery_path), "Recovery should restore the canonical draft path")
+	assert(not FileAccess.file_exists(recovery_backup), "Recovery should consume the backup sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(recovery_path))
+
+	var corrupt_backup_path := "user://experiments/corrupt-backup.chemsim.json"
+	var corrupt_backup := corrupt_backup_path + ".bak"
+	_write_text(corrupt_backup, "{ definitely not valid json")
+	var corrupt_backup_load := DraftRepository.load_draft(corrupt_backup_path)
+	assert(not corrupt_backup_load.ok, "A corrupt backup must not be promoted to the canonical path")
+	assert(not FileAccess.file_exists(corrupt_backup_path), "A corrupt backup must not create a canonical draft")
+	assert(FileAccess.file_exists(corrupt_backup), "A corrupt backup must be preserved for manual recovery")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(corrupt_backup))
+
+	var corrupt_temp_path := "user://experiments/corrupt-temp.chemsim.json"
+	var corrupt_temp := corrupt_temp_path + ".tmp"
+	_write_text(corrupt_temp, "{ incomplete")
+	var corrupt_temp_load := DraftRepository.load_draft(corrupt_temp_path)
+	assert(not corrupt_temp_load.ok, "A corrupt temporary file must not be promoted")
+	assert(not FileAccess.file_exists(corrupt_temp_path), "A corrupt temporary file must not create a canonical draft")
+	assert(FileAccess.file_exists(corrupt_temp), "A corrupt temporary file must be preserved")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(corrupt_temp))
+
+	var temp_recovery_path := "user://experiments/temp-recovery.chemsim.json"
+	var temp_recovery_sidecar := temp_recovery_path + ".tmp"
+	_write_text(temp_recovery_sidecar, JSON.stringify(payload))
+	var temp_recovered := DraftRepository.load_draft(temp_recovery_path)
+	assert(temp_recovered.ok, "A complete schema-valid temporary file should be recoverable when no canonical or backup exists")
+	assert(FileAccess.file_exists(temp_recovery_path), "Recovered temporary content should become canonical")
+	assert(not FileAccess.file_exists(temp_recovery_sidecar), "Successful temporary recovery should consume its sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_recovery_path))
+
+	var both_sidecars_path := "user://experiments/both-sidecars.chemsim.json"
+	var both_sidecars_backup := both_sidecars_path + ".bak"
+	var both_sidecars_temp := both_sidecars_path + ".tmp"
+	var backup_payload := payload.duplicate(true)
+	backup_payload.experiment_name = "Committed backup"
+	var temp_payload := payload.duplicate(true)
+	temp_payload.experiment_name = "Uncommitted temporary"
+	_write_text(both_sidecars_backup, JSON.stringify(backup_payload))
+	_write_text(both_sidecars_temp, JSON.stringify(temp_payload))
+	var both_sidecars_load := DraftRepository.load_draft(both_sidecars_path)
+	assert(both_sidecars_load.ok, "A valid backup should be recoverable when both sidecars exist")
+	assert(both_sidecars_load.data.experiment_name == "Committed backup", "Recovery must prefer the previously committed backup over an uncommitted temp")
+	assert(FileAccess.file_exists(both_sidecars_path), "Preferred backup should become canonical")
+	assert(not FileAccess.file_exists(both_sidecars_backup), "Promoted backup should be consumed")
+	assert(FileAccess.file_exists(both_sidecars_temp), "Non-selected temp sidecar must be preserved for inspection")
+	assert(String(both_sidecars_load.get("recovery_warning", "")).contains(both_sidecars_temp), "Recovery should warn that the unselected temp sidecar remains")
+	assert(_read_text(both_sidecars_temp) == JSON.stringify(temp_payload), "Recovery must not modify the unselected temp sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(both_sidecars_temp))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(both_sidecars_path))
+
+	var invalid_backup_valid_temp_path := "user://experiments/invalid-backup-valid-temp.chemsim.json"
+	var invalid_backup_valid_temp_backup := invalid_backup_valid_temp_path + ".bak"
+	var invalid_backup_valid_temp_temp := invalid_backup_valid_temp_path + ".tmp"
+	_write_text(invalid_backup_valid_temp_backup, "{ corrupt backup")
+	_write_text(invalid_backup_valid_temp_temp, JSON.stringify(temp_payload))
+	var invalid_backup_valid_temp_load := DraftRepository.load_draft(invalid_backup_valid_temp_path)
+	assert(not invalid_backup_valid_temp_load.ok, "A corrupt preferred backup must fail closed instead of silently falling back to a temp file")
+	assert(not FileAccess.file_exists(invalid_backup_valid_temp_path), "A valid temp must not be promoted while a corrupt preferred backup is present")
+	assert(FileAccess.file_exists(invalid_backup_valid_temp_backup), "Corrupt backup must be preserved for manual inspection")
+	assert(FileAccess.file_exists(invalid_backup_valid_temp_temp), "Unselected valid temp must also be preserved for manual inspection")
+	assert(_read_text(invalid_backup_valid_temp_temp) == JSON.stringify(temp_payload), "Fail-closed recovery must not modify the valid temp sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(invalid_backup_valid_temp_backup))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(invalid_backup_valid_temp_temp))
+
+	# DirAccess.is_link detects symlinks and Windows reparse points. Exercise
+	# an actual link to a location outside user:// on the Linux CI runner.
+	var outside_target := OS.get_cache_dir().path_join("chemsim-symlink-target")
+	DirAccess.make_dir_recursive_absolute(outside_target)
+	var link_directory := DirAccess.open("user://experiments")
+	assert(link_directory != null, "The experiment directory should be available for symlink testing")
+	var link_error := link_directory.create_link(outside_target, ProjectSettings.globalize_path("user://experiments/link-outside"))
+	assert(link_error == OK, "CI should be able to create a symlink fixture")
+	var symlink_save := DraftRepository.save_draft("user://experiments/link-outside/escaped.json", payload)
+	assert(not symlink_save.ok, "Repository must reject writes through a symlink escaping user://")
+	var symlink_load := DraftRepository.load_draft("user://experiments/link-outside/escaped.json")
+	assert(not symlink_load.ok, "Repository must reject reads through a symlink escaping user://")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://experiments/link-outside"))
+	DirAccess.remove_absolute(outside_target)
+
+	# A dangling symlink sidecar is especially dangerous: file_exists() can
+	# report false, while opening it for WRITE would create a file outside user://.
+	var dangling_target := OS.get_cache_dir().path_join("chemsim-dangling-target.json")
+	if FileAccess.file_exists(dangling_target):
+		DirAccess.remove_absolute(dangling_target)
+	var dangling_sidecar := "user://experiments/dangling-sidecar.chemsim.json.tmp"
+	var dangling_link_error := link_directory.create_link(dangling_target, ProjectSettings.globalize_path(dangling_sidecar))
+	assert(dangling_link_error == OK, "CI should create a dangling symlink fixture")
+	var dangling_save := DraftRepository.save_draft("user://experiments/dangling-sidecar.chemsim.json", payload)
+	assert(not dangling_save.ok, "Repository must reject a dangling symlink temp sidecar")
+	assert(not FileAccess.file_exists(dangling_target), "Rejected dangling sidecar must not create a file outside user://")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(dangling_sidecar))
+
+	var backup_link_document := "user://experiments/backup-link.chemsim.json"
+	assert(DraftRepository.save_draft(backup_link_document, payload).ok, "Backup symlink fixture should have a canonical draft")
+	var outside_backup := OS.get_cache_dir().path_join("chemsim-outside-backup.json")
+	_write_text(outside_backup, JSON.stringify(payload))
+	var backup_link_error := link_directory.create_link(outside_backup, ProjectSettings.globalize_path(backup_link_document + ".bak"))
+	assert(backup_link_error == OK, "CI should create a backup symlink fixture")
+	var linked_backup_load := DraftRepository.load_draft(backup_link_document)
+	assert(not linked_backup_load.ok, "Repository must reject symlinked backup sidecars")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_link_document + ".bak"))
+	DirAccess.remove_absolute(outside_backup)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_link_document))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	print("Draft repository tests passed")
+	quit(0)
