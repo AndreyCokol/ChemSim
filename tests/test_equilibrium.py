@@ -11,8 +11,16 @@ from chemsim.equilibrium import (
     solve_strong_neutralization,
     solve_weak_acid,
     _bisect,
+    _scaled_fraction,
     EquilibriumConvergenceError,
 )
+
+
+class ScaledFractionRobustnessTests(unittest.TestCase):
+    def test_ratio_underflow_does_not_erase_representable_scaled_fraction(self):
+        smallest = math.ulp(0.0)
+        result = _scaled_fraction(1.0e308, smallest, 1.0e308)
+        self.assertEqual(result, smallest)
 
 
 class BisectionRobustnessTests(unittest.TestCase):
