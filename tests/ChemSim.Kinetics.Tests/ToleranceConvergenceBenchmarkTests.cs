@@ -232,4 +232,88 @@ public sealed class ToleranceConvergenceBenchmarkTests
 
         return maximumError;
     }
+
+    [Fact]
+    public void ParallelFirstOrderPathways_ProfileErrorDecreasesAsTolerancesTighten()
+    {
+        var looseError = MeasureParallelMaximumEndpointError(relativeTolerance: 1e-2d);
+        var baselineError = MeasureParallelMaximumEndpointError(relativeTolerance: 1e-4d);
+        var tightError = MeasureParallelMaximumEndpointError(relativeTolerance: 1e-6d);
+
+        Assert.True(looseError > 0d, $"Expected a measurable loose-tolerance error, got {looseError:G17}.");
+        Assert.True(baselineError < looseError * 0.5d,
+            $"Baseline error {baselineError:G17} did not clearly improve on loose error {looseError:G17}.");
+        Assert.True(tightError < baselineError * 0.5d,
+            $"Tight error {tightError:G17} did not clearly improve on baseline error {baselineError:G17}.");
+    }
+
+    private static double MeasureParallelMaximumEndpointError(double relativeTolerance)
+    {
+        const double initialA = 1d;
+        const double firstRate = 0.7d;
+        const double secondRate = 0.3d;
+        const double totalRate = firstRate + secondRate;
+        const double endTime = 5d;
+
+        var network = new ReactionNetwork(
+            ["A", "B", "C"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(firstRate, 0d)),
+                new ReactionDefinition(
+                    "A-to-C",
+                    new Dictionary<string, int> { ["A"] = -1, ["C"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(secondRate, 0d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d, ["C"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = initialA, ["B"] = 0d, ["C"] = 0d
+            },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = endTime,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = relativeTolerance,
+                AbsoluteToleranceMol = 1e-14d,
+                InitialStepSeconds = endTime,
+                MinimumStepSeconds = 1e-12d,
+                MaximumStepSeconds = endTime
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        Assert.Equal(2, result.Samples.Count);
+
+        var final = result.Samples[^1];
+        var expectedA = initialA * Math.Exp(-totalRate * endTime);
+        var expectedB = firstRate / totalRate * (initialA - expectedA);
+        var expectedC = secondRate / totalRate * (initialA - expectedA);
+        var actualA = final.AmountsMol["A"];
+        var actualB = final.AmountsMol["B"];
+        var actualC = final.AmountsMol["C"];
+
+        Assert.All(final.AmountsMol.Values, amount =>
+            Assert.True(double.IsFinite(amount) && amount >= 0d));
+        Assert.InRange(Math.Abs(actualA + actualB + actualC - initialA), 0d, 5e-10d);
+
+        return Math.Max(
+            Math.Abs(actualA - expectedA),
+            Math.Max(Math.Abs(actualB - expectedB), Math.Abs(actualC - expectedC)));
+    }
 }
