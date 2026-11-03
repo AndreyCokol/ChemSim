@@ -39,7 +39,7 @@ Suggested **post-approval adapter algorithm**, not code already implemented:
 
 | Original input | Expected parser diagnosis | Local char half-open range | Interchange UTF-8 byte range | Why |
 |---|---|---|---|---|
-| `H2 + O2 → H2Xx` | `PARSE_UNKNOWN_ELEMENT` at `Xx` | `[12,14)` | `[14,16)` | `→` is one char, three UTF-8 bytes |
+| `H2 + O2 → H2Xx` | `PARSE_UNKNOWN_ELEMENT` at the **first** character `X` of `Xx` | `[12,13)` | `[14,15)` | Current parser highlights one offending character; `→` occupies three UTF-8 bytes |
 | `H2 + O2 → H2Ж` | `PARSE_UNEXPECTED_TOKEN` at `Ж` | `[12,13)` | `[14,16)` | Prefix has Unicode arrow (+2 bytes), `Ж` occupies two bytes |
 | `H2 + O2` | `PARSE_MISSING_ARROW` after last char | `[7,7)` | `[7,7)` | EOF cursor/insertion position; zero-width valid locally |
 | `Fe^3` | `PARSE_INVALID_CHARGE`: missing sign after `3` | `[4,4)` | `[4,4)` | EOF cursor/insertion position; zero-width valid locally |
