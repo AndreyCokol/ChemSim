@@ -5,6 +5,10 @@ namespace ChemSim.Kinetics.Tests;
 
 public sealed class RobertsonStiffBenchmarkTests
 {
+    private readonly Xunit.Abstractions.ITestOutputHelper _output;
+
+    public RobertsonStiffBenchmarkTests(Xunit.Abstractions.ITestOutputHelper output) => _output = output;
+
     [Fact]
     public void RobertsonStiffSystem_ReportsExplicitSolverFeasibilityAgainstProvisionalReference()
     {
@@ -64,6 +68,8 @@ public sealed class RobertsonStiffBenchmarkTests
                 MaximumInternalSteps = stepBudget
             }
         });
+
+        _output.WriteLine($"Robertson RK45: status={result.Status}; accepted={result.Diagnostics.AcceptedSteps}; rejected={result.Diagnostics.RejectedSteps}; rhs={result.Diagnostics.RightHandSideEvaluations}; message={result.Diagnostics.Message}");
 
         Assert.InRange(result.Diagnostics.AcceptedSteps, 0, stepBudget);
         Assert.InRange(result.Diagnostics.RejectedSteps, 0, stepBudget);
