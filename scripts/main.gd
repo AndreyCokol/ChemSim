@@ -42,6 +42,7 @@ var save_dialog: FileDialog
 var discard_dialog: ConfirmationDialog
 var io_error_dialog: AcceptDialog
 var pending_open_path: String = ""
+var current_draft_path: String = ""
 
 func _ready() -> void:
 	_build_ui()
@@ -106,9 +107,12 @@ func _header() -> Control:
 	var open_button := _button("Открыть черновик", false)
 	open_button.pressed.connect(_open_draft_picker)
 	row.add_child(open_button)
-	var save_button := _button("Сохранить черновик", false)
-	save_button.pressed.connect(_save_draft_picker)
+	var save_button := _button("Сохранить", false)
+	save_button.pressed.connect(_save_draft)
 	row.add_child(save_button)
+	var save_as_button := _button("Сохранить как…", false)
+	save_as_button.pressed.connect(_save_draft_picker)
+	row.add_child(save_as_button)
 	var settings := _button("Настройки", false)
 	settings.disabled = true
 	row.add_child(settings)
@@ -553,6 +557,7 @@ func _new_experiment() -> void:
 	pressure_input.text = ""
 	volume_input.text = ""
 	visual_field.clear_markers()
+	current_draft_path = ""
 	_refresh_composition()
 	draft_dirty = false
 	diagnostic_label.text = "Создан пустой черновик. Расчёт не запускался."
@@ -597,7 +602,17 @@ func _confirm_discard_pending_action() -> void:
 		_load_draft_from_path(pending_open_path)
 	pending_open_path = ""
 
+
+func _save_draft() -> void:
+	if current_draft_path.is_empty():
+		_save_draft_picker()
+	else:
+		_save_draft_to_path(current_draft_path)
+
 func _save_draft_picker() -> void:
+	if not current_draft_path.is_empty():
+		save_dialog.current_file = current_draft_path.get_file()
+		save_dialog.current_dir = current_draft_path.get_base_dir()
 	save_dialog.popup_centered_ratio(0.7)
 
 func _save_draft_to_path(path: String) -> void:
@@ -613,6 +628,7 @@ func _save_draft_to_path(path: String) -> void:
 	if not bool(result.get("ok", false)):
 		_show_io_error(str(result.get("error", "Не удалось сохранить черновик.")))
 		return
+	current_draft_path = path
 	draft_dirty = false
 	status_label.text = "Черновик сохранён · схема UI v1"
 	diagnostic_label.text = "Сохранён только пользовательский черновик. Химическая валидность, расчётные данные и история симуляции не включены."
@@ -641,6 +657,7 @@ func _load_draft_from_path(path: String) -> void:
 	pressure_input.text = str(conditions.get("pressure_raw", ""))
 	volume_input.text = str(conditions.get("volume_raw", ""))
 	_refresh_composition()
+	current_draft_path = path
 	draft_dirty = false
 	pending_open_path = ""
 	status_label.text = "Черновик загружен · химическая проверка не выполнена"
