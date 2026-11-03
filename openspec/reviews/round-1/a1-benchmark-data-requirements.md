@@ -84,3 +84,18 @@ No source/property pair in this matrix is approved for redistribution. Scientifi
 - **Integrator/owner:** Confirm shared schema version, canonical units/Unit Registry and error envelope. A1 does not freeze these shared contracts.
 
 This document is a requirements map, not an implementation specification approval, source allowlist, legal opinion, or numerical benchmark dataset.
+
+
+## 8. A3 consumer clarification (2026-11-03)
+
+A3 ответил на aqueous consumer-contract вопросы A1 в PR #4 comment `6600097355`. Уточнение ограничено текущими семью reference fixtures:
+
+- Aqueous Ka/Kw/Ksp сейчас трактуются как конечные положительные безразмерные константы при ideal-dilute convention, \(c^\circ=1\,\mathrm{mol/L}\), \(\gamma_i=1\). Для AQ-01 это Ka(HA); для AQ-04 — Ka(NH4+) (не Kb(NH3)); для AQ-03/AQ-05 — Ksp AgCl(s) с активностью твёрдого тела 1.
+- A3 не принимает температуру и не рассчитывает температурные поправки. Константы должны быть заранее приведены к одной явно объявленной совместимой температуре; 25 °C не является default.
+- В текущей модели H+ — shorthand hydrated proton; H2O(l) — solvent с unit activity, не отдельная solved species; H3O+ отдельно не представлена. Любое H3O+/H+ преобразование требует явного стехиометрически/термодинамически согласованного правила.
+- Поддерживается только gamma=1. Ionic strength, dielectric/solvent properties, ion-size/interaction parameters и complexation data не потребляются; неидеальные модели требуют отдельного контракта.
+- G01/G02 используют dimensionless Kp при \(p^\circ=1\,\mathrm{bar}\), идеальные partial pressures и не используют fugacity coefficients.
+
+Следствие: первоначальные пункты «A3 должен подтвердить...» в разделах выше теперь частично разрешены для текущей fixture-конвенции. Однако численные значения, точные source records, uncertainty, provenance, quality policy на уровне адаптера, GAS-02 фаза I2, общий DTO и typed ErrorEnvelope остаются неразрешёнными. Ни один numerical fixture или источник для redistribution не утверждён этим уточнением.
+
+Источник: PR #4 comment `6600097355`, 2026-11-03; подробная запись consumer implications — раздел 17 `openspec/specs/chemistry-domain/a1-data-contracts.md`.
