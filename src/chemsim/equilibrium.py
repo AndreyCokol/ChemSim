@@ -363,16 +363,9 @@ def solve_agcl_precipitation(
         abs(sodium_total_mol_l), abs(nitrate_total_mol_l),
     )
     if feed_scale > 0.0:
-        # Normalize before comparing: multiplying a finite feed scale near
-        # float max by the relative tolerance can overflow to infinity and
-        # accidentally accept a grossly unbalanced feed.
-        if abs(
-            silver_total_mol_l / feed_scale - nitrate_total_mol_l / feed_scale
-        ) > 1e-10:
+        if abs(silver_total_mol_l - nitrate_total_mol_l) > 1e-10 * feed_scale:
             raise EquilibriumInputError("AgNO3 feed must have equal Ag and nitrate totals")
-        if abs(
-            chloride_total_mol_l / feed_scale - sodium_total_mol_l / feed_scale
-        ) > 1e-10:
+        if abs(chloride_total_mol_l - sodium_total_mol_l) > 1e-10 * feed_scale:
             raise EquilibriumInputError("NaCl feed must have equal Na and chloride totals")
     elif any(value != 0.0 for value in (
         silver_total_mol_l, chloride_total_mol_l, sodium_total_mol_l, nitrate_total_mol_l
