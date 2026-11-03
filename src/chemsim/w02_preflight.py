@@ -35,7 +35,14 @@ class W02ModelAssessment:
 
 
 def _finite_number(value: Any) -> bool:
-    return isinstance(value, (float, int)) and not isinstance(value, bool) and isfinite(value)
+    if isinstance(value, bool) or not isinstance(value, (float, int)):
+        return False
+    try:
+        # isfinite converts integers to float; huge but valid Python ints
+        # outside IEEE-754 range must fail closed, not raise OverflowError.
+        return isfinite(value)
+    except (OverflowError, ValueError):
+        return False
 
 
 def _nonempty(value: Any) -> bool:

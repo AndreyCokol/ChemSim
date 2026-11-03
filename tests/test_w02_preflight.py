@@ -81,12 +81,14 @@ class W02PreflightTests(unittest.TestCase):
             ("hcl_mol_l", True, "A3_W02_FEED_INVALID"),
             ("hcl_mol_l", -0.01, "A3_W02_FEED_INVALID"),
             ("hcl_mol_l", math.inf, "A3_W02_FEED_INVALID"),
+            ("hcl_mol_l", 10 ** 500, "A3_W02_FEED_INVALID"),
             ("naoh_mol_l", math.nan, "A3_W02_FEED_INVALID"),
             ("final_mixture_basis", "source_vessel_mol_l", "A3_W02_FINAL_MIXTURE_BASIS"),
             ("final_mixture_basis", "mol", "A3_W02_FINAL_MIXTURE_BASIS"),
             ("run_temperature_k", None, "A3_W02_RUN_TEMPERATURE_UNSUPPORTED"),
             ("run_temperature_k", True, "A3_W02_RUN_TEMPERATURE_UNSUPPORTED"),
             ("run_temperature_k", 299.15, "A3_W02_RUN_TEMPERATURE_UNSUPPORTED"),
+            ("run_temperature_k", 10 ** 500, "A3_W02_RUN_TEMPERATURE_UNSUPPORTED"),
         )
         for field, value, expected in cases:
             with self.subTest(field=field, value=value):
@@ -112,6 +114,7 @@ class W02PreflightTests(unittest.TestCase):
             ("dimensionless_value", False, "A3_W02_KW_VALUE_UNIT"),
             ("dimensionless_value", math.nan, "A3_W02_KW_VALUE_UNIT"),
             ("dimensionless_value", math.inf, "A3_W02_KW_VALUE_UNIT"),
+            ("dimensionless_value", 10 ** 500, "A3_W02_KW_VALUE_UNIT"),
             ("unit_id", "mol/kg", "A3_W02_KW_VALUE_UNIT"),
             ("unit_id", "pKw", "A3_W02_KW_VALUE_UNIT"),
             ("basis", "iapws_molal_standard_state", "A3_W02_KW_MODEL_CONTEXT"),
