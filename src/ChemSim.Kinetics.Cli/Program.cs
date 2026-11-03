@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ChemSim.Kinetics.Cli;
 using ChemSim.Kinetics.Domain;
 using ChemSim.Kinetics.Simulation;
 
