@@ -241,6 +241,66 @@ class A3LocalObservationsTests(unittest.TestCase):
         output = project_local_equilibrium_observations(large)
         self.assertEqual(output["phase"], "gas")
 
+
+    def test_rejects_forged_aqueous_charge_without_changing_diagnostic(self):
+        """Same roster and finite pH must not hide a fake ionic balance."""
+        cases = (
+            ("W01", "A-"),
+            ("W02", "Na+"),
+            ("W03", "Ag+"),
+            ("W04", "NH4+"),
+            ("W05", "NO3-"),
+        )
+        for fixture, ion in cases:
+            with self.subTest(fixture=fixture, ion=ion):
+                original = _fixtures()[fixture]
+                concentrations = dict(original.species_mol_l)
+                concentrations[ion] *= 1.2
+                forged = replace(original, species_mol_l=concentrations)
+                with self.assertRaisesRegex(
+                    EquilibriumConvergenceError, "ionic charge"
+                ):
+                    project_local_equilibrium_observations(forged)
+
+    def test_rejects_forged_charge_diagnostic_and_coordinated_pH_edit(self):
+        original = _fixtures()["W02"]
+        forged_diag = replace(
+            original, diagnostics=replace(
+                original.diagnostics, charge_balance_residual=0.1,
+            ),
+        )
+        with self.assertRaisesRegex(EquilibriumConvergenceError, "ionic charge"):
+            project_local_equilibrium_observations(forged_diag)
+
+        concentrations = dict(original.species_mol_l)
+        concentrations["H+"] *= 2.0
+        forged_ph = replace(
+            original, species_mol_l=concentrations,
+            pH=-math.log10(concentrations["H+"]),
+        )
+        with self.assertRaisesRegex(EquilibriumConvergenceError, "ionic charge"):
+            project_local_equilibrium_observations(forged_ph)
+
+    def test_charge_audit_preserves_valid_extreme_float_states(self):
+        """A3's cancellation-aware solvers must not fail a naive overflow test."""
+        cases = (
+            solve_strong_neutralization(
+                1e308, math.nextafter(1e308, math.inf), 1e-14,
+            ),
+            solve_weak_acid(1e100, 1e308, 1e-14),
+            solve_ammonia_buffer(1e308, 1e308, 1e-308, 1e-14),
+            solve_agcl_precipitation(
+                1.0, 1.0, 1.0, 1.0 + 2.0 ** -35, 0.01, 1e-14,
+            ),
+        )
+        for result in cases:
+            with self.subTest(species=tuple(result.species_mol_l)):
+                output = project_local_equilibrium_observations(result)
+                self.assertEqual(
+                    output["diagnostics"]["charge_balance"]["availability"]["status"],
+                    "present",
+                )
+
     def test_reject_forged_bad_aqueous_or_gas_result_and_unknown_input(self):
         fixtures = _fixtures()
         aqueous = fixtures["W01"]

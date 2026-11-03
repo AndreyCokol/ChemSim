@@ -9,7 +9,7 @@ unassessed, and inapplicable checks before a reviewed cross-agent mapping.
 
 from __future__ import annotations
 
-from math import isclose, log, log10, ulp
+from math import fsum, isclose, log, log10, ulp
 from typing import Any
 
 from chemsim.equilibrium import (
@@ -100,6 +100,56 @@ def _validate_local_aqueous_signature(result: AqueousResult) -> None:
     ):
         raise EquilibriumConvergenceError(
             "Local aqueous fixture diagnostics contradict its species/solid model"
+        )
+
+
+
+# Fixed *local fixture* charges for an independent numeric audit.
+# This is deliberately NOT a canonical, A2-authenticated FormulaAST charge
+# source, nor a claim that the scientific species/source records are admitted.
+_AQUEOUS_LOCAL_CHARGES = {
+    "HA": 0, "A-": -1, "H+": 1, "OH-": -1,
+    "Na+": 1, "Cl-": -1, "Ag+": 1,
+    "NH3": 0, "NH4+": 1, "NO3-": -1,
+}
+
+
+def _validate_local_aqueous_charge(result: AqueousResult) -> None:
+    """Reconcile ionic concentrations with claimed absolute charge residual.
+
+    Scale before summation to avoid overflow in very large but locally
+    representable states. Neutrals do not set the ionic scale. The comparison
+    includes float rounding allowance; tiny physical mismatches below that
+    scale are *not* independently resolved by this audit.
+    """
+    charged = [
+        (charge, result.species_mol_l[name])
+        for name, charge in _AQUEOUS_LOCAL_CHARGES.items()
+        if charge and name in result.species_mol_l
+    ]
+    if not charged:
+        raise EquilibriumConvergenceError(
+            "No charged species for local aqueous charge audit"
+        )
+    ionic_scale = max(abs(concentration) for _, concentration in charged)
+    if ionic_scale == 0.0:
+        raise EquilibriumConvergenceError(
+            "All charged species are zero; local aqueous pH is undefined"
+        )
+    charge_sum = abs(fsum(
+        charge * (concentration / ionic_scale)
+        for charge, concentration in charged
+    ))
+    reported = result.diagnostics.charge_balance_residual / ionic_scale
+    # The solver's finite output cannot expose differences smaller than the
+    # ulps of rounded individual species inventories. Avoid falsely claiming
+    # exact independent charge balance in that regime.
+    quantization = fsum(
+        ulp(concentration) / ionic_scale for _, concentration in charged
+    )
+    if abs(charge_sum - reported) > max(1.0e-12, 8.0 * quantization):
+        raise EquilibriumConvergenceError(
+            "Local aqueous ionic charge disagrees with reported balance residual"
         )
 
 
@@ -250,6 +300,7 @@ def project_local_equilibrium_observations(
             solid_phase_state=result.solid_phase_state,
         )
         _validate_local_aqueous_signature(result)
+        _validate_local_aqueous_charge(result)
         h = result.species_mol_l.get("H+")
         if (
             result.pH_method != "ideal_concentration_approximation"
