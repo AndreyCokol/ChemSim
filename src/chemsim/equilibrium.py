@@ -95,7 +95,10 @@ def _aqueous_result(
         or not isfinite(pH)
         or not isfinite(solid_mol_l)
         or solid_mol_l < 0.0
-        or isnan(diagnostics.residual)
+        # Negative infinity is the intentional log-saturation sentinel for
+        # an absent dissolved ion in an inactive-solid state. NaN and positive
+        # infinity are never valid converged aqueous residuals.
+        or (not isfinite(diagnostics.residual) and diagnostics.residual != -float("inf"))
         or not isfinite(diagnostics.component_balance_residual)
         or not isfinite(diagnostics.charge_balance_residual)
     ):
