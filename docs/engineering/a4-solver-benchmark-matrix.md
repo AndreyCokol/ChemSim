@@ -118,16 +118,16 @@ The following analytic/non-stiff cases now have executable regression coverage i
 
 | Case | Regression test | Coverage |
 |---|---|---|
-| KIN-01 | FirstOrderReaction_MatchesAnalyticalSolution_AndConservesAmount | First-order analytical endpoint and amount invariant |
+| KIN-01 | FirstOrderReaction_MatchesAnalyticalSolution_AndConservesAmount; FirstOrderReaction_MatchesAnalyticalProfileAtEveryOutputSample | First-order analytical endpoint plus every output sample, positivity and amount invariant |
 | KIN-02 | ZeroOrderReaction_MatchesAnalyticalProfileAndVolumeScalingBeforeDepletion | Full output profile, non-unit volume, positivity and conservation before depletion |
-| KIN-03 | SecondOrderReaction_UsesKineticOrderNotStoichiometricCoefficient | Second-order analytical endpoint and stoichiometric/kinetic-order distinction |
+| KIN-03 | SecondOrderReaction_UsesKineticOrderNotStoichiometricCoefficient; SecondOrderReaction_MatchesAnalyticalProfileAtEveryOutputSample | Second-order analytical endpoint plus every output sample, positivity, A+2B invariant and stoichiometric/kinetic-order distinction |
 | KIN-04 | FractionalOrderHalfReaction_MatchesAnalyticalProfileAtNonUnitVolume | Half-order full profile at non-unit volume, positivity and conservation |
 | KIN-05 | ConsecutiveFirstOrderNetwork_MatchesAnalyticalProfileAndConservesAmount | Equal-rate consecutive network, all output samples, positivity and invariant |
 | KIN-06 | ParallelFirstOrderPathways_MatchAnalyticalProfileAndBranchingRatio | Competing pathways, all output samples, positivity, invariant and branching ratio |
 | KIN-07 | Integrator_DoesNotTruncateIntervalAtLargeAbsoluteTime | Large absolute timestamp / short elapsed interval |
 | KIN-08 | FractionalOrder_ExtentRateDoesNotUnderflowThroughIntermediateConcentration | Extreme-scale fractional-order extent-rate underflow regression |
 
-Exact validated A4 branch head: 8a297a6adc945ae49c51be0d18d1c7251e19ac80. GitHub Actions run 41607791714 passed .NET 10 Restore, Build and Test on that head. The test cases establish correctness coverage for the listed individual fixtures; they do not yet constitute the full tolerance-convergence campaign or a measured performance report.
+Exact validated A4 branch head: 9778b775a415cbdfbf150fb1e81cfe32c72aabed. GitHub Actions run 41608054895 passed .NET 10 Restore, Build and Test on that head. The test cases establish correctness coverage for the listed individual fixtures; they do not yet constitute the full tolerance-convergence campaign or a measured performance report.
 
 The stiff reference cases STIFF-01 and STIFF-02 remain diagnostic benchmark work. No independent reference trajectory, controlled performance comparison, or implicit-method selection is claimed at this checkpoint.
 
