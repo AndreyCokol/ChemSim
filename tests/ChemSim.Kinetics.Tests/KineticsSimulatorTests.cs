@@ -460,4 +460,45 @@ public sealed class KineticsSimulatorTests
         Assert.Single(network.ConservationLaws);
     }
 
+
+    [Fact]
+    public void FractionalOrder_ExtentRateDoesNotUnderflowThroughIntermediateConcentration()
+    {
+        const double initialA = 1e-300;
+        const double volume = 1e100;
+        const double rateConstant = 1e-200;
+
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "fractional-A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 0.5d },
+                    new RateConstant(rateConstant, 0.5d))
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = initialA, ["B"] = 0d },
+            VolumeM3 = volume,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 0.1d,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-8,
+                AbsoluteToleranceMol = 1e-315,
+                InitialStepSeconds = 0.01d,
+                MinimumStepSeconds = 1e-8,
+                MaximumStepSeconds = 0.01d
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        var finalA = result.Samples[^1].AmountsMol["A"];
+        Assert.InRange(finalA / initialA, 0.89d, 0.92d);
+        Assert.True(result.Samples[^1].AmountsMol["B"] > 0d);
+    }
 }
