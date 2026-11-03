@@ -67,3 +67,24 @@ godot --headless --path . --script res://tests/a1/test_a1_user_catalog.gd
 ```
 
 **Known limitations:** this is a local implementation slice. It does not validate literal UTC timestamps beyond structural presence, independently prove provenance truth, enforce scientific unit dimensions, guarantee atomicity under power loss, or resolve concurrent processes on Windows. A5/integrator must specify migration/export/backup UX and cross-module locking before shipping persistent data. No full-app E2E or scientific benchmark admission is implied.
+
+
+## A1 scoped HazardRecord metadata preflight (P1)
+
+`a1_hazard_gate.gd` validates only the **structure and evidence claims** of hazard records. It never certifies a substance safe, issues a warning's scientific truth, issues redistribution rights, or supplies laboratory handling instructions. It returns `ok`, A1-local `errors[]`, `warnings[]`, `completeness`, `safety_assurance: false` and `scope: a1_hazard_metadata_preflight_only`. These are **not** shared ErrorEnvelope/UX string IDs; integrator+A5 must map and localize them.
+
+- `record = null` produces a displayable `not_assessed` status and warning **A1_HAZARD_NOT_ASSESSED**. A record marked `not_assessed` must not smuggle in claimed assessment, H/P statements or a confirmed source.
+- `absent` means a scoped **record-absence finding** in a clearly declared framework/jurisdiction/source, with explicit `absence_evidence_field` and all scoped sections reviewed. **It does not mean “no hazards”, “safe”, “no warning required” or “SDS absent”.**
+- `partial` requires explicitly separated reviewed versus missing sections; the union must match the declared scope, without overlapping or duplicated sections.
+- `complete_for_declared_scope` means only that all **declared** sections were reviewed. It does not certify safety outside that source, framework, jurisdiction or retrieval/assessment date. Empty H/P lists do not prove hazard absence.
+- Scoped assessments have a pinned Substance reference `{id,record_revision}`, source ID/version/record locator/retrieval time, assessment timestamp, framework/version/jurisdiction and explicit H/P statement source-field locators. `freshness` (`current|stale|unknown`) and `conflict_status` (`none_reported|conflicting|not_assessed`) remain independent of completeness.
+- Unknown metadata, claimed `safe` and arbitrary release approval fields are rejected. Source metadata strings and H/P text **are not authenticated against a third-party SDS**; no actual hazards were imported into this repository. Field/channel redistribution must be approved independently through A1 rights process, **not** by this validator.
+- The current user-draft store intentionally has only `hazard_completeness: not_assessed`. Real assessed HazardRecord storage and A5 card/encyclopedia rendering remain separate integration tasks requiring an approved schema/adaptor and source/licensing evidence.
+
+Run the A1 test (synthetic H/P strings, not actual safety guidance):
+
+```sh
+godot --headless --path . --script res://tests/a1/test_a1_hazard_gate.gd
+```
+
+**Not covered:** external source authenticity, applicable regulatory classification, accurate hazard statements, age/version freshness policy, SDS-specific requirements, dangerous-material handling, Windows distribution, and UI accessibility/localization. A1 does not generate safety advice from missing fields.
