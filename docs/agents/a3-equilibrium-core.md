@@ -1,5 +1,7 @@
 # ChemSim A3 equilibrium core
 
+**A3-14 typed scientific diagnostics (2026-11-03):** The seven local equilibrium fixtures now expose equation-specific `residual_kind/residual_unit`, typed component and charge residual kinds/units and aqueous `pH_method=ideal_concentration_approximation`. W03 `residual=None` and `component_balance_residual=None` are *not assessed*, never verified zeros. The old `balance_unit` is retained for compatibility only and MUST NOT be used to label the generic residual. See [scientific mapping](a3-typed-residuals-v01-handoff.md). [Exact source/test CI #41661392329](https://github.com/AndreyCokol/ChemSim/actions/runs/41661392329): **71 tests / OK**. This is not a shared JSON DTO or A1-admitted thermodynamic benchmark.
+
 This package currently implements the seven A3 benchmark fixtures as an isolated,
 dependency-free reference core. It is not yet a general chemical-speciation engine.
 
