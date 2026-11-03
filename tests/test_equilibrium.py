@@ -593,6 +593,35 @@ class GasBenchmarkTests(unittest.TestCase):
             delta=result.total_pressure_pa * 1e-12,
         )
 
+    def test_gas_result_species_and_pressure_maps_are_read_only(self):
+        result = solve_no2_dimerization(0.01, 0.0, 298.15, 1.0e-3, 6.73)
+        with self.assertRaises(TypeError):
+            result.species_mol["NO2"] = -1.0
+        with self.assertRaises(TypeError):
+            result.partial_pressures_pa["NO2"] = float("nan")
+        self.assertGreater(result.species_mol["NO2"], 0.0)
+        self.assertGreater(result.partial_pressures_pa["NO2"], 0.0)
+
+    def test_gas_element_conservation_for_both_benchmark_reactions(self):
+        no2_initial = 1.0e-18
+        dimer = solve_no2_dimerization(no2_initial, 0.0, 298.15, 1.0e-3, 6.73)
+        self.assertAlmostEqual(
+            math.fsum((dimer.species_mol["NO2"], 2.0 * dimer.species_mol["N2O4"])),
+            no2_initial,
+            delta=no2_initial * 1.0e-12,
+        )
+        hi_initial = 1.0e-18
+        reverse = solve_h2_i2_hi(0.0, 0.0, hi_initial, 298.15, 1.0e-3, 690.2)
+        h_atoms = math.fsum((reverse.species_mol["H2"], reverse.species_mol["HI"] * 0.5))
+        i_atoms = math.fsum((reverse.species_mol["I2(g)"], reverse.species_mol["HI"] * 0.5))
+        self.assertAlmostEqual(h_atoms, hi_initial * 0.5, delta=hi_initial * 1.0e-12)
+        self.assertAlmostEqual(i_atoms, hi_initial * 0.5, delta=hi_initial * 1.0e-12)
+        self.assertAlmostEqual(
+            reverse.total_pressure_pa,
+            math.fsum(reverse.partial_pressures_pa.values()),
+            delta=reverse.total_pressure_pa * 1.0e-12,
+        )
+
     def test_g01_no2_dimerization(self):
         result = solve_no2_dimerization(0.010, 0.0, 298.15, 1.0e-3, 6.73)
         self.assertEqual(result.diagnostics.reliability_status, "idealized_approximation")
