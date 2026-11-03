@@ -53,6 +53,8 @@ jobs:
         run: dotnet build ChemSim.sln --configuration Release --no-restore
 
       - name: Test
+        env:
+          A4_GRAPH_FIXTURE_DIRECTORY: ${{ runner.temp }}/a4-graph-fixtures
         run: dotnet test ChemSim.sln --configuration Release --no-build --logger "trx;LogFileName=a4-tests.trx"
 
       - name: Standalone CLI real-process smoke (synthetic data, Linux)
@@ -107,6 +109,13 @@ jobs:
               assert abs(2*a + b - 2) < 1e-9
               assert abs(4*a + 2*b - 4) < 2e-9
           PY
+
+      - name: Upload real A4 numerical GraphSeries fixture for A5 consumer
+        uses: actions/upload-artifact@v4
+        with:
+          name: a4-a5-real-graph-json
+          path: ${{ runner.temp }}/a4-graph-fixtures/*.json
+          if-no-files-found: error
 
       - name: Upload test results
         if: always()
@@ -191,3 +200,35 @@ jobs:
           name: a4-windows-x64-cli-experimental
           path: ${{ runner.temp }}/a4-published/*
           if-no-files-found: error
+
+  a5-graph-cross-consumer:
+    name: Pinned A5 Godot validates actual A4 numeric GraphSeries JSON
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout A4 test producer (current PR head)
+        uses: actions/checkout@v4
+        with:
+          path: a4
+
+      - name: Checkout exact A5 consumer revision (read-only test)
+        uses: actions/checkout@v4
+        with:
+          ref: 90f24ea71923dbbd044e56fa8ade72ff55849e6a
+          path: a5
+
+      - name: Download real RK45-projected JSON from .NET tests
+        uses: actions/download-artifact@v4
+        with:
+          name: a4-a5-real-graph-json
+          path: a5/tests/a4-graph-fixtures
+
+      - name: Run unmodified A5 Godot graph validator on A4 JSON
+        shell: bash
+        run: |
+          cp a4/tests/a4_cross_agent/validate_a4_graph_json_in_a5.gd a5/tests/a4_graph_consumer_test.gd
+          timeout 180s godot --headless --editor --path a5 --quit
+          timeout 180s godot --headless --path a5 --script res://tests/a4_graph_consumer_test.gd --quit-after 3
