@@ -89,7 +89,7 @@ func _run() -> void:
 	main._on_reaction_changed("synthetic edit")
 	assert(main.graph_view.series_by_quantity.is_empty(), "Editing reaction text must invalidate all cached simulation graphs")
 
-	main.components = [{
+	var typed_components: Array[Dictionary] = [{
 		"id": 7,
 		"name": "Вода",
 		"formula": "H2O",
@@ -98,6 +98,7 @@ func _run() -> void:
 		"phase": "Жидкость",
 		"position": Vector2(0.5, 0.5)
 	}]
+	main.components = typed_components
 	main.visual_field.set_marker(7, "Вода", Vector2(0.5, 0.5))
 	main.draft_dirty = false
 
