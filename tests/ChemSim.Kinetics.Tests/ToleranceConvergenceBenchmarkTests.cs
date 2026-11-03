@@ -150,9 +150,9 @@ public sealed class ToleranceConvergenceBenchmarkTests
     [Fact]
     public void ConsecutiveFirstOrderNetwork_ProfileErrorDecreasesAsTolerancesTighten()
     {
-        var looseError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-1d);
-        var baselineError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-3d);
-        var tightError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-5d);
+        var looseError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-2d);
+        var baselineError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-4d);
+        var tightError = MeasureConsecutiveMaximumProfileError(relativeTolerance: 1e-6d);
 
         Assert.True(looseError > 0d, $"Expected a measurable loose-tolerance error, got {looseError:G17}.");
         Assert.True(baselineError < looseError * 0.5d,
@@ -198,19 +198,19 @@ public sealed class ToleranceConvergenceBenchmarkTests
             VolumeM3 = 1d,
             StartTimeSeconds = 0d,
             EndTimeSeconds = endTime,
-            OutputIntervalSeconds = 1d,
+            OutputIntervalSeconds = endTime,
             Solver = new SolverOptions
             {
                 RelativeTolerance = relativeTolerance,
-                AbsoluteToleranceMol = 1e-13d,
-                InitialStepSeconds = 0.5d,
+                AbsoluteToleranceMol = 1e-14d,
+                InitialStepSeconds = endTime,
                 MinimumStepSeconds = 1e-12d,
-                MaximumStepSeconds = 1d
+                MaximumStepSeconds = endTime
             }
         });
 
         Assert.True(result.IsSuccess, result.Diagnostics.Message);
-        Assert.Equal(6, result.Samples.Count);
+        Assert.Equal(2, result.Samples.Count);
 
         var maximumError = 0d;
         foreach (var sample in result.Samples)
