@@ -150,7 +150,7 @@ public sealed class KineticsSimulator
                 // = k * V^(1 - totalOrder) * product(n_i^order_i).
                 // Evaluating concentration and volumetric rate first can underflow
                 // to zero even when the final mol/s extent rate is representable.
-                var totalOrder = reaction.KineticOrders.Values.Sum();
+                var totalOrder = reaction.TotalKineticOrder;
                 var logExtentRate = Math.Log(reaction.RateConstant.Value) +
                                     (1d - totalOrder) * Math.Log(request.VolumeM3);
                 var zeroRate = false;
