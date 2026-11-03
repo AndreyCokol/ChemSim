@@ -13,6 +13,33 @@ func _initialize() -> void:
 	assert(previous_focus != null, "The visual field must have a backward keyboard-focus destination")
 	assert(next_focus != main.visual_field and previous_focus != main.visual_field, "Tab traversal must be able to leave the visual field in both directions")
 	assert(next_focus.is_visible_in_tree() and next_focus.focus_mode != Control.FOCUS_NONE, "The next focus target must be visible and keyboard-focusable")
+	# Walk the actual focus chain from the custom visual field. This catches
+	# accidental dead ends, invisible destinations, and focus loops that skip
+	# most of the workspace's keyboard-operable controls.
+	var forward_focus_chain: Array[Control] = []
+	var forward_seen := {}
+	var focus_cursor: Control = main.visual_field
+	for _step in range(64):
+		focus_cursor = focus_cursor.find_next_valid_focus()
+		if focus_cursor == null or focus_cursor == main.visual_field:
+			break
+		assert(not forward_seen.has(focus_cursor.get_instance_id()), "Forward focus traversal must not enter a premature loop")
+		assert(focus_cursor.is_visible_in_tree(), "Forward focus traversal must not target a hidden control")
+		assert(focus_cursor.focus_mode != Control.FOCUS_NONE, "Forward focus traversal must target keyboard-focusable controls")
+		forward_seen[focus_cursor.get_instance_id()] = true
+		forward_focus_chain.append(focus_cursor)
+	assert(forward_focus_chain.size() >= 4, "The visual field should be connected to a meaningful keyboard-focus chain")
+
+	var backward_seen := {}
+	focus_cursor = main.visual_field
+	for _step in range(64):
+		focus_cursor = focus_cursor.find_prev_valid_focus()
+		if focus_cursor == null or focus_cursor == main.visual_field:
+			break
+		assert(not backward_seen.has(focus_cursor.get_instance_id()), "Backward focus traversal must not enter a premature loop")
+		assert(focus_cursor.is_visible_in_tree(), "Backward focus traversal must not target a hidden control")
+		assert(focus_cursor.focus_mode != Control.FOCUS_NONE, "Backward focus traversal must target keyboard-focusable controls")
+		backward_seen[focus_cursor.get_instance_id()] = true
 	main.visual_field.grab_focus()
 	assert(main.visual_field.has_focus(), "The visual field must accept keyboard focus")
 	next_focus.grab_focus()
