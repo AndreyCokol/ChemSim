@@ -91,7 +91,8 @@ def _aqueous_result(
     solid_mol_l: float = 0.0,
 ) -> AqueousResult:
     if (
-        any(not isfinite(value) or value < 0.0 for value in species_mol_l.values())
+        diagnostics.iterations < 0
+        or any(not isfinite(value) or value < 0.0 for value in species_mol_l.values())
         or not isfinite(pH)
         or not isfinite(solid_mol_l)
         or solid_mol_l < 0.0
