@@ -164,6 +164,40 @@ func _initialize() -> void:
 	assert(not FileAccess.file_exists(temp_recovery_sidecar), "Successful temporary recovery should consume its sidecar")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_recovery_path))
 
+	var both_sidecars_path := "user://experiments/both-sidecars.chemsim.json"
+	var both_sidecars_backup := both_sidecars_path + ".bak"
+	var both_sidecars_temp := both_sidecars_path + ".tmp"
+	var backup_payload := payload.duplicate(true)
+	backup_payload.experiment_name = "Committed backup"
+	var temp_payload := payload.duplicate(true)
+	temp_payload.experiment_name = "Uncommitted temporary"
+	_write_text(both_sidecars_backup, JSON.stringify(backup_payload))
+	_write_text(both_sidecars_temp, JSON.stringify(temp_payload))
+	var both_sidecars_load := DraftRepository.load_draft(both_sidecars_path)
+	assert(both_sidecars_load.ok, "A valid backup should be recoverable when both sidecars exist")
+	assert(both_sidecars_load.data.experiment_name == "Committed backup", "Recovery must prefer the previously committed backup over an uncommitted temp")
+	assert(FileAccess.file_exists(both_sidecars_path), "Preferred backup should become canonical")
+	assert(not FileAccess.file_exists(both_sidecars_backup), "Promoted backup should be consumed")
+	assert(FileAccess.file_exists(both_sidecars_temp), "Non-selected temp sidecar must be preserved for inspection")
+	assert(String(both_sidecars_load.get("recovery_warning", "")).contains(both_sidecars_temp), "Recovery should warn that the unselected temp sidecar remains")
+	assert(_read_text(both_sidecars_temp) == JSON.stringify(temp_payload), "Recovery must not modify the unselected temp sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(both_sidecars_temp))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(both_sidecars_path))
+
+	var invalid_backup_valid_temp_path := "user://experiments/invalid-backup-valid-temp.chemsim.json"
+	var invalid_backup_valid_temp_backup := invalid_backup_valid_temp_path + ".bak"
+	var invalid_backup_valid_temp_temp := invalid_backup_valid_temp_path + ".tmp"
+	_write_text(invalid_backup_valid_temp_backup, "{ corrupt backup")
+	_write_text(invalid_backup_valid_temp_temp, JSON.stringify(temp_payload))
+	var invalid_backup_valid_temp_load := DraftRepository.load_draft(invalid_backup_valid_temp_path)
+	assert(not invalid_backup_valid_temp_load.ok, "A corrupt preferred backup must fail closed instead of silently falling back to a temp file")
+	assert(not FileAccess.file_exists(invalid_backup_valid_temp_path), "A valid temp must not be promoted while a corrupt preferred backup is present")
+	assert(FileAccess.file_exists(invalid_backup_valid_temp_backup), "Corrupt backup must be preserved for manual inspection")
+	assert(FileAccess.file_exists(invalid_backup_valid_temp_temp), "Unselected valid temp must also be preserved for manual inspection")
+	assert(_read_text(invalid_backup_valid_temp_temp) == JSON.stringify(temp_payload), "Fail-closed recovery must not modify the valid temp sidecar")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(invalid_backup_valid_temp_backup))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(invalid_backup_valid_temp_temp))
+
 	# DirAccess.is_link detects symlinks and Windows reparse points. Exercise
 	# an actual link to a location outside user:// on the Linux CI runner.
 	var outside_target := OS.get_cache_dir().path_join("chemsim-symlink-target")
