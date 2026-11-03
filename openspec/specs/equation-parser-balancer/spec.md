@@ -210,7 +210,8 @@ A3 предоставил provisional consumer contract в `docs/agents/a3-equil
 | Заряд | `Fe^3+` | charge=+3 |
 | Фаза | `CO2(g)` | phase=GAS; состав CO2 |
 | Простое уравнение | `H2 + O2 -> H2O` | parse succeeds; balance check false |
-| Ионное уравнение | `Ag+ + Cl- -> AgCl(s)` | parse succeeds; charge/phase retained |\n| Нейтрализация | `H+ + OH- -> H2O` | both one-charge aliases parse; atom/charge balance can be checked independently |
+| Ионное уравнение | `Ag+ + Cl- -> AgCl(s)` | parse succeeds; charge/phase retained |
+| Нейтрализация | `H+ + OH- -> H2O` | both one-charge aliases parse; atom/charge balance can be checked independently |
 | Обратимая стрелка | `N2(g) + 3H2(g) ⇌ 2NH3(g)` | reversible arrow retained; no K or kinetics inferred |
 | Балансировка | `H2 + O2 -> H2O` | propose 2,1,2 |
 | Зарядовая невязка | `Fe^3+ + 2Cl- -> FeCl2` | parse succeeds; atom counts match, charge residual is +1, so balance check is false; electron notation is outside this MVP |
