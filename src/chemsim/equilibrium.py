@@ -106,7 +106,9 @@ def _aqueous_result(
             )
         )
         or not isfinite(diagnostics.component_balance_residual)
+        or diagnostics.component_balance_residual < 0.0
         or not isfinite(diagnostics.charge_balance_residual)
+        or diagnostics.charge_balance_residual < 0.0
     ):
         raise EquilibriumConvergenceError(
             "Aqueous equilibrium produced non-finite or nonphysical result values"
