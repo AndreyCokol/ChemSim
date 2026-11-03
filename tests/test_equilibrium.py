@@ -106,6 +106,17 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["Cl-"], 0.01000)
         self.assertLess(result.diagnostics.charge_balance_residual, 1e-12)
 
+    def test_strong_acid_trace_concentration_is_not_lost_to_absolute_residual_tolerance(self):
+        result = solve_strong_neutralization(1.0e-100, 0.0, 1.0e-200)
+        expected_h = 0.5 * (1.0 + math.sqrt(5.0)) * 1.0e-100
+        self.assertAlmostEqual(result.species_mol_l["H+"], expected_h, delta=expected_h * 1e-10)
+        self.assertAlmostEqual(result.pH, -math.log10(expected_h), places=9)
+
+    def test_positive_root_bracket_expands_for_large_concentrations(self):
+        result = solve_strong_neutralization(1.0e100, 0.0, 1.0e-14)
+        self.assertAlmostEqual(result.species_mol_l["H+"], 1.0e100, delta=1.0e88)
+        self.assertAlmostEqual(result.pH, -100.0, delta=1e-10)
+
     def test_w03_agcl_solubility(self):
         result = solve_agcl_solubility(10 ** -9.748, 1.0e-14)
         self.assertAlmostEqual(result.species_mol_l["Ag+"], 1.335e-5, delta=2e-8)
