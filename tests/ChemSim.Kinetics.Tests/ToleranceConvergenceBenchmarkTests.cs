@@ -122,12 +122,12 @@ public sealed class ToleranceConvergenceBenchmarkTests
             VolumeM3 = volume,
             StartTimeSeconds = 0d,
             EndTimeSeconds = endTime,
-            OutputIntervalSeconds = 0.5d,
+            OutputIntervalSeconds = 10d,
             Solver = new SolverOptions
             {
                 RelativeTolerance = relativeTolerance,
                 AbsoluteToleranceMol = 1e-14d,
-                InitialStepSeconds = 1d,
+                InitialStepSeconds = 10d,
                 MinimumStepSeconds = 1e-12d,
                 MaximumStepSeconds = 10d
             }
