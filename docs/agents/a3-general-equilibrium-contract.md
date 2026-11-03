@@ -19,8 +19,9 @@ The next generalization should cover a closed, isothermal, homogeneous ideal-mix
 2. For every reaction and every element, the stoichiometric sum of elemental counts is zero. If charges are modeled, reaction charge sum must also be zero.
 3. Each initial amount/total is finite and non-negative; units and basis are explicit and consistent.
 4. Each equilibrium constant is finite, positive, dimensionless, and carries its standard-state/basis metadata.
-5. Reject underdetermined or rank-deficient constraints explicitly, or report the rank deficiency and require an explicit policy. Never silently regularize.
-6. A species absent from the initial mixture may still be a product; positivity must be enforced by the solver, not by rejecting that species at input.
+5. Detect linearly dependent reaction columns before solving. For every dependency vector `c` satisfying `N c = 0`, require thermodynamic consistency `cᵀ ln(K) = 0` within a declared, scale-aware tolerance. Equivalently, a dependent reaction must have the equilibrium constant implied by the independent reaction set; inconsistent cycles are invalid input, not a reason to silently drop a reaction or regularize the system. Preserve a mapping from the independent reaction basis back to all declared reactions for diagnostics.
+6. Reject underdetermined or rank-deficient constraints explicitly, or report the rank deficiency and require an explicit policy. Never silently regularize. Rank deficiency alone is not sufficient: first distinguish a consistent redundant reaction set from an inconsistent set of equilibrium constants.
+7. A species absent from the initial mixture may still be a product; positivity must be enforced by the solver, not by rejecting that species at input.
 
 ## Mathematical formulation
 
@@ -41,7 +42,8 @@ Activities `a_i` must be dimensionless and derived from the declared model and s
 - Maintain feasible non-negative species amounts; use a positivity-preserving parameterization or a constrained method.
 - Check element and charge residuals independently from equilibrium residuals.
 - Report convergence status, iteration count, method, scaled residuals, and any active constraints.
-- Detect dependent reactions / redundant equations before solving; report the independent reaction rank.
+- Detect dependent reactions / redundant equations before solving; report the independent reaction rank and preserve the mapping to declared reactions.
+- Check every reaction-cycle dependency against `cᵀ ln(K) = 0`; reject thermodynamically inconsistent dependent constants before numerical solving. Do not let rank reduction hide inconsistent K values.
 - A successful numerical solve does not establish that the chosen thermodynamic model is physically applicable.
 - Keep units explicit in diagnostics. Do not label concentration-based ideal pH as thermodynamic activity pH.
 
@@ -58,6 +60,7 @@ This contract does not yet specify multiple solids, aqueous complexation, nonide
 - Accept a valid reaction that creates a product absent initially.
 - Verify `A n = b` and `Nᵀ ln(a) = ln(K)` within documented scaled tolerances.
 - Detect linearly dependent reactions and produce a stable, explicit diagnostic.
+- Accept a redundant reaction set only when its equilibrium constants satisfy every stoichiometric dependency (for example, for `A ⇌ B` with `K₁`, and `2A ⇌ 2B` with `K₂`, require `K₂ = K₁²` within the declared tolerance); reject an inconsistent `K₂` before solving.
 - Reject missing/inconsistent standard-state metadata.
 - Exercise near-zero inventories without producing negative amounts or silently clipping material.
 - For a phase extension, test both inactive and active solid cases and verify component balances and complementarity.
