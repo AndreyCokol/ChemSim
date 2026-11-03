@@ -126,7 +126,7 @@ namespace ChemSim.Kinetics.Cli
             return id;
         }
 
-        private sealed record ParsedProblem(SimulationRequest Request, double TemperatureK, string[] SpeciesIds);
+        internal sealed record ParsedProblem(SimulationRequest Request, double TemperatureK, string[] SpeciesIds);
 
         private static ParsedProblem ParseProblem(JsonElement payload)
         {
@@ -267,7 +267,7 @@ namespace ChemSim.Kinetics.Cli
             return new ParsedProblem(request, temperature, network.SpeciesIds.ToArray());
         }
 
-        private static object MakeResult(string requestId, ParsedProblem parsed, SimulationResult result)
+        internal static object MakeResult(string requestId, ParsedProblem parsed, SimulationResult result)
         {
             ValidatedResultPrefix validated;
             try
