@@ -153,14 +153,21 @@ static func validate_response(response: Variant, request: Dictionary) -> Diction
 		return _fail("A4 вернул другой интервал расчёта.")
 	if samples.is_empty():
 		return _fail("A4 не предоставил ни одной проверенной точки.")
-	if outcome == "completed" and str(reliability.get("numerical_status", "")) != "completed":
-		return _fail("Успех A4 противоречит его численному статусу.")
+	if outcome == "completed":
+		if str(reliability.get("numerical_status", "")) != "completed" or str(reliability.get("completeness", "")) != "complete_for_declared_scope":
+			return _fail("Успех A4 противоречит численному статусу или полноте.")
+		if not response.errors.is_empty() or str(reliability.get("model_applicability", "")) != "not_assessed":
+			return _fail("Успешный учебный расчёт не должен выдавать ошибки или неподтверждённую применимость модели.")
+		var expected_count := int(roundf(DEMO_END_S / DEMO_SAMPLE_S)) + 1
+		if samples.size() != expected_count:
+			return _fail("Завершённый расчёт A4 должен содержать все запрошенные временные отсчёты.")
 	if outcome != "completed" and str(reliability.get("completeness", "")) == "complete_for_declared_scope":
 		return _fail("Частичный расчёт ошибочно отмечен полностью завершённым.")
 	var concentration_samples: Array = []
 	var temp_samples: Array = []
 	var approved_history: Array = []
 	var last_time := -1.0
+	var sample_index := 0
 	for sample in samples:
 		if not sample is Dictionary or not _finite_number(sample.get("time_s")):
 			return _fail("A4 вернул ошибочную временную точку.")
@@ -168,6 +175,8 @@ static func validate_response(response: Variant, request: Dictionary) -> Diction
 		if t <= last_time or t < 0.0 or t > DEMO_END_S + 1.0e-8:
 			return _fail("Время результата A4 нарушает порядок или диапазон.")
 		last_time = t
+		if outcome == "completed" and absf(t - float(sample_index) * DEMO_SAMPLE_S) > 1.0e-7:
+			return _fail("A4 вернул пропущенный или смещённый временной отсчёт при успешном расчёте.")
 		var amounts: Variant = sample.get("amounts_mol")
 		if not amounts is Dictionary or amounts.size() != 2:
 			return _fail("A4 вернул неполный набор количеств.")
@@ -175,11 +184,14 @@ static func validate_response(response: Variant, request: Dictionary) -> Diction
 			return _fail("У результата A4 отсутствуют конечные количества.")
 		var na := float(amounts[A_ID])
 		var nb := float(amounts[B_ID])
+		if sample_index == 0 and (absf(na - DEMO_AMOUNT_MOL) > 1.0e-8 or absf(nb) > 1.0e-8):
+			return _fail("Начальное состояние A4 отличается от заявленного в запросе.")
 		if na < -1.0e-9 or nb < -1.0e-9 or absf(2.0 * na + nb - 2.0) > 1.0e-5:
 			return _fail("Нарушена неотрицательность или атомный баланс учебного ряда.")
 		concentration_samples.append({"time_s": t, "value_status": "valid", "value": nb / DEMO_VOLUME_M3})
 		temp_samples.append({"time_s": t, "value_status": "valid", "value": DEMO_T_K})
 		approved_history.append({"time_s": t, "n2o4_mol": na, "no2_mol": nb})
+		sample_index += 1
 	if absf(float(approved_history[0].time_s)) > 1.0e-8:
 		return _fail("Первый отсчёт A4 должен соответствовать t=0.")
 	var last_status := str(payload.get("last_valid_time_status", ""))
