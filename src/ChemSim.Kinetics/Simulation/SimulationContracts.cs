@@ -56,7 +56,12 @@ public sealed record SimulationRequest
         if (!double.IsFinite(OutputIntervalSeconds) || OutputIntervalSeconds <= 0d)
             throw new ArgumentOutOfRangeException(nameof(OutputIntervalSeconds));
         var maximumTimeMagnitude = Math.Max(Math.Abs(StartTimeSeconds), Math.Abs(EndTimeSeconds));
-        var representableTimeResolution = Math.BitIncrement(maximumTimeMagnitude) - maximumTimeMagnitude;
+        var nextMagnitude = Math.BitIncrement(maximumTimeMagnitude);
+        // At double.MaxValue BitIncrement is +Infinity. The relevant spacing
+        // for a finite interval ending there is the inward ULP, not infinity.
+        var representableTimeResolution = double.IsFinite(nextMagnitude)
+            ? nextMagnitude - maximumTimeMagnitude
+            : maximumTimeMagnitude - Math.BitDecrement(maximumTimeMagnitude);
         if (OutputIntervalSeconds < representableTimeResolution ||
             Math.Min(EndTimeSeconds, StartTimeSeconds + OutputIntervalSeconds) <= StartTimeSeconds)
             throw new ArgumentException(
