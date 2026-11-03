@@ -1,13 +1,13 @@
-# Agent A2 — интеграционный review кандидата v0.1 (2026-11-03)
+# Agent A2 — интеграционный review утверждённого baseline v0.1 (2026-11-03)
 
-> **Статус: DRAFT / A2-P1-CONTRACT-REVIEW.** Спецификация и таблица для интегратора; **не** утверждённый публичный DTO, не новые runtime API, не результаты сквозных тестов. Владелец: Agent A2 — Equation Parser & Balancer; закрепление: [Issue #9](https://github.com/AndreyCokol/ChemSim/issues/9); реализация: [Draft PR #5](https://github.com/AndreyCokol/ChemSim/pull/5).
+> **Статус: owner-approved architecture baseline v0.1, A2 mapping under review.** Владелец [утвердил OpenSpec](https://github.com/AndreyCokol/ChemSim/blob/main/openspec/changes/define-chemsim-mvp/APPROVAL.md) (2026-11-03, immutable baseline `02b8b31706807279ee31a78772383e31f425f7d3`) и разрешил реализацию A1–A5. **Общий runtime DTO и E2E остаются неготовыми**. A2-владелец: [Issue #9](https://github.com/AndreyCokol/ChemSim/issues/9); [Draft PR #5](https://github.com/AndreyCokol/ChemSim/pull/5).
 
 ## Проверенная база
 
-- Shared candidate: `openspec/contracts/mvp-cross-agent-contract-v0.1.md`, blob `dc75f017a08cae02d3ff6155c6dcf611d3f1b2e7`, integrator branch `openspec/review-round-1`; **INTEGRATOR-DECIDED / PENDING OWNER APPROVAL**.
+- Shared candidate: `openspec/contracts/mvp-cross-agent-contract-v0.1.md`, blob `dc75f017a08cae02d3ff6155c6dcf611d3f1b2e7`, integrator branch `openspec/review-round-1`; **approved architecture baseline at immutable SHA `02b8b31706807279ee31a78772383e31f425f7d3`**. Producer implementation compatibility is still not proven.
 - Envelope JSON Schema: `openspec/contracts/interchange-envelope-v0.1.schema.json`, blob `8dfe5c9338596329872430aa775a0b71c20f56b0`. It defines `$defs/Envelope`, `SourceSpan`, `ErrorEnvelope` etc., but its `payload` is an arbitrary object: it **does not yet encode/validate** FormulaAST, Reaction or ReactionTerm wire structures. A2 cannot call interchange payload validation DONE from this schema alone.
 - A2 actual source: `src/chemistry/a2/chem_equation_parser.gd` blob `514bddd65fd1b78c381ff4f65dae3090a5a96ff9`; balancer blob `51ac9486139ea064abe82f4d5bad1fa704ccdf71`; tests `7e4e4d34a6f4cb2aecb61dc2ca9ea5f6535f2e71`; README `7be3cc8a6ae74a7b619284793e97db71e7c89edb`.
-- Exact A2 previous docs-only HEAD `3ca62f77d01edff6496ed92998f1a9e32d9f413e` passed Godot 4.3 isolated workflow [#41652519847](https://github.com/AndreyCokol/ChemSim/actions/runs/41652519847). The following proposed wire acceptance cases are **not executable tests yet**.
+- A2 parser/balancer/lexer and UTF-8 helper are separately tested at exact A2 HEAD `9a548f7fc62c39b6fa2009967435ba99dc5b5ac3`: successful [Godot 4.3 CI #41660183784](https://github.com/AndreyCokol/ChemSim/actions/runs/41660183784). **No integrated Godot→A4→A5 E2E**. Some shared-wire acceptance cases below remain proposed; A2 local DTO/Unicode cases have been executed.
 
 ## A2 → shared v0.1 mapping and risks
 
@@ -58,20 +58,40 @@ Never silently expand a zero-width EOF span to an unrelated character or fabrica
 4. Duplicate `H2 + H2 + O2 -> H2O`: original locator list must be preserved; balance proposal is **aggregated**, not per-original-term coefficients. Caller must not distribute it arbitrarily.
 5. A2 text `N2O4(g) -> 2NO2(g)`: valid atoms/charge, `FORWARD`, GAS; synthetic A4 model only after explicit kinetic inputs and applicability, as separately documented in A2 DRAFT.
 6. Explicit `UNSPECIFIED` phase: canonical draft SpeciesRef may represent it, but a gas/aqueous model requiring known phase blocks rather than guesses `g` or `aq`.
-7. Missing `schema_version`, missing `arrow_type`, missing per-term coefficient or phase in *external* Reaction DTO: fail-closed in each A2 public consumer operation after owner approves the DRAFT validation rule.
+7. Missing `schema_version`, `arrow_type`, per-term coefficient or phase in *external* Reaction DTO: **A2-local fail-closed validation implemented/tested** in `check_balance`, `propose_balance`, `serialize_reaction`, CI [#41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795); versioned **wire** conversion/migration is still integrator-owned.
 8. Unknown envelope `contract_version` or wrong `kind`: integrator transport rejects; do not confuse `contract_version="0.1"` with local A2 AST `schema_version=1`.
 9. Source-span with `end < start`, end beyond bytes or start in middle of UTF-8 sequence: block and record typed error; never display wrong highlighting or mutate original text to make range look valid.
 10. Zero-length insertion spans: check `[7,7)` and `[4,4)` end-to-end once integrator resolves the schema/consumer contradiction, including Russian UI selection.
+
+## A2 → A4: exact chemistry admission and residual sign (P1 checkpoint)
+
+**Verified code semantics:** `ChemEquationParser.check_balance(reaction)` returns `element_residuals[e] = Σ_reactants a(e,i)·coefficient(i) − Σ_products a(e,i)·coefficient(i)` and `charge_residual` with the **same left-minus-right sign**. The A4 signed reaction convention is `ν_ij = −coefficient` for reactants and `+coefficient` for products, so `Σ_i a(e,i)ν_ij = −element_residuals[e]` and `Σ_i z_iν_ij = −charge_residual`. For balanced reactions all values are zero and the sign distinction disappears. **Never compare nonzero residuals without flipping sign**, or call A4's approximate floating-point network-law guard an exact chemical balance check.
+
+The A2 test-only commit [`7e36d351`](https://github.com/AndreyCokol/ChemSim/commit/7e36d3513993d4c685d1de36c8e1823dd9cbe545) adds eight exact checked-in input/result vectors for existing `check_balance`, including the A4 handoff scenarios. Verification of that exact commit is linked in A2 Issue #9 after CI concludes; no A4 runtime tests are implied.
+
+| Reaction text | A2 expected `element_residuals` | A2 expected `charge_residual` | A2 `balanced` | Boundary |
+|---|---|---|---|---|
+| `2H2 + O2 -> 2H2O` | H=0; O=0 | 0 | true | Pure exact H/O conservation, no kinetic assumptions |
+| `Ag+(aq) + Cl-(aq) -> AgCl(s)` | Ag=0; Cl=0 | 0 | true | Explicit charged participants, not precipitation kinetics |
+| `H2 + O2 -> H2O` | H=0; **O=+1** | 0 | false | A4 signed O dot product would be **−1** |
+| `Na+ -> Na` | Na=0 | **+1** | false | Missing electron/reservoir cannot be inserted |
+| `Fe^3+ + 2Cl- -> FeCl2` | Fe=0; Cl=0 | **+1** | false | Exact charge mismatch despite element balance |
+| `N2O4(g) -> 2NO2(g)` | N=0; O=0 | 0 | true | Only a synthetic mathematical smoke without sourced k |
+| `H2 + O2 -> 2H2O` | **H=−2**; O=0 | 0 | false | A4 signed H dot product would be **+2** |
+| `H2 + H2 + O2 -> 2H2O` | H=0; O=0 | 0 | true | Duplicated source terms must retain source locators |
+
+`A -> B` remains an **A4-only synthetic numeric** benchmark and is rejected by the A2 chemical lexer (`PARSE_UNKNOWN_ELEMENT` for `A`). `check_balance` verifies given DTO coefficients and does not infer kinetic order, constant k, equilibrium K, stable SpeciesRef IDs, provenance or unit conversions. Integrator/A1 still own the trusted map of complete formula compositions to stable species revisions, cross-reaction signed aggregation and A4 sparse law coverage.
 
 ## Owner / integrator decisions and stop conditions
 
 | Priority | Owner | Decision / acceptance evidence | Current status |
 |---|---|---|---|
-| P0 | Product owner | Explicit approval/rejection of OpenSpec baseline SHA/version and phase-1 A2 implementation/adapter scope | **BLOCKED** |
-| P1 | Integrator + A5 | Decide UTF-8 SourceSpan zero-width semantics, A2 → ErrorEnvelope code/severity/message mapping and owner of char↔byte conversion; exact Cyrillic+arrow tests | **NEEDS_REVIEW** |
-| P1 | Integrator + A1 | Validate species ID/revisions, reaction revision lifecycle, `unspecified` phase mapping, duplicate source-locator retention; add versioned Reaction/BalanceResult schemas | **NEEDS_REVIEW** |
-| P1 | Product owner + integrator | INT-28/29 grammar aliases and arrow canonicalization; keep A2 local parse/serialize unaffected until decision | **OWNER-GATE** |
-| P1 | A2 | Once authorized, reject malformed caller DTOs and test all public consumer methods; do not write before approval | **SPEC DONE / CODE BLOCKED** |
-| P1 | Integrator + A4 + A5 | Implement and run a real Godot ↔ .NET synthetic chemistry-valid E2E, including error spans and failure/partial-result paths | **BLOCKED / NOT EXECUTED** |
+| P0 | Product owner | OpenSpec architecture baseline v0.1 accepted at immutable source SHA `02b8b31706807279ee31a78772383e31f425f7d3`; A1–A5 staged implementation permitted | **APPROVED**, release not approved |
+| P1 | A2 + integrator/A5 | A2 UTF-8 character↔byte conversion and Unicode/EOF test vectors; shared zero-width `SourceSpan` and `ErrorEnvelope` call-site policy | **A2 helper/test DONE, shared policy NEEDS_REVIEW** |
+| P1 | Integrator + A1 | Stable species ID/revision, reaction revision, explicit `unspecified`, source locator preservation, versioned Reaction/BalanceResult payload schemas | **NEEDS_REVIEW / adapter not integrated** |
+| P1 | Product owner + integrator | Canonical charge aliases, arrow wire representation, INT-28/29 | **A2 lexical tests DONE; shared policy NEEDS_REVIEW** |
+| P1 | A2 | Local external Reaction DTO `schema_version`/arrow/coefficient/phase fail-closed validation | **DONE, isolated CI #41657267795 passed** |
+| P1 | A2 + A4 consumer | Confirm exact A2 balance residual sign and A4 signed dot-product convention with eight test inputs | **TESTS COMMITTED, exact-head CI tracked in Issue #9** |
+| P1 | Integrator + A4 + A5 | Godot↔.NET signed-stoichiometry adapter, shared errors, actual Windows offline E2E | **NOT VERIFIED / OPEN** |
 
-**Cross-agent limit:** This document records A2 producer review and actionable examples; it does not change shared contracts, A1 identities, A4 kinetics or A5 UI. A2 branch and PR remain Draft; isolated A2 CI green is not proof of shared v0.1 interoperability.
+**Cross-agent limit:** This A2 document records producer review and standalone tests, but does **not** change shared contract, A1 identities, A4 kinetics, A5 UI, or `main`. PR #5 stays Draft; isolated A2 CI does not prove runtime interoperability.
