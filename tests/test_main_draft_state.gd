@@ -365,7 +365,7 @@ func _run() -> void:
 	assert(main.visual_field.selected_marker_id == -1, "Removing the selected component must clear visual selection")
 	assert(not main.visual_field.move_marker_by(added_id, Vector2.RIGHT, 0.01), "A removed component must not remain keyboard-movable")
 
-	var title_before_new := main.experiment_name
+	var title_before_new: String = str(main.experiment_name)
 	main._request_new_experiment()
 	assert(main.discard_dialog.visible, "New experiment should request confirmation when the draft is dirty")
 	main.discard_dialog.hide()
