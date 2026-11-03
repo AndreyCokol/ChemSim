@@ -112,3 +112,12 @@ These are specification requirements, **not passing tests or code changes**.
 New negative acceptance **A1-KW-N14**: a source preface has a CC BY claim but also on-page CC BY-NC-SA/noncommercial/AI-use restrictions. Expected: reject automatic `approved_for_redistribution`; require conflict resolution by rights owner. **A1-KW-N15**: a historical page license is taken as blanket permission despite newer site-wide restrictions and a different distribution purpose. Expected: keep per-field/channel R blocked until explicit applicable rights are established.
 
 **Corrected checkpoint:** W02 reference inputs admitted 0; redistributable Kw fields 0; seven benchmark rows admitted 0/7. No implementation, dataset import, numerical validation test execution, owner approval or OpenSpec baseline freeze.
+
+
+## 8. Source snapshot reconciliation and rights inquiry handoff (2026-11-03)
+
+**Source-of-truth for rights status:** §7 supersedes the simplified license conclusion in §6: an earlier CC BY 4.0 notice and a current CC BY-NC-SA/noncommercial/AI-use notice coexist within the [same Chemistry first-edition preface](https://openstax.org/books/chemistry/pages/preface). [General OpenStax guidance](https://help.openstax.org/s/article/Openstax-textbook-licensing-and-customization) states noncommercial CC BY-NC-SA. Preserve the conflicting statements with date/URL, not a guessed governing license.
+
+**Questions for rights-holder (request, not presumed permission):** For *Chemistry* first edition (published 2015), §14.1 water-ionization Kw at 25 °C, (a) which license is operative for reuse of that specific chapter/field today and whether any historical grant remains applicable; (b) may ChemSim embed a numeric sourced constant, its minimal explanatory metadata and attribution inside offline redistributable binaries/catalogs, including commercial channels; (c) what source version, attribution/notice, derivative/share-alike obligations and AI-related restrictions apply; (d) if any permissions are needed, what scope and written approval identifies them. Do not insert the value into a bundled dataset pending resolution.
+
+**Scientific clarification remains independent:** A3's pending review covers ideal-dilute normalized dimensionless Kw at 298.15 K with gamma=1 and c°=1 mol/L; it does not grant source rights. Next action is to record a source-authoritative reply with date and link/case ID, and only then reevaluate R. No outreach is represented as sent by this memo.
