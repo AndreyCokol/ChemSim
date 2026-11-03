@@ -99,6 +99,16 @@ def _positive(name: str, value: float, *, allow_zero: bool = False) -> None:
         raise EquilibriumInputError(f"{name} must be finite and {qualifier}")
 
 
+def _scaled_fraction(total: float, numerator: float, other: float) -> float:
+    """Return total * numerator / (numerator + other) without sum overflow."""
+    if numerator >= other:
+        fraction = 1.0 / (1.0 + other / numerator)
+    else:
+        ratio = numerator / other
+        fraction = ratio / (1.0 + ratio)
+    return total * fraction
+
+
 def _bisect(
     fn: Callable[[float], float],
     low: float,
@@ -228,7 +238,7 @@ def solve_weak_acid(
     _positive("kw", kw)
 
     def charge_residual(h: float) -> float:
-        a_minus = total_acid_mol_l * ka / (ka + h)
+        a_minus = _scaled_fraction(total_acid_mol_l, ka, h)
         oh = kw / h
         return h - a_minus - oh
 
@@ -307,7 +317,7 @@ def solve_ammonia_buffer(
         raise EquilibriumInputError("Chloride total cannot exceed total nitrogen for this NH4Cl fixture")
 
     def charge_residual(h: float) -> float:
-        nh4 = total_nitrogen_mol_l * h / (h + ka_nh4)
+        nh4 = _scaled_fraction(total_nitrogen_mol_l, h, ka_nh4)
         oh = kw / h
         return nh4 + h - chloride_mol_l - oh
 
