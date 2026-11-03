@@ -196,3 +196,18 @@ Exact source/test commit `4b7f31fdf796835a98803fc6d761877836d667b6` passed .NET 
 Added `ToleranceConvergenceBenchmarkTests.ConsecutiveFirstOrderNetwork_ProfileErrorDecreasesAsTolerancesTighten` for the coupled equal-rate sequence A → B → C, with k=0.4 s⁻¹, initial (A,B,C)=(1,0,0) mol, V=1 m³ and a 5 s integration horizon. The analytical reference is A(t)=exp(-kt), B(t)=kt exp(-kt), C(t)=1-A(t)-B(t). The test compares the maximum absolute species-amount error at the requested terminal profile across rtol=1e-2, 1e-4 and 1e-6 (atol=1e-14 mol), requires at least a factor-of-two error reduction at each tightening, and independently checks positivity and A+B+C conservation. The terminal-only output schedule deliberately avoids segment-boundary clipping masking the tolerance response, as encountered during initial calibration; it does not claim a full time-profile sweep.
 
 Exact source/test commit `6d5f252bb12bc1c3761f96ff460ecba9258a4e34` passed .NET 10 Restore, Build and all 33 tests in GitHub Actions run [41617006331](https://github.com/AndreyCokol/ChemSim/actions/runs/41617006331). Two earlier calibration attempts exposed that this coupled case did not produce the required reduction under the first output schedule; those assertions were not weakened. The final schedule was changed to one terminal segment and the broader tolerances were re-calibrated; the passing test retains the explicit factor-of-two convergence gates.
+
+
+### BENCH-PERF-01 execution — first non-stiff Release baseline
+
+Added `KineticsPerformanceBenchmarkTests.RepresentativeNonStiffCases_ReportPerformanceAndSolverWorkWithoutTimingGate`. It runs three representative cases (first-order A→B, second-order 2A→B, and equal-rate consecutive A→B→C) with rtol=1e-8, atol=1e-12 mol over 0–10 s. Each case receives two warm-up runs and nine measured runs. The harness records median and min/max wall-clock time, median current-thread allocated bytes, accepted/rejected steps, RHS evaluations and status. Timing is diagnostic only; no wall-clock assertion is present. GC collection is requested before each measured run.
+
+Initial GitHub Actions runner baseline (Release, .NET 10.0.14, Ubuntu 24.04.5 LTS, linux-x64, 4 logical processors; CPU model was not exposed by the runtime):
+
+| Case | Median | Range (min–max) | Median allocated | Accepted | Rejected | RHS |
+|---|---:|---:|---:|---:|---:|---:|
+| First-order A→B | 1.1258 ms | 1.0132–1.3110 ms | 153,976 B | 56 | 0 | 392 |
+| Second-order 2A→B | 0.7324 ms | 0.6637–0.9201 ms | 97,024 B | 35 | 0 | 245 |
+| Consecutive A→B→C | 1.6192 ms | 1.5940–1.6530 ms | 215,408 B | 59 | 0 | 413 |
+
+Exact source/test commit `e86c50ebe52d10c704d73ff8497dc84859f1ba27` passed .NET 10 Restore, Build and all 34 tests in GitHub Actions run [41617331272](https://github.com/AndreyCokol/ChemSim/actions/runs/41617331272). The values are a first CI-run trend baseline, not portable performance claims: the CPU model is unavailable, runner contention is uncontrolled, and a single CI environment is insufficient for comparative conclusions. Re-run on a pinned local/CI hardware profile and collect repeated independent sessions before using these values to select optimizations or compare solver families.
