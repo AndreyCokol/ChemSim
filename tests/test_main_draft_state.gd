@@ -66,6 +66,16 @@ func _initialize() -> void:
 	}
 	assert(bool(main._accept_graph_series(synthetic_graph, "0.1").get("ok", false)), "A synthetic presentation fixture with correct rate units should be accepted")
 	assert(main.graph_view.series_by_quantity.has("rate"), "The admitted rate should be shown in its own graph tab")
+	var same_run_concentration := synthetic_graph.duplicate(true)
+	same_run_concentration["quantity_key"] = "concentration"
+	same_run_concentration["unit_id"] = "mol/m3"
+	assert(bool(main._accept_graph_series(same_run_concentration, "0.1").get("ok", false)), "The workspace may display multiple quantities from the same calculation")
+	assert(main.graph_view.series_by_quantity.has("concentration") and main.graph_view.series_by_quantity.has("rate"), "Same-result quantities should coexist")
+	var next_run_rate := synthetic_graph.duplicate(true)
+	next_run_rate["result_ref"] = {"id": "second-synthetic-run", "record_revision": 1}
+	assert(bool(main._accept_graph_series(next_run_rate, "0.1").get("ok", false)), "A newer result must be admitted")
+	assert(not main.graph_view.series_by_quantity.has("concentration"), "A new calculation must clear older concentration results")
+	assert(main.graph_view.series_by_quantity.has("rate"), "The newest calculation's rate should remain available")
 	main.graph_buttons["concentration"].pressed.emit()
 	assert(main.graph_view.active_quantity == "concentration", "Changing modes must update the real graph view")
 	assert(not main.graph_view.series_by_quantity.has("concentration"), "Rate samples must not leak into concentration")
