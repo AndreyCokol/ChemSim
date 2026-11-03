@@ -473,7 +473,13 @@ func _remove_component(component_id: int) -> void:
 
 func _select_component_for_placement(component_id: int) -> void:
 	selected_component_id = component_id
-	visual_field.select_marker(component_id)
+	var marker_is_placed := false
+	for item in components:
+		if int(item.id) == component_id:
+			var marker_position: Vector2 = item.position
+			marker_is_placed = marker_position.x >= 0.0 and marker_position.y >= 0.0
+			break
+	visual_field.select_marker(component_id if marker_is_placed else -1)
 	visual_field.grab_focus()
 	_refresh_composition()
 	status_label.text = "Нажмите на визуальное поле для размещения маркера"
