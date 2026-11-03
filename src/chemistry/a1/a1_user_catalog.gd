@@ -187,6 +187,36 @@ static func save_local(document: Dictionary, test_mode: bool = false) -> Diction
 	var destination: String = TEST_PATH if test_mode else STORE_PATH
 	var temporary: String = destination + ".tmp"
 	var backup: String = destination + ".bak"
+
+	# Fail closed on an interrupted earlier save. Never overwrite its staged
+	# recovery evidence or silently construct a new history atop a .bak file.
+	if FileAccess.file_exists(temporary) or (
+			not FileAccess.file_exists(destination) and FileAccess.file_exists(backup)):
+		return _failure("A1_CATALOG_RECOVERY_REQUIRED")
+
+	# Canonicalize JSON types before checking immutable historical revisions.
+	# Both persisted and incoming docs are validated with the same parser.
+	var incoming: Dictionary = deserialize_document(packed["json"])
+	if not incoming["ok"]:
+		return _failure("A1_CATALOG_STAGING_FAILED")
+	var primary_existed: bool = FileAccess.file_exists(destination)
+	var primary_bytes: String = ""
+	if primary_existed:
+		var persisted: Dictionary = load_local_from_path(destination)
+		if not persisted["ok"]:
+			return _failure("A1_CATALOG_DISK_INVALID")
+		var persisted_rows: Array = persisted["document"]["records"]
+		var requested_rows: Array = incoming["document"]["records"]
+		if requested_rows.size() < persisted_rows.size():
+			return _failure("A1_CATALOG_DISK_HISTORY_CONFLICT")
+		for i in range(persisted_rows.size()):
+			if persisted_rows[i] != requested_rows[i]:
+				return _failure("A1_CATALOG_DISK_HISTORY_CONFLICT")
+		# Identical snapshot is a no-op and must not rotate a valid backup.
+		if requested_rows.size() == persisted_rows.size():
+			return {"ok": true, "errors": [], "path": destination, "unchanged": true}
+		primary_bytes = FileAccess.get_file_as_string(destination)
+
 	var handle: FileAccess = FileAccess.open(temporary, FileAccess.WRITE)
 	if handle == null:
 		return _failure("A1_CATALOG_WRITE_FAILED")
@@ -195,14 +225,21 @@ static func save_local(document: Dictionary, test_mode: bool = false) -> Diction
 	handle.close()
 	# Re-parse the staged bytes before touching the previous snapshot.
 	var staged: Dictionary = load_local_from_path(temporary)
-	# Compare exact stored bytes to the serialized payload, not raw Variant
-	# dictionaries (JSON may normalize numeric types during parsing).
 	if not staged["ok"] or FileAccess.get_file_as_string(temporary) != packed["json"]:
 		return _failure("A1_CATALOG_STAGING_FAILED")
+
+	# Detect a file changed during staging, including a newly created primary.
+	# This is NOT a cross-process atomic compare-and-swap; app-level locking is
+	# still required before enabling concurrent writers.
+	if FileAccess.file_exists(destination) != primary_existed:
+		return _failure("A1_CATALOG_DISK_HISTORY_CONFLICT")
+	if primary_existed and FileAccess.get_file_as_string(destination) != primary_bytes:
+		return _failure("A1_CATALOG_DISK_HISTORY_CONFLICT")
+
 	var source_full: String = ProjectSettings.globalize_path(destination)
 	var temp_full: String = ProjectSettings.globalize_path(temporary)
 	var backup_full: String = ProjectSettings.globalize_path(backup)
-	if FileAccess.file_exists(destination):
+	if primary_existed:
 		if FileAccess.file_exists(backup) and DirAccess.remove_absolute(backup_full) != OK:
 			return _failure("A1_CATALOG_BACKUP_FAILED")
 		if DirAccess.rename_absolute(source_full, backup_full) != OK:
@@ -211,12 +248,18 @@ static func save_local(document: Dictionary, test_mode: bool = false) -> Diction
 		if FileAccess.file_exists(backup):
 			DirAccess.rename_absolute(backup_full, source_full)
 		return _failure("A1_CATALOG_WRITE_FAILED")
-	# Retain backup for explicit recovery; never silently load a stale backup.
+	# Retain backup for explicit inspection; never auto-recover stale data.
 	return {"ok": true, "errors": [], "path": destination}
 
 
 static func load_local(test_mode: bool = false) -> Dictionary:
 	return load_local_from_path(TEST_PATH if test_mode else STORE_PATH)
+
+
+static func load_local_backup(test_mode: bool = false) -> Dictionary:
+	# Read-only preview for explicit recovery; never replaces the main file.
+	var backup: String = TEST_PATH + ".bak" if test_mode else STORE_PATH + ".bak"
+	return load_local_from_path(backup)
 
 
 static func load_local_from_path(path: String) -> Dictionary:
