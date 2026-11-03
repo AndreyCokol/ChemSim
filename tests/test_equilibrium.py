@@ -466,6 +466,56 @@ class AqueousBenchmarkTests(unittest.TestCase):
 
 
 
+class AcidBaseLimitingRegimeTests(unittest.TestCase):
+    def test_weak_acid_approaches_water_limit_when_analytical_total_is_trace(self):
+        for total in (1.0e-12, 1.0e-50, 1.0e-200):
+            with self.subTest(total=total):
+                result = solve_weak_acid(total, 1.0e-5, 1.0e-14)
+                self.assertTrue(math.isfinite(result.pH))
+                self.assertAlmostEqual(result.pH, 7.0, delta=1.0e-8)
+                self.assertGreaterEqual(result.species_mol_l["HA"], 0.0)
+                self.assertGreaterEqual(result.species_mol_l["A-"], 0.0)
+                self.assertAlmostEqual(
+                    math.fsum((result.species_mol_l["HA"], result.species_mol_l["A-"])),
+                    total,
+                    delta=max(math.ulp(total) * 4.0, total * 1.0e-10),
+                )
+
+    def test_strong_neutralization_remains_stable_near_equivalence_at_trace_scale(self):
+        acid = 1.0e-12
+        for base in (0.0, acid, math.nextafter(acid, 0.0), math.nextafter(acid, math.inf)):
+            with self.subTest(base=base):
+                result = solve_strong_neutralization(acid, base, 1.0e-14)
+                self.assertTrue(math.isfinite(result.pH))
+                self.assertTrue(all(math.isfinite(v) and v >= 0.0 for v in result.species_mol_l.values()))
+                self.assertLessEqual(result.diagnostics.charge_balance_residual, 1.0e-14)
+
+    def test_ammonia_buffer_is_stable_when_total_inventory_is_below_water_ionization(self):
+        result = solve_ammonia_buffer(1.0e-200, 1.0e-200, 1.0e-9, 1.0e-14)
+        self.assertTrue(math.isfinite(result.pH))
+        self.assertAlmostEqual(result.pH, 7.0, delta=1.0e-8)
+        self.assertGreaterEqual(result.species_mol_l["NH3"], 0.0)
+        self.assertGreaterEqual(result.species_mol_l["NH4+"], 0.0)
+        self.assertAlmostEqual(
+            math.fsum((result.species_mol_l["NH3"], result.species_mol_l["NH4+"])),
+            1.0e-200,
+            delta=math.ulp(1.0e-200) * 4.0,
+        )
+
+    def test_ammonia_buffer_speciation_remains_stable_for_huge_finite_inventory(self):
+        total = 1.0e100
+        result = solve_ammonia_buffer(total, total * 0.5, 1.0e-9, 1.0e-14)
+        species = result.species_mol_l
+        self.assertTrue(math.isfinite(result.pH))
+        self.assertGreater(species["NH3"], 0.0)
+        self.assertGreater(species["NH4+"], 0.0)
+        self.assertAlmostEqual(
+            math.fsum((species["NH3"], species["NH4+"])),
+            total,
+            delta=total * 1.0e-12,
+        )
+
+
 class AqueousConservationAuditTests(unittest.TestCase):
     def assert_scaled_residual(self, residual, scale, *, relative=2.0e-10):
         self.assertTrue(math.isfinite(residual))
