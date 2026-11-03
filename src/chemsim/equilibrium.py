@@ -606,9 +606,20 @@ def _gas_equilibrium(
     min_amount = min(final.values())
     if min_amount < -1e-12:
         raise EquilibriumConvergenceError("Solver produced a negative gas amount")
+    if (
+        not _finite_number(extent)
+        or not _finite_number(f_residual)
+        or not _finite_number(component_balance_residual)
+        or isinstance(iterations, bool)
+        or not isinstance(iterations, int)
+        or iterations < 0
+    ):
+        raise EquilibriumConvergenceError(
+            "Gas equilibrium produced invalid extent or diagnostic values"
+        )
     return GasResult(
-        final,
-        partials,
+        MappingProxyType(dict(final)),
+        MappingProxyType(dict(partials)),
         total_pressure,
         extent,
         SolverDiagnostics(
