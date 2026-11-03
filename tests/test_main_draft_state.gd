@@ -143,6 +143,24 @@ func _initialize() -> void:
 	assert(main.io_error_dialog.visible, "Failed Save As should surface an actionable file error")
 	main.io_error_dialog.hide()
 
+	# Ordinary Save must use the remembered path and preserve the draft when a
+	# user-owned transaction sidecar blocks the write.
+	var ordinary_save_sidecar := save_as_path + ".tmp"
+	var sidecar_file := FileAccess.open(ordinary_save_sidecar, FileAccess.WRITE)
+	assert(sidecar_file != null, "The ordinary-save collision fixture should be writable")
+	sidecar_file.store_string("user-owned sidecar data")
+	sidecar_file.close()
+	main._save_draft()
+	assert(main.draft_dirty, "Failed ordinary Save must preserve the dirty state")
+	assert(main.current_draft_path == path_before_failed_save, "Failed ordinary Save must preserve the current draft path")
+	assert(main.io_error_dialog.visible, "Failed ordinary Save should surface the repository error")
+	var preserved_sidecar := FileAccess.open(ordinary_save_sidecar, FileAccess.READ)
+	assert(preserved_sidecar != null, "Failed ordinary Save must preserve the colliding sidecar")
+	assert(preserved_sidecar.get_as_text() == "user-owned sidecar data", "Failed ordinary Save must not overwrite user-owned sidecar content")
+	preserved_sidecar.close()
+	main.io_error_dialog.hide()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(ordinary_save_sidecar))
+
 	# If the user confirms discarding edits but the requested file cannot be
 	# opened, the current in-memory experiment must still survive unchanged.
 	var title_before_failed_open: String = main.experiment_name
