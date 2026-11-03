@@ -501,4 +501,128 @@ public sealed class KineticsSimulatorTests
         Assert.InRange(finalA / initialA, 0.89d, 0.92d);
         Assert.True(result.Samples[^1].AmountsMol["B"] > 0d);
     }
+    [Fact]
+    public void ConsecutiveFirstOrderNetwork_MatchesAnalyticalProfileAndConservesAmount()
+    {
+        const double k = 0.4d;
+        const double endTime = 5d;
+        var network = new ReactionNetwork(
+            ["A", "B", "C"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(k, 0d)),
+                new ReactionDefinition(
+                    "B-to-C",
+                    new Dictionary<string, int> { ["B"] = -1, ["C"] = 1 },
+                    new Dictionary<string, double> { ["B"] = 1d },
+                    new RateConstant(k, 0d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d, ["C"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = 1d, ["B"] = 0d, ["C"] = 0d
+            },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-9,
+                AbsoluteToleranceMol = 1e-12
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        foreach (var sample in result.Samples)
+        {
+            var expectedA = Math.Exp(-k * sample.TimeSeconds);
+            var expectedB = k * sample.TimeSeconds * expectedA;
+            var expectedC = 1d - expectedA - expectedB;
+
+            Assert.InRange(Math.Abs(sample.AmountsMol["A"] - expectedA), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol["B"] - expectedB), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol["C"] - expectedC), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol.Values.Sum() - 1d), 0d, 2e-10);
+            Assert.All(sample.AmountsMol.Values, amount => Assert.True(amount >= 0d));
+        }
+    }
+
+    [Fact]
+    public void ParallelFirstOrderPathways_MatchAnalyticalProfileAndBranchingRatio()
+    {
+        const double k1 = 0.7d;
+        const double k2 = 0.3d;
+        const double totalRate = k1 + k2;
+        const double endTime = 4d;
+        var network = new ReactionNetwork(
+            ["A", "B", "C"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(k1, 0d)),
+                new ReactionDefinition(
+                    "A-to-C",
+                    new Dictionary<string, int> { ["A"] = -1, ["C"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(k2, 0d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d, ["C"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = 1d, ["B"] = 0d, ["C"] = 0d
+            },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-9,
+                AbsoluteToleranceMol = 1e-12
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        foreach (var sample in result.Samples)
+        {
+            var expectedA = Math.Exp(-totalRate * sample.TimeSeconds);
+            var converted = 1d - expectedA;
+            var expectedB = k1 / totalRate * converted;
+            var expectedC = k2 / totalRate * converted;
+
+            Assert.InRange(Math.Abs(sample.AmountsMol["A"] - expectedA), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol["B"] - expectedB), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol["C"] - expectedC), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol.Values.Sum() - 1d), 0d, 2e-10);
+            Assert.All(sample.AmountsMol.Values, amount => Assert.True(amount >= 0d));
+        }
+
+        var final = result.Samples[^1].AmountsMol;
+        Assert.InRange(Math.Abs(final["B"] / (final["B"] + final["C"]) - k1 / totalRate), 0d, 3e-9);
+    }
+
 }
