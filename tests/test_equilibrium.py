@@ -324,6 +324,9 @@ class AqueousBenchmarkTests(unittest.TestCase):
                     silver, chloride, sodium, nitrate, 1.0e-12, 1.0e-14
                 )
                 self.assertEqual(result.solid_mol_l, 0.0)
+                # A missing counter-ion makes log(Q/Ksp) exactly -inf; this is
+                # a valid inactive-solid sentinel, not a failed solver residual.
+                self.assertEqual(result.diagnostics.residual, -math.inf)
                 self.assertEqual(result.species_mol_l["Ag+"], silver)
                 self.assertEqual(result.species_mol_l["Cl-"], chloride)
                 self.assertEqual(result.species_mol_l["Na+"], sodium)
