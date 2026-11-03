@@ -681,4 +681,61 @@ public sealed class KineticsSimulatorTests
         }
     }
 
+    [Fact]
+    public void FractionalOrderHalfReaction_MatchesAnalyticalProfileAtNonUnitVolume()
+    {
+        const double initialA = 1d;
+        const double volume = 4d;
+        const double rateConstant = 0.05d;
+        const double endTime = 4d;
+        var concentrationScale = Math.Sqrt(volume);
+
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "half-order-A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 0.5d },
+                    new RateConstant(rateConstant, 0.5d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = initialA, ["B"] = 0d
+            },
+            VolumeM3 = volume,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-9,
+                AbsoluteToleranceMol = 1e-12
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        foreach (var sample in result.Samples)
+        {
+            var expectedRootA = Math.Sqrt(initialA) - rateConstant * concentrationScale * sample.TimeSeconds / 2d;
+            var expectedA = expectedRootA * expectedRootA;
+            var expectedB = initialA - expectedA;
+
+            Assert.InRange(Math.Abs(sample.AmountsMol["A"] - expectedA), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol["B"] - expectedB), 0d, 3e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol.Values.Sum() - initialA), 0d, 2e-10);
+            Assert.All(sample.AmountsMol.Values, amount => Assert.True(amount >= 0d));
+        }
+    }
+
 }
