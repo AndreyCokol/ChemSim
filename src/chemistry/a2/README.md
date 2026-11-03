@@ -56,4 +56,4 @@ This is an initial bounded solver, not a general-purpose ILP implementation. Lim
 
 ## Test status
 
-The smoke-test script is committed, but it has not been executed in this environment because a Godot 4.x executable and a root `project.godot` are not present in the repository/runtime. No test pass is claimed.
+The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The exact current PR head at this review, `c1ec2126bc39d5bba7129a3db83001680633f825`, passed workflow run [41604470348](https://github.com/AndreyCokol/ChemSim/actions/runs/41604470348). This is CI evidence for that exact commit; it does not establish that a later commit has passed. Local execution was not performed in the current environment.
