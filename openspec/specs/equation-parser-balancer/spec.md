@@ -234,6 +234,29 @@ Required A2 regression cases before implementation approval:
 
 This is a focused A2-owned serializer invariant and does not define shared DTO version negotiation, migration, ErrorEnvelope versioning, or compatibility policy. Those remain integrator decisions. The finding was verified against the current A2 branch: `parse_reaction()` emits version 1, while `serialize_reaction()` currently validates sides, arrow and terms but omits the top-level version check. Implementation and tests remain gated by product-owner approval of this DRAFT OpenSpec.
 
+## DRAFT: Fail-closed validation of externally supplied Reaction DTO (A2 audit, 2026-11-03)
+
+**New, source-confirmed contract gap; proposed acceptance only.** `parse_reaction()` produces the top-level fields `schema_version = 1`, `arrow_type`, `reactants` and `products`, and each `ReactionTerm` has explicit `stoichiometric_coefficient` and `species.phase`. But the current public A2 entry points accept some malformed, caller-built versions:
+
+- `check_balance()` and `propose_balance()` validate term content but do not require the reaction's top-level `schema_version` or `arrow_type`; `serialize_reaction()` likewise omits the top-level version guard (already tracked above).
+- `serialize_reaction()` defaults an absent `arrow_type` to `FORWARD`, potentially rewriting a malformed/reversible DTO as irreversible rather than failing.
+- The A2 term validators use default `stoichiometric_coefficient = 1` and `species.phase = UNSPECIFIED` when these fields are missing. As a result, a missing coefficient/phase can be silently interpreted rather than diagnosed (for an originally phase-unspecified formula, the default phase may even reparse successfully).
+
+**Proposed A2 v1 rule, pending owner approval:** on **externally supplied Reaction DTOs**, the three public consumer operations (`check_balance`, `propose_balance`, `serialize_reaction`) SHALL require a literal integer top-level `schema_version = 1`, a present valid `arrow_type`, explicit positive-integer `stoichiometric_coefficient` per term, and explicit `species.phase` (including the literal `UNSPECIFIED` when no phase was written). Missing data SHALL NOT be synthesized from defaults. This does not prohibit the text parser from assigning coefficient 1 or phase `UNSPECIFIED` during **parsing**, since that successful parse yields an explicit, versioned DTO. No migration or shared-wire contract is implied.
+
+Proposed regression matrix for a **single parsed v1** fixture such as `2H2 + O2 -> 2H2O` (clone before each mutation):
+
+| Mutation | `check_balance` | `propose_balance` | `serialize_reaction` |
+|---|---|---|---|
+| None (valid v1, explicit fields) | `ok=true`, balanced | `UNIQUE_OPTIMUM` | canonical string |
+| Remove top-level `schema_version` | `BALANCE_INVALID_REACTION` | `INVALID_INPUT` | empty string |
+| Set `schema_version=2` or `"1"` | `BALANCE_INVALID_REACTION` | `INVALID_INPUT` | empty string |
+| Remove `arrow_type` | `BALANCE_INVALID_REACTION` | `INVALID_INPUT` | empty string |
+| Remove a term's `stoichiometric_coefficient` | `BALANCE_INVALID_TERM` | `INVALID_INPUT` | empty string |
+| Remove `species.phase` on a phase-unspecified term | `BALANCE_INVALID_TERM` | `INVALID_INPUT` | empty string |
+
+These are **expected future behaviours**, not current test results. They should not be implemented until the product owner approves/revises this DRAFT. Error codes shown are existing A2-local codes, not the undecided shared `ErrorEnvelope`. If legacy/unversioned caller DTOs must be supported, the integrator must define an explicit validated conversion before entering the versioned A2 API; silent defaults at this boundary remain unsafe.
+
 ## Межагентное ревью: подтверждённый consumer contract A4 (2026-11-03)
 
 A4 опубликовал implementation-aligned consumer contract в `docs/engineering/a4-kinetics-input-contract.md` (ветка `feature/a4-kinetics-core`, commit `56f4011ed92fb7112c8c04cddb941bce40e4defc`). Это описание текущего A4-среза, а не утверждение общего DTO или baseline.
