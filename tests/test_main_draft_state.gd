@@ -144,6 +144,19 @@ func _initialize() -> void:
 	assert(not main.discard_dialog.visible, "Opening the current path while clean should not show a discard confirmation")
 	assert(not main.draft_dirty, "A clean same-path Open should leave the draft clean")
 	assert(main.current_draft_path == round_trip_path, "A clean same-path Open should retain the current path")
+
+	# Reopening the same path while dirty is destructive and must require
+	# confirmation; cancellation must retain the edits and active path.
+	main.experiment_name_input.text = "Unsaved same-path edit"
+	main._request_load_draft(round_trip_path)
+	assert(main.discard_dialog.visible, "Opening the active path while dirty must request discard confirmation")
+	main.discard_dialog.canceled.emit()
+	assert(main.experiment_name == "Unsaved same-path edit" and main.draft_dirty, "Cancelling a dirty same-path Open must preserve edits")
+	assert(main.current_draft_path == round_trip_path, "Cancelling a dirty same-path Open must preserve the active path")
+	main._request_load_draft(round_trip_path)
+	main.discard_dialog.confirmed.emit()
+	assert(main.experiment_name == "Новый эксперимент" and not main.draft_dirty, "Confirming a dirty same-path Open must restore the saved contents")
+	assert(main.current_draft_path == round_trip_path, "Confirming a same-path Open must retain the active path")
 	main.experiment_name_input.text = "Unsaved title"
 	assert(main.draft_dirty, "Changing the title should mark the UI draft dirty")
 	main._request_load_draft(round_trip_path)
@@ -175,6 +188,19 @@ func _initialize() -> void:
 	main._save_draft_to_path(save_as_path)
 	assert(main.current_draft_path == save_as_path, "Save As should switch the current draft path after a successful write")
 	assert(not main.draft_dirty, "Successful Save As should clear dirty state")
+
+	# Both pickers should reopen in the active draft directory. Save As should
+	# also prefill the current filename rather than a generic default.
+	main.open_dialog.current_dir = "user://"
+	main._open_draft_picker()
+	assert(main.open_dialog.current_dir == save_as_path.get_base_dir(), "Open picker should restore the active draft directory")
+	main.open_dialog.hide()
+	main.save_dialog.current_dir = "user://"
+	main.save_dialog.current_file = "wrong-name.chemsim.json"
+	main._save_draft_picker()
+	assert(main.save_dialog.current_dir == save_as_path.get_base_dir(), "Save As picker should restore the active draft directory")
+	assert(main.save_dialog.current_file == save_as_path.get_file(), "Save As picker should prefill the active draft filename")
+	main.save_dialog.hide()
 
 	# Save As may target the current path; a successful same-path transaction
 	# must retain that path and clear dirty state just like an ordinary save.
