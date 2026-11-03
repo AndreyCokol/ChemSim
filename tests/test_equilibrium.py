@@ -269,6 +269,18 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertEqual(result.solid_mol_l, 0.0)
 
 
+    def test_accepted_feed_mismatch_remains_visible_in_charge_diagnostic(self):
+        mismatch = 2.0 ** -35
+        result = solve_agcl_precipitation(
+            1.0, 1.0, 1.0, 1.0 + mismatch, 10.0, 1.0e-14
+        )
+        self.assertEqual(result.solid_mol_l, 0.0)
+        self.assertAlmostEqual(
+            result.diagnostics.charge_balance_residual,
+            mismatch,
+            delta=1.0e-15,
+        )
+
     def test_rejects_relative_feed_mismatch_for_trace_totals(self):
         with self.assertRaises(EquilibriumInputError):
             solve_agcl_precipitation(1.0e-12, 1.0e-12, 1.0e-12, 0.0, 1.0e-10, 1.0e-14)
