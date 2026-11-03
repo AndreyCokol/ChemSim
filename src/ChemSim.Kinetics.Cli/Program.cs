@@ -269,6 +269,19 @@ namespace ChemSim.Kinetics.Cli
 
         private static object MakeResult(string requestId, ParsedProblem parsed, SimulationResult result)
         {
+            ValidatedResultPrefix validated;
+            try
+            {
+                validated = SolverResultPublicationGuard.Validate(
+                    parsed.Request, result, MaximumSamples);
+            }
+            catch (SolverResultPublicationException exception)
+            {
+                // Invalid *solver output* is a numerical/integrity failure,
+                // not a user-input admission failure. Never leak bad samples.
+                return MakeInternalNumericalFailure(requestId, exception.Message);
+            }
+
             var outcome = result.Status switch
             {
                 SimulationStatus.Success => "completed",
@@ -284,14 +297,7 @@ namespace ChemSim.Kinetics.Cli
                 amounts_mol = sample.AmountsMol.ToDictionary(kv => kv.Key, kv => Finite(kv.Value),
                     StringComparer.Ordinal)
             }).ToArray();
-            if (samples.Length > MaximumSamples)
-                throw new AdmissionException("Solver produced more output samples than permitted.");
-
-            var completed = result.Status == SimulationStatus.Success &&
-                            samples.Length > 0 &&
-                            samples[^1].time_s == parsed.Request.EndTimeSeconds;
-            if (result.Status == SimulationStatus.Success && !completed)
-                throw new AdmissionException("Numerical success did not reach the requested final timestamp.");
+            var completed = validated.IsComplete;
 
             var reliability = new
             {
@@ -309,8 +315,8 @@ namespace ChemSim.Kinetics.Cli
             return Envelope(requestId, outcome, new
             {
                 requested_end_s = parsed.Request.EndTimeSeconds,
-                last_valid_time_s = samples.Length > 0 ? (double?)samples[^1].time_s : null,
-                last_valid_time_status = samples.Length > 0 ? "present" : "not_reported",
+                last_valid_time_s = validated.LastValidTimeSeconds,
+                last_valid_time_status = validated.LastValidTimeSeconds.HasValue ? "present" : "not_reported",
                 temperature_k = parsed.TemperatureK,
                 species_ids = parsed.SpeciesIds,
                 termination = outcome,
@@ -325,6 +331,22 @@ namespace ChemSim.Kinetics.Cli
                 reliability
             }, errors);
         }
+
+        private static object MakeInternalNumericalFailure(string requestId, string reason) =>
+            Envelope(requestId, "numerical_failure", new
+            {
+                termination = "numerical_failure",
+                samples = Array.Empty<object>(),
+                last_valid_time_status = "not_reported",
+                reliability = new
+                {
+                    data_quality = "hypothetical",
+                    model_applicability = "not_assessed",
+                    numerical_status = "failed",
+                    completeness = "absent",
+                    warnings = Array.Empty<object>()
+                }
+            }, new object[] { Error("KINETICS_RESULT_PUBLICATION_FAILURE", reason) });
 
         private static object MakeBlocked(string requestId, string reason) =>
             Envelope(requestId, "blocked", new
