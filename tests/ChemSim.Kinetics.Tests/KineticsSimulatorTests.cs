@@ -362,7 +362,7 @@ public sealed class KineticsSimulatorTests
 
         Assert.Equal(SimulationStatus.NumericalFailure, result.Status);
         Assert.Equal(1, result.Diagnostics.RightHandSideEvaluations);
-        Assert.Contains("non-finite rate", result.Diagnostics.Message);
+        Assert.Contains("non-finite extent rate", result.Diagnostics.Message);
         Assert.Single(result.Samples);
         Assert.Equal(2d, result.Samples[0].AmountsMol["A"]);
         Assert.Equal(0d, result.Samples[0].AmountsMol["B"]);
