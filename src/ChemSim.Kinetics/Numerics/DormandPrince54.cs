@@ -109,7 +109,7 @@ internal sealed class DormandPrince54
         }
 
         return new(StepStatus.Success, y, endTime, accepted, rejected, evaluations,
-            SuggestedNextStep: h);
+            SuggestedNextStep: Math.Max(_minStep, h));
     }
 
     private double ErrorNorm(double[] error, double[] oldState, double[] newState)
