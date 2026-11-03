@@ -225,3 +225,20 @@ Exact source/test commit `21c69c84e177312c5b334a3ced10de66bf97cce0` passed .NET 
 Added `ToleranceConvergenceBenchmarkTests.HalfOrderReaction_ProfileErrorDecreasesAsTolerancesTighten` for A → B with kinetic order 1/2, initial A=4 mol, V=2 m³, k=0.6 in the declared SI rate-constant contract, and terminal time 2 s. The closed form is \(\sqrt{A(t)}=\sqrt{A_0}-k\sqrt{V}t/2\), with B=A₀−A. The test compares maximum terminal species-amount error at rtol=1e-2, 1e-4 and 1e-6 (atol=1e-14 mol), requires at least a factor-of-two reduction at each tightening, and independently asserts finite non-negative amounts and A+B conservation. The 2 s horizon was calibrated after the initial 1 s fixture produced indistinguishable loose/baseline errors; the convergence gates were retained unchanged. No solver implementation was modified.
 
 Exact source/test commit `32fa6797f58ce55c21d9072f04a016e95855c263` passed .NET 10 Restore, Build and all 36 tests in both push run [41619703969](https://github.com/AndreyCokol/ChemSim/actions/runs/41619703969) and PR run [41619711656](https://github.com/AndreyCokol/ChemSim/actions/runs/41619711656). The earlier exact-head run on `0ee1310ac45919b87bc032769f940280a962351c` correctly failed the initial convergence assertion; it is superseded by the calibrated fixture and is not acceptance evidence.
+
+
+### A4-BENCH-PERF-02 — expanded non-stiff performance baseline
+
+Extended `KineticsPerformanceBenchmarkTests.RepresentativeNonStiffCases_ReportPerformanceAndSolverWorkWithoutTimingGate` with two cases while retaining the existing protocol (Release, 2 warm-ups, 9 measured runs, median and min/max range, current-thread allocated bytes, accepted/rejected/RHS counters). Added workloads:
+
+- Half-order A → B: A₀=4 mol, V=2 m³, k=0.6, t=2 s; kinetic order 1/2.
+- Parallel first-order A → B and A → C: A₀=1 mol, V=1 m³, k₁=0.7 s⁻¹, k₂=0.3 s⁻¹, t=10 s.
+
+Observed on GitHub Actions (.NET 10.0.14, Ubuntu 24.04.5 LTS, linux-x64, 4 logical processors; CPU model not exposed):
+
+| Case | Median | Range | Median allocated | Accepted | Rejected | RHS |
+|---|---:|---:|---:|---:|---:|---:|
+| Half-order A → B, V=2 m³ | 0.1932 ms | 0.1903–0.2264 ms | 34,648 B | 12 | 0 | 84 |
+| Parallel A → B / A → C | 1.9418 ms | 1.9113–1.9681 ms | 363,720 B | 100 | 0 | 700 |
+
+These are runner-specific trend observations, not comparative claims or CI thresholds. Re-run on pinned hardware before using elapsed time or allocations to compare solver changes. Exact source/test commit `11e491fa11f95f72e7e8e929487adfea77bbe0dc` passed .NET 10 Restore, Build (0 warnings, 0 errors) and all 36 tests in push run [41620021126](https://github.com/AndreyCokol/ChemSim/actions/runs/41620021126) and PR run [41620031554](https://github.com/AndreyCokol/ChemSim/actions/runs/41620031554).
