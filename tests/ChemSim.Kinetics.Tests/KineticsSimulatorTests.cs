@@ -250,6 +250,34 @@ public sealed class KineticsSimulatorTests
 
 
     [Fact]
+    public void OutputInterval_ReachingDoubleMaxValue_UsesFiniteInwardUlp()
+    {
+        var startTime = Math.BitDecrement(double.MaxValue);
+        var endTime = double.MaxValue;
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(1d, 0d))
+            ]);
+        var request = new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = startTime,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = endTime - startTime
+        };
+
+        var exception = Record.Exception(request.Validate);
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public void OutputInterval_ThatStopsAdvancingAfterUlpBoundary_IsRejectedUpFront()
     {
         const double startTime = 9_007_199_254_740_990d; // 2^53 - 2
