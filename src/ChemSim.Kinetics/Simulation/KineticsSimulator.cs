@@ -141,34 +141,46 @@ public sealed class KineticsSimulator
     {
         return (_, amounts) =>
         {
-            var concentrations = new double[amounts.Length];
-            for (var i = 0; i < amounts.Length; i++)
-                concentrations[i] = amounts[i] / request.VolumeM3;
-
             var derivative = new double[amounts.Length];
 
             foreach (var reaction in request.Network.Reactions)
             {
-                var volumetricRate = reaction.RateConstant.Value;
+                // Convert the volumetric power law to an extent rate algebraically:
+                // V * k * product((n_i / V)^order_i)
+                // = k * V^(1 - totalOrder) * product(n_i^order_i).
+                // Evaluating concentration and volumetric rate first can underflow
+                // to zero even when the final mol/s extent rate is representable.
+                var totalOrder = reaction.KineticOrders.Values.Sum();
+                var logExtentRate = Math.Log(reaction.RateConstant.Value) +
+                                    (1d - totalOrder) * Math.Log(request.VolumeM3);
+                var zeroRate = false;
+
                 foreach (var (speciesId, order) in reaction.KineticOrders)
                 {
                     if (order == 0d)
                         continue;
 
-                    var concentration = concentrations[speciesIndex[speciesId]];
-                    if (concentration == 0d)
+                    var amount = amounts[speciesIndex[speciesId]];
+                    if (amount == 0d)
                     {
-                        volumetricRate = 0d;
+                        zeroRate = true;
                         break;
                     }
 
-                    volumetricRate *= Math.Pow(concentration, order);
+                    logExtentRate += order * Math.Log(amount);
                 }
 
-                if (!double.IsFinite(volumetricRate))
-                    throw new ArithmeticException($"Reaction '{reaction.Id}' produced a non-finite rate.");
+                if (zeroRate)
+                    continue;
 
-                var extentRateMolPerSecond = request.VolumeM3 * volumetricRate;
+                if (double.IsNaN(logExtentRate) || double.IsPositiveInfinity(logExtentRate))
+                    throw new ArithmeticException($"Reaction '{reaction.Id}' produced a non-finite extent rate.");
+
+                // Exp(-Infinity) and underflow to zero are valid limiting rates.
+                var extentRateMolPerSecond = Math.Exp(logExtentRate);
+                if (!double.IsFinite(extentRateMolPerSecond))
+                    throw new ArithmeticException($"Reaction '{reaction.Id}' produced a non-finite extent rate.");
+
                 foreach (var (speciesId, coefficient) in reaction.Stoichiometry)
                     derivative[speciesIndex[speciesId]] += coefficient * extentRateMolPerSecond;
             }
