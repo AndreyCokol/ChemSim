@@ -737,5 +737,73 @@ public sealed class KineticsSimulatorTests
             Assert.All(sample.AmountsMol.Values, amount => Assert.True(amount >= 0d));
         }
     }
+    [Fact]
+    public void OutputSamplingInterval_DoesNotResetAdaptiveStepController()
+    {
+        const double rateConstant = 0.2d;
+        const double endTime = 10d;
+
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(rateConstant, 0d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        SimulationResult Run(double outputInterval) => new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = outputInterval,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-8,
+                AbsoluteToleranceMol = 1e-11,
+                InitialStepSeconds = 1e-3,
+                MinimumStepSeconds = 1e-12,
+                MaximumStepSeconds = 1d
+            }
+        });
+
+        var coarse = Run(1d);
+        var fine = Run(0.1d);
+
+        Assert.True(coarse.IsSuccess, coarse.Diagnostics.Message);
+        Assert.True(fine.IsSuccess, fine.Diagnostics.Message);
+        Assert.Equal(11, coarse.Samples.Count);
+        Assert.Equal(101, fine.Samples.Count);
+
+        // Both schedules represent the same trajectory at their shared output times.
+        for (var i = 0; i < coarse.Samples.Count; i++)
+        {
+            var coarseSample = coarse.Samples[i];
+            var fineSample = fine.Samples[i * 10];
+            Assert.Equal(coarseSample.TimeSeconds, fineSample.TimeSeconds);
+            Assert.InRange(Math.Abs(coarseSample.AmountsMol["A"] - fineSample.AmountsMol["A"]), 0d, 2e-8);
+            Assert.InRange(Math.Abs(coarseSample.AmountsMol["A"] - Math.Exp(-rateConstant * coarseSample.TimeSeconds)), 0d, 2e-8);
+        }
+
+        // Fine sampling necessarily adds at least one accepted step per segment,
+        // but it must not pay a fresh controller warm-up sequence at every boundary.
+        Assert.True(
+            fine.Diagnostics.AcceptedSteps <= coarse.Diagnostics.AcceptedSteps + fine.Samples.Count - 1 + 8,
+            $"Fine sampling used {fine.Diagnostics.AcceptedSteps} accepted steps versus {coarse.Diagnostics.AcceptedSteps} for coarse sampling.");
+        Assert.True(
+            fine.Diagnostics.RightHandSideEvaluations <= coarse.Diagnostics.RightHandSideEvaluations +
+            (fine.Samples.Count - 1) * 7 + 56,
+            "Fine sampling incurred repeated RHS warm-up work beyond its additional output segments.");
+    }
 
 }
