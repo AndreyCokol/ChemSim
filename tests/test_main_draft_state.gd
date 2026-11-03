@@ -143,6 +143,23 @@ func _initialize() -> void:
 	assert(not main.draft_dirty, "Save As to the current path should clear dirty state after a successful write")
 	assert(main.current_draft_path == save_as_path, "Save As to the current path must retain the selected path")
 
+	# A failed Open from a clean workspace must preserve the complete current
+	# experiment and its active path, without introducing dirty state.
+	var clean_title_before_failed_open: String = main.experiment_name
+	var clean_component_count_before_failed_open: int = main.components.size()
+	var clean_path_before_failed_open: String = main.current_draft_path
+	var clean_missing_open_path := "user://experiments/does-not-exist-clean-ui-audit.chemsim.json"
+	if FileAccess.file_exists(clean_missing_open_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(clean_missing_open_path))
+	main._request_load_draft(clean_missing_open_path)
+	assert(main.io_error_dialog.visible, "A failed clean Open should surface a file error")
+	assert(not main.draft_dirty, "A failed clean Open must not make the current draft dirty")
+	assert(main.experiment_name == clean_title_before_failed_open, "A failed clean Open must preserve the current title")
+	assert(main.components.size() == clean_component_count_before_failed_open, "A failed clean Open must preserve the current components")
+	assert(main.current_draft_path == clean_path_before_failed_open, "A failed clean Open must preserve the active draft path")
+	assert(main.pending_open_path.is_empty(), "A failed clean Open must clear its pending path")
+	main.io_error_dialog.hide()
+
 	# Failed Save As must not change the active path or mark unsaved edits clean.
 	main.experiment_name_input.text = "Unsaved after failed Save As"
 	var path_before_failed_save: String = main.current_draft_path
