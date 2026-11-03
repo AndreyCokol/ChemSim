@@ -117,6 +117,10 @@ def _scaled_fraction(total: float, numerator: float, other: float) -> float:
         fraction = 1.0 / (1.0 + other / numerator)
     else:
         ratio = numerator / other
+        if ratio == 0.0:
+            # The ratio can underflow even when total * numerator / other is
+            # representable. Recover the scaled result in log space.
+            return exp(log(total) + log(numerator) - log(other))
         fraction = ratio / (1.0 + ratio)
     return total * fraction
 
