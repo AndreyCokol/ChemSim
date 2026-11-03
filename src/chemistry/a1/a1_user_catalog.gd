@@ -84,7 +84,7 @@ static func validate_document(document: Variant) -> Dictionary:
 		return _failure("A1_CATALOG_DOCUMENT_INVALID")
 	if document.size() != 2 or not document.has("schema_version") or not document.has("records"):
 		_add(errors, "A1_CATALOG_DOCUMENT_INVALID")
-	if typeof(document.get("schema_version")) != TYPE_INT or document.get("schema_version") != SCHEMA_VERSION:
+	if not _positive_int(document.get("schema_version")) or int(document.get("schema_version")) != SCHEMA_VERSION:
 		_add(errors, "A1_CATALOG_VERSION_UNSUPPORTED")
 	var rows: Variant = document.get("records")
 	if not rows is Array:
@@ -263,7 +263,14 @@ static func _nonempty(value: Variant) -> bool:
 
 
 static func _positive_int(value: Variant) -> bool:
-	return typeof(value) == TYPE_INT and value > 0
+	# Godot JSON.parse represents integers as floats. Permit ONLY finite,
+	# exactly integral and bounded JSON numbers; never bool, strings, fractions
+	# or integers beyond the safe local revision range.
+	if typeof(value) == TYPE_INT:
+		return value > 0 and value <= 2147483647
+	if typeof(value) == TYPE_FLOAT:
+		return is_finite(value) and value > 0.0 and value <= 2147483647.0 and floor(value) == value
+	return false
 
 
 static func _finite_number(value: Variant) -> bool:
