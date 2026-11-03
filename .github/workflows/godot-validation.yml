@@ -33,6 +33,8 @@ jobs:
         run: timeout 180s godot --headless --path . --script res://tests/test_draft_repository.gd --quit-after 3
       - name: Run visual field tests
         run: timeout 180s godot --headless --path . --script res://tests/test_visual_field.gd --quit-after 3
+      - name: Run graph series presentation tests
+        run: timeout 180s godot --headless --path . --script res://tests/test_graph_series_view.gd --quit-after 3
       - name: Run main draft-state integration tests
         run: timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd --quit-after 3
       - name: Start main scene
