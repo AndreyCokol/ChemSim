@@ -660,8 +660,13 @@ func _load_draft_from_path(path: String) -> void:
 	current_draft_path = path
 	draft_dirty = false
 	pending_open_path = ""
-	status_label.text = "Черновик загружен · химическая проверка не выполнена"
-	diagnostic_label.text = "Загружен пользовательский черновик схемы v1. Перед расчётом требуется отдельная химическая проверка."
+	var recovery_warning := str(decoded.get("recovery_warning", ""))
+	if not recovery_warning.is_empty():
+		status_label.text = "Черновик загружен · найдены файлы восстановления"
+		diagnostic_label.text = recovery_warning + " Химическая проверка не выполнена."
+	else:
+		status_label.text = "Черновик загружен · химическая проверка не выполнена"
+		diagnostic_label.text = "Загружен пользовательский черновик схемы v1. Перед расчётом требуется отдельная химическая проверка."
 
 func _show_io_error(message: String) -> void:
 	status_label.text = "Ошибка работы с файлом"
