@@ -196,3 +196,8 @@ For any future A5 adapter, preserve at least:
 An equilibrium solve produces a single equilibrium state, not a time series. A5 must not synthesize a time axis, graph series or kinetic history from an A3 result. Parameter sweeps or scenario comparisons, if later requested, need their own explicit input dimensions and result metadata and are not interchangeable with A4 kinetic trajectories.
 
 Until shared DTOs, Unit Registry, ErrorEnvelope, schema version and ReliabilityVector are approved, A5 should treat these outputs as unavailable for normative integration; a presentation prototype may show clearly labelled placeholders or a specifically versioned local adapter, but must not claim compatibility with the final API. A3 does not define A5 UI behavior or change A5-owned files.
+
+
+### Persistent source-term identity clarification
+
+A3 does **not** require a persistent source-term ID at parse time for numerical equilibrium solving. A parse-local source locator is sufficient to report diagnostics against the exact parsed input. If the application needs continuity across text edits, saved experiments or result provenance, the caller/experiment layer must assign and persist its own stable term ID at the adapter boundary and maintain an explicit mapping from that ID to the current parse-local locator(s). When duplicate terms are aggregated, preserve the complete set of source locators and caller-owned IDs. A3 must not manufacture stable IDs from source offsets, formula strings or stoichiometric coefficients.
