@@ -39,6 +39,19 @@ if parsed.ok:
 
 Parsing never changes coefficients and never balances implicitly. `check_balance` validates entered coefficients. `propose_balance` returns a separate proposal. Canonical serializers reparse and validate FormulaAST data; they return an empty string for malformed or stale DTOs rather than serializing a mutated node tree. Generated `term_id` values currently use the term's source-character offset and are only parse-local locators; they are not stable across whitespace or text edits. Callers that need persistent source-term identity must manage a stable ID outside the current parser API until the shared DTO/API contract is approved.
 
+## External Reaction DTO validation (local A2 v1)
+
+The product owner approved staged A1–A5 implementation under OpenSpec architecture baseline v0.1: [approval record](https://github.com/AndreyCokol/ChemSim/blob/main/openspec/changes/define-chemsim-mvp/APPROVAL.md). This does not make the A2-local dictionaries the approved public interchange schema.
+
+All three A2 entry points that consume a caller-supplied reaction — `check_balance()`, `propose_balance()`, and `serialize_reaction()` — now **fail closed** unless the reaction carries:
+- an explicit **integer** `schema_version = 1` and recognized `arrow_type` (`FORWARD` / `REVERSIBLE`);
+- nonempty typed `reactants` and `products`, each with an explicit positive integer `stoichiometric_coefficient` and an explicit `species.phase` (`UNSPECIFIED` is valid and distinct from omitted);
+- internally consistent `FormulaAST` data, as verified by reparsing `formula_ast.source_text` and comparing nodes, element counts, phase, charge, and local AST version.
+
+Local invalid-input responses remain `BALANCE_INVALID_REACTION`, `BALANCE_INVALID_TERM`, balancer `INVALID_INPUT`, or empty serialized string. `parse_reaction()` still accepts omitted **textual** unit coefficients and phases, materializing explicit coefficient 1 and phase `UNSPECIFIED` in its successful DTO. No legacy/unversioned external DTO defaults or migration are assumed. This local shape/version is **not** the shared wire `contract_version = "0.1"`; stable SpeciesRef/Reaction identity and phases require the integrator-owned adapter.
+
+Nine mutated reaction inputs are covered across all three operations (missing/unsupported/wrong-type version, missing/invalid arrow, missing coefficient, missing/invalid phase), with valid-v1 and input-preservation checks. Exact A2 source/test head `dd3de4b396e9a38fe0fccb0f043159ac396fadc6` passed [Godot 4.3 CI #41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795), including import/script parsing and A2 tests. This is not an integrated Godot→.NET E2E claim.
+
 ## Balancer guarantees and limits
 
 The current solver enumerates positive integer coefficient vectors in increasing total-sum order. It can prove a unique or ambiguous optimum when it finishes a complete minimum-sum layer. It uses integer arithmetic only and rejects malformed/out-of-contract species DTOs before search.
@@ -56,4 +69,4 @@ This is an initial bounded solver, not a general-purpose ILP implementation. Lim
 
 ## Test status
 
-The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest completed validation is A2 branch HEAD `a46203c7d7056c9f647a3207fe47eccc4920f88d`, passed in workflow run [41619736606](https://github.com/AndreyCokol/ChemSim/actions/runs/41619736606): temporary project setup, import/script parsing, and A2 parser/balancer tests all succeeded. This evidence applies to that exact commit. Any subsequent README or source change requires its own exact-head CI run. Local execution was not performed in the current environment.
+The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest **source/test validation** is commit `dd3de4b396e9a38fe0fccb0f043159ac396fadc6`, passed in workflow run [41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795): temporary Godot project setup, import/script parsing, and all A2 parser/balancer tests succeeded. This evidence applies to that exact source/test commit, not to any later documentation HEAD. Local Godot execution and full integrated-project validation have not been performed in this environment.
