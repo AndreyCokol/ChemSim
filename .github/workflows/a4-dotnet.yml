@@ -55,6 +55,31 @@ jobs:
       - name: Test
         run: dotnet test ChemSim.sln --configuration Release --no-build --logger "trx;LogFileName=a4-tests.trx"
 
+      - name: Standalone CLI real-process smoke (synthetic data, Linux)
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/a4-cli-smoke"
+          cp tests/ChemSim.Kinetics.Tests/Fixtures/a4-synthetic-request.json "$RUNNER_TEMP/a4-cli-smoke/request.json"
+          dotnet src/ChemSim.Kinetics.Cli/bin/Release/net10.0/chemsim-solver.dll \
+            --request "$RUNNER_TEMP/a4-cli-smoke/request.json" \
+            --response "$RUNNER_TEMP/a4-cli-smoke/response.json"
+          python3 - "$RUNNER_TEMP/a4-cli-smoke/response.json" <<'PY'
+          import json, math, sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              response = json.load(f)
+          assert response["contract_version"] == "0.1"
+          assert response["kind"] == "simulation_result"
+          assert response["request_message_id"] == "a393bcc5-8ef0-4111-9cf8-a7f4a65fbfc6"
+          assert response["outcome"] == "completed"
+          payload = response["payload"]
+          assert payload["reliability"]["data_quality"] == "hypothetical"
+          assert len(payload["samples"]) == 3
+          last = payload["samples"][-1]
+          assert last["time_s"] == 1
+          assert abs(last["amounts_mol"]["A"] - math.exp(-0.1)) < 5e-8
+          assert abs(sum(last["amounts_mol"].values()) - 1) < 1e-9
+          PY
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
