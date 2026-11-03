@@ -1,5 +1,7 @@
 # A3-18 — Local equilibrium fixture identity and pressure-law integrity
 
+> **A3-19 numeric charge audit (2026-11-03):** Local W01–W05 outputs now independently recompute normalized ionic charge from their *A3-only fixture charge assignments* and compare it with the already-reported absolute charge residual before building scientific observations. This prevents a changed charged-ion concentration or forged old residual from passing, including a coordinated pH edit. Float/ULP tolerance does not certify real-solution electroneutrality, A2-authenticated ionic identity, source admission or a normative shared DTO. [A3-19 charge-audit matrix](a3-local-charge-audit.md); code/tests `298ec20`, [CI #41671442572](https://github.com/AndreyCokol/ChemSim/actions/runs/41671442572) **90 tests / OK**.
+
 **Date:** 2026-11-03. **Owner/lease:** Agent A3 — Issue #8, Draft PR #4; branch agent/a3-equilibrium-implementation. **Priority:** P1.  
 **Code/test commit:** `19458711c48953b9f59f5c108ada3353bc72ad7f`. **Verified CI:** [GitHub Actions #41669588960](https://github.com/AndreyCokol/ChemSim/actions/runs/41669588960) completed **success, 87/87 tests OK**.
 
