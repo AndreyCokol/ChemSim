@@ -301,7 +301,9 @@ def solve_strong_neutralization(
 
     h, iterations, f_residual = _log_root_positive(residual)
     oh = kw / h
-    charge = h + naoh_mol_l - oh - hcl_mol_l
+    # Pair the large spectator-ion inventories before adding the much
+    # smaller free H+/OH- contribution; the left-associated form can erase it.
+    charge = (naoh_mol_l - hcl_mol_l) + (h - oh)
     return _aqueous_result(
         {"H+": h, "OH-": oh, "Na+": naoh_mol_l, "Cl-": hcl_mol_l},
         -log10(h),
