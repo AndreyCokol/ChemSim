@@ -135,7 +135,7 @@ func _initialize() -> void:
 
 	# Failed Save As must not change the active path or mark unsaved edits clean.
 	main.experiment_name_input.text = "Unsaved after failed Save As"
-	var path_before_failed_save := main.current_draft_path
+	var path_before_failed_save: String = main.current_draft_path
 	main._save_draft_to_path("res://must-not-write-from-ui.chemsim.json")
 	assert(main.draft_dirty, "Failed Save As must preserve the dirty state")
 	assert(main.current_draft_path == path_before_failed_save, "Failed Save As must preserve the previous current path")
@@ -144,7 +144,7 @@ func _initialize() -> void:
 
 	# If the user confirms discarding edits but the requested file cannot be
 	# opened, the current in-memory experiment must still survive unchanged.
-	var title_before_failed_open := main.experiment_name
+	var title_before_failed_open: String = main.experiment_name
 	var missing_open_path := "user://experiments/does-not-exist-ui-audit.chemsim.json"
 	if FileAccess.file_exists(missing_open_path):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(missing_open_path))
