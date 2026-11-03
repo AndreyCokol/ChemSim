@@ -109,6 +109,49 @@ public sealed class KineticsPerformanceBenchmarkTests
                     })
                 ])),
         new BenchmarkCase(
+            "half-order-A-to-B-non-unit-volume",
+            CreateRequest(
+                ["A", "B"],
+                [
+                    new ReactionDefinition(
+                        "half-order-A-to-B",
+                        new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                        new Dictionary<string, double> { ["A"] = 0.5d },
+                        new RateConstant(0.6d, 0.5d))
+                ],
+                new Dictionary<string, double> { ["A"] = 4d, ["B"] = 0d },
+                [
+                    new ConservationLaw("total", new Dictionary<string, double>
+                    {
+                        ["A"] = 1d, ["B"] = 1d
+                    })
+                ],
+                volumeM3: 2d,
+                endTimeSeconds: 2d)),
+        new BenchmarkCase(
+            "parallel-first-order-A-to-B-and-A-to-C",
+            CreateRequest(
+                ["A", "B", "C"],
+                [
+                    new ReactionDefinition(
+                        "A-to-B",
+                        new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                        new Dictionary<string, double> { ["A"] = 1d },
+                        new RateConstant(0.7d, 0d)),
+                    new ReactionDefinition(
+                        "A-to-C",
+                        new Dictionary<string, int> { ["A"] = -1, ["C"] = 1 },
+                        new Dictionary<string, double> { ["A"] = 1d },
+                        new RateConstant(0.3d, 0d))
+                ],
+                new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d, ["C"] = 0d },
+                [
+                    new ConservationLaw("total", new Dictionary<string, double>
+                    {
+                        ["A"] = 1d, ["B"] = 1d, ["C"] = 1d
+                    })
+                ])),
+        new BenchmarkCase(
             "consecutive-first-order-A-to-B-to-C",
             CreateRequest(
                 ["A", "B", "C"],
@@ -137,22 +180,24 @@ public sealed class KineticsPerformanceBenchmarkTests
         IReadOnlyList<string> species,
         IReadOnlyList<ReactionDefinition> reactions,
         IReadOnlyDictionary<string, double> initialAmounts,
-        IReadOnlyList<ConservationLaw> conservationLaws) =>
+        IReadOnlyList<ConservationLaw> conservationLaws,
+        double volumeM3 = 1d,
+        double endTimeSeconds = 10d) =>
         new()
         {
             Network = new ReactionNetwork(species, reactions, conservationLaws),
             InitialAmountsMol = initialAmounts,
-            VolumeM3 = 1d,
+            VolumeM3 = volumeM3,
             StartTimeSeconds = 0d,
-            EndTimeSeconds = 10d,
-            OutputIntervalSeconds = 10d,
+            EndTimeSeconds = endTimeSeconds,
+            OutputIntervalSeconds = endTimeSeconds,
             Solver = new SolverOptions
             {
                 RelativeTolerance = 1e-8d,
                 AbsoluteToleranceMol = 1e-12d,
                 InitialStepSeconds = 1e-3d,
                 MinimumStepSeconds = 1e-12d,
-                MaximumStepSeconds = 1d
+                MaximumStepSeconds = endTimeSeconds
             }
         };
 
