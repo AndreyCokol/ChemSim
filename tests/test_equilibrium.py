@@ -117,6 +117,15 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["H+"], 1.0e100, delta=1.0e90)
         self.assertAlmostEqual(result.pH, -100.0, delta=1e-10)
 
+    def test_strong_base_trace_concentration_is_not_lost_to_absolute_residual_tolerance(self):
+        result = solve_strong_neutralization(0.0, 1.0e-100, 1.0e-200)
+        expected_oh = 0.5 * (1.0 + math.sqrt(5.0)) * 1.0e-100
+        expected_h = 1.0e-200 / expected_oh
+        self.assertAlmostEqual(result.species_mol_l["OH-"], expected_oh, delta=expected_oh * 1e-10)
+        self.assertAlmostEqual(result.species_mol_l["H+"], expected_h, delta=expected_h * 1e-10)
+        self.assertAlmostEqual(result.pH, -math.log10(expected_h), places=9)
+        self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-110)
+
     def test_weak_acid_species_fraction_avoids_overflowing_total_times_ka(self):
         result = solve_weak_acid(1.0e300, 1.0e300, 1.0e-14)
         self.assertTrue(math.isfinite(result.species_mol_l["A-"]))
