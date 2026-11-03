@@ -11,6 +11,7 @@ func _initialize() -> void:
 	_test_reaction_boundaries()
 	_test_nested_and_round_trip()
 	_test_negative_cases()
+	_test_exact_conservation_admission_vectors()
 	_test_balance_validation()
 	_test_external_reaction_dto_validation()
 	_test_balance_proposal()
@@ -356,6 +357,89 @@ func _test_negative_cases() -> void:
 	assert(not unicode_prefix_error.ok)
 	assert(unicode_prefix_error.code == "PARSE_UNKNOWN_ELEMENT")
 	assert(unicode_prefix_error.source_span.start_offset == unicode_prefix_source.find("Xx"))
+
+func _test_exact_conservation_admission_vectors() -> void:
+	# Integration admission oracle for the A4 conservation-law handoff.
+	# A2 residuals are LEFT minus RIGHT (reactants - products).
+	# A4 uses nu = products - reactants, so sum(composition * nu)
+	# has the opposite sign for each element/charge. Zero is identical.
+	var parser = Parser.new()
+	var vectors: Array = [
+		{
+			"name": "INV-01 balanced H/O",
+			"equation": "2H2 + O2 -> 2H2O",
+			"balanced": true,
+			"elements": {"H": 0, "O": 0},
+			"charge": 0
+		},
+		{
+			"name": "INV-02 balanced Ag/Cl and ions",
+			"equation": "Ag+(aq) + Cl-(aq) -> AgCl(s)",
+			"balanced": true,
+			"elements": {"Ag": 0, "Cl": 0},
+			"charge": 0
+		},
+		{
+			"name": "INV-03 oxygen deficit on products",
+			"equation": "H2 + O2 -> H2O",
+			"balanced": false,
+			"elements": {"H": 0, "O": 1},
+			"charge": 0
+		},
+		{
+			"name": "INV-04 sodium charge nonconservation",
+			"equation": "Na+ -> Na",
+			"balanced": false,
+			"elements": {"Na": 0},
+			"charge": 1
+		},
+		{
+			"name": "ionic atom-balanced charge-mismatched",
+			"equation": "Fe^3+ + 2Cl- -> FeCl2",
+			"balanced": false,
+			"elements": {"Fe": 0, "Cl": 0},
+			"charge": 1
+		},
+		{
+			"name": "synthetic gas-stoichiometry smoke",
+			"equation": "N2O4(g) -> 2NO2(g)",
+			"balanced": true,
+			"elements": {"N": 0, "O": 0},
+			"charge": 0
+		},
+		{
+			"name": "negative hydrogen residual orientation",
+			"equation": "H2 + O2 -> 2H2O",
+			"balanced": false,
+			"elements": {"H": -2, "O": 0},
+			"charge": 0
+		},
+		{
+			"name": "duplicate source terms preserve conservation",
+			"equation": "H2 + H2 + O2 -> 2H2O",
+			"balanced": true,
+			"elements": {"H": 0, "O": 0},
+			"charge": 0
+		}
+	]
+	for vector in vectors:
+		var parsed: Dictionary = parser.parse_reaction(vector.equation)
+		assert(parsed.ok, vector.name)
+		var original: Dictionary = parsed.reaction.duplicate(true)
+		var check: Dictionary = parser.check_balance(parsed.reaction)
+		assert(check.ok, vector.name)
+		assert(check.balanced == vector.balanced, vector.name)
+		assert(check.element_residuals == vector.elements, vector.name)
+		assert(check.charge_residual == vector.charge, vector.name)
+		# Validation alone does not alter the entered coefficients or DTO.
+		assert(parsed.reaction == original, vector.name)
+
+	# Chemistry parser cannot be a validator for A4's abstract A -> B
+	# numeric-only benchmark: A is not a chemical element in the lexer.
+	var abstract_model: Dictionary = parser.parse_reaction("A -> B")
+	assert(not abstract_model.ok)
+	assert(abstract_model.code == "PARSE_UNKNOWN_ELEMENT")
+
 
 func _test_balance_validation() -> void:
 	var parser = Parser.new()
