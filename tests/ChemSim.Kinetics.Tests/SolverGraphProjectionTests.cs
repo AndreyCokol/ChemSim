@@ -163,7 +163,7 @@ public sealed class SolverGraphProjectionTests
     [InlineData(double.PositiveInfinity)]
     public void InvalidVolume_IsRejectedBeforeProjection(double volume)
     {
-        Assert.Throws<ArgumentException>(() => Project(
+        Assert.Throws<ArgumentOutOfRangeException>(() => Project(
             Result(SimulationStatus.Success, At(0, 2, 0), At(2, 0, 2)),
             Request(volume)));
     }
