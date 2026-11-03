@@ -5,6 +5,7 @@ const Balancer = preload("res://src/chemistry/a2/chem_reaction_balancer.gd")
 
 func _initialize() -> void:
 	_test_formula_ast()
+	_test_contract_v01_lexer_vectors()
 	_test_reaction_boundaries()
 	_test_nested_and_round_trip()
 	_test_negative_cases()
@@ -41,6 +42,55 @@ func _test_formula_ast() -> void:
 	assert(empty_group.code == "PARSE_EMPTY_GROUP")
 	assert(empty_group.source_span.start_offset == 2)
 	assert(empty_group.source_span.end_offset == 3)
+
+func _test_contract_v01_lexer_vectors() -> void:
+	var parser = Parser.new()
+	# Local lexical behavior only; the integrator owns approved wire spelling.
+	for alias in ["H+", "OH-", "Ag+"]:
+		var short_ion: Dictionary = parser.parse_formula(alias)
+		assert(short_ion.ok, alias)
+		assert(abs(int(short_ion.formula_ast.net_charge)) == 1, alias)
+	var positive_caret: Dictionary = parser.parse_formula("H^+")
+	assert(positive_caret.ok)
+	assert(positive_caret.formula_ast.net_charge == 1)
+	var negative_caret: Dictionary = parser.parse_formula("Cl^-")
+	assert(negative_caret.ok)
+	assert(negative_caret.formula_ast.net_charge == -1)
+	var ferric: Dictionary = parser.parse_formula("Fe^3+")
+	assert(ferric.ok)
+	assert(ferric.formula_ast.net_charge == 3)
+	var ambiguous: Dictionary = parser.parse_formula("Fe3+")
+	assert(not ambiguous.ok)
+	assert(ambiguous.code == "PARSE_AMBIGUOUS_CHARGE")
+
+	var ascii_equilibrium: Dictionary = parser.parse_reaction("H2 + I2 <-> 2HI")
+	assert(ascii_equilibrium.ok)
+	assert(ascii_equilibrium.reaction.arrow_type == "REVERSIBLE")
+	var unicode_equilibrium: Dictionary = parser.parse_reaction("H2 + I2 ⇌ 2HI")
+	assert(unicode_equilibrium.ok)
+	assert(unicode_equilibrium.reaction.arrow_type == "REVERSIBLE")
+	assert(parser.serialize_reaction(ascii_equilibrium.reaction) == "H2 + I2 ⇌ 2HI")
+
+	# A2 local diagnostic spans count Godot String characters, NOT bytes.
+	# The integrator v0.1 wire adapter must convert both endpoints over the
+	# same unmodified input, including Unicode arrows and Cyrillic text.
+	var source := "H2 + O2 → H2Ж"
+	var error: Dictionary = parser.parse_reaction(source)
+	assert(not error.ok)
+	assert(error.code == "PARSE_UNEXPECTED_TOKEN")
+	assert(error.source_span.start_offset == 12)
+	assert(error.source_span.end_offset == 13)
+	assert(source.substr(0, 12).to_utf8_buffer().size() == 14)
+	assert(source.substr(0, 13).to_utf8_buffer().size() == 16)
+
+	# An insertion-point error at EOF is a legitimate zero-width span;
+	# shared wire SourceSpan consumer policy is still integrator-owned.
+	var no_arrow: Dictionary = parser.parse_reaction("H2 + O2")
+	assert(not no_arrow.ok)
+	assert(no_arrow.code == "PARSE_MISSING_ARROW")
+	assert(no_arrow.source_span.start_offset == 7)
+	assert(no_arrow.source_span.end_offset == 7)
+
 
 func _test_reaction_boundaries() -> void:
 	var parser = Parser.new()
