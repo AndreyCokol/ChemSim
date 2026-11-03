@@ -62,7 +62,9 @@ public sealed class KineticsPerformanceBenchmarkTests
             var diagnostics = lastResult!.Diagnostics;
 
             _output.WriteLine(
-                $"{benchmarkCase.Name}: median={medianMilliseconds:F4} ms; " +
+                $"{benchmarkCase.Name}: species={benchmarkCase.Request.Network.SpeciesIds.Count}; " +
+                $"reactions={benchmarkCase.Request.Network.Reactions.Count}; " +
+                $"median={medianMilliseconds:F4} ms; " +
                 $"range=[{minimumMilliseconds:F4}, {maximumMilliseconds:F4}] ms; " +
                 $"medianAllocated={medianAllocatedBytes} B; " +
                 $"accepted={diagnostics.AcceptedSteps}; rejected={diagnostics.RejectedSteps}; " +
@@ -191,6 +193,9 @@ public sealed class KineticsPerformanceBenchmarkTests
                         ["A"] = 1d, ["B"] = 1d, ["C"] = 1d
                     })
                 ])),
+        CreateFirstOrderChainCase(10),
+        CreateFirstOrderChainCase(50),
+        CreateFirstOrderChainCase(100),
         new BenchmarkCase(
             "consecutive-first-order-A-to-B-to-C",
             CreateRequest(
@@ -215,6 +220,33 @@ public sealed class KineticsPerformanceBenchmarkTests
                     })
                 ]))
     ];
+
+    private static BenchmarkCase CreateFirstOrderChainCase(int reactionCount)
+    {
+        var species = Enumerable.Range(0, reactionCount + 1)
+            .Select(index => $"S{index:D3}")
+            .ToArray();
+        var reactions = Enumerable.Range(0, reactionCount)
+            .Select(index => new ReactionDefinition(
+                $"S{index:D3}-to-S{index + 1:D3}",
+                new Dictionary<string, int>
+                {
+                    [species[index]] = -1,
+                    [species[index + 1]] = 1
+                },
+                new Dictionary<string, double> { [species[index]] = 1d },
+                new RateConstant(0.1d, 0d)))
+            .ToArray();
+        var initialAmounts = species.ToDictionary(id => id, _ => 0d);
+        initialAmounts[species[0]] = 1d;
+        var conservation = new ConservationLaw(
+            "total",
+            species.ToDictionary(id => id, _ => 1d));
+
+        return new BenchmarkCase(
+            $"first-order-chain-{reactionCount}-reactions",
+            CreateRequest(species, reactions, initialAmounts, [conservation]));
+    }
 
     private static SimulationRequest CreateRequest(
         IReadOnlyList<string> species,
