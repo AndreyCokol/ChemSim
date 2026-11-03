@@ -1067,4 +1067,10 @@ public sealed class KineticsSimulatorTests
         Assert.Equal(6d, total);
     }
 
+    [Fact]
+    public void Run_RejectsNullSimulationRequestWithArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => new KineticsSimulator().Run(null!));
+    }
+
 }
