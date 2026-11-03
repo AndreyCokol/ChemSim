@@ -49,6 +49,10 @@ func remove_marker(component_id: int) -> void:
 			markers.remove_at(index)
 	if selected_marker_id == component_id:
 		selected_marker_id = -1
+	# An in-flight mouse drag must not recreate an already removed marker on
+	# the next motion event (which would leave an orphan marker in the view).
+	if dragging_marker_id == component_id:
+		dragging_marker_id = -1
 	queue_redraw()
 
 func clear_markers() -> void:
