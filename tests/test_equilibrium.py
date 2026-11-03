@@ -41,6 +41,38 @@ class AqueousResultValidationTests(unittest.TestCase):
             _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
 
 
+    def test_rejects_non_numeric_and_boolean_species_outputs(self):
+        diagnostics = SolverDiagnostics(0, 0.0, 0.0, 0.0, "test", "mol/L")
+        for species in ({"H+": True}, {"H+": "1e-7"}, {"H+": float("nan")}, {"": 1.0}):
+            with self.subTest(species=species):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _aqueous_result(species, 7.0, diagnostics)
+
+    def test_rejects_invalid_diagnostic_types_and_metadata(self):
+        cases = (
+            SolverDiagnostics(True, 0.0, 0.0, 0.0, "test", "mol/L"),
+            SolverDiagnostics(0, 0.0, 0.0, 0.0, "", "mol/L"),
+            SolverDiagnostics(0, 0.0, 0.0, 0.0, "test", ""),
+        )
+        for diagnostics in cases:
+            with self.subTest(diagnostics=diagnostics):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
+
+    def test_public_aqueous_inputs_reject_boolean_and_non_numeric_values(self):
+        invalid_calls = (
+            lambda value: solve_weak_acid(value, 1.0e-5, 1.0e-14),
+            lambda value: solve_strong_neutralization(value, 0.0, 1.0e-14),
+            lambda value: solve_agcl_solubility(value, 1.0e-14),
+            lambda value: solve_ammonia_buffer(value, 0.0, 1.0e-9, 1.0e-14),
+        )
+        for call in invalid_calls:
+            for value in (True, "0.01"):
+                with self.subTest(call=call, value=value):
+                    with self.assertRaises(EquilibriumInputError):
+                        call(value)
+
+
 class ScaledFractionRobustnessTests(unittest.TestCase):
     def test_ratio_underflow_does_not_erase_representable_scaled_fraction(self):
         smallest = math.ulp(0.0)
