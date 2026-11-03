@@ -256,3 +256,18 @@ Observed on GitHub Actions (.NET 10.0.14, Ubuntu 24.04.5 LTS, linux-x64, 4 logic
 | 0.125 s | 81 | 0.8140 ms | 0.8027–0.8246 ms | 278,152 B | 84 | 0 | 588 |
 
 On this runner, the denser output schedule measured about 26.6% higher median elapsed time and 33.5% more current-thread allocations. These are runner-specific observations, not a general complexity claim or a CI threshold; pin hardware and repeat before performance comparisons. Exact source/test commit `7a4239a4bc9fca14df2ba2c3e800c972750b4bcd` passed .NET 10 Restore, Build and all 36 tests in push run [41620281327](https://github.com/AndreyCokol/ChemSim/actions/runs/41620281327). The associated PR workflow also completed successfully (run [41620281338](https://github.com/AndreyCokol/ChemSim/actions/runs/41620281338); that run used a concurrent PR merge ref and is supplementary, not the exact source-SHA evidence).
+
+
+### A4-BENCH-PERF-04 — reaction-network size scaling
+
+Added three deterministic first-order network workloads with 10, 50 and 100 independent Aᵢ → Bᵢ reactions (20, 100 and 200 species respectively). Each reactant starts at 1/N mol, products at zero, all rate constants are 0.1 s⁻¹, V=1 m³ and the horizon is 0–10 s. A single global amount-conservation law is applied. This isolates network-size cost without introducing a stiff serial chain or a positivity failure from initially empty sequential intermediates. The existing Release protocol is retained (2 warm-ups, 9 measured runs; median/range, current-thread allocations, solver work counters; no timing threshold).
+
+Observed on GitHub Actions (.NET 10.0.14, Ubuntu 24.04.5 LTS, linux-x64, 4 logical processors; CPU model not exposed):
+
+| Reactions | Species | Median | Range | Median allocated | Accepted | Rejected | RHS |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 20 | 1.9778 ms | 1.9540–2.0044 ms | 211,160 B | 17 | 0 | 119 |
+| 50 | 100 | 8.7663 ms | 8.2416–8.8791 ms | 934,776 B | 17 | 0 | 119 |
+| 100 | 200 | 16.9797 ms | 16.2423–36.4220 ms | 1,845,776 B | 17 | 0 | 119 |
+
+Accepted-step and RHS counts stayed constant for these independent equal-rate workloads; measured time and allocations rose with network size. This is one runner's scaling observation, not a general complexity guarantee; note the wider 100-reaction timing range and repeat on pinned hardware before comparing implementations. An initial serial chain experiment was discarded because the current positivity-aware RK45 rejected its first step at t=0 with initially empty intermediates; no solver guards were weakened and no solver code was changed. Exact source/test commit `add341adca71db5aafd9b1e29f5d1ab774dc037f` passed .NET 10 Restore, Build and all 36 tests in push run [41620597075](https://github.com/AndreyCokol/ChemSim/actions/runs/41620597075) and exact-SHA PR run [41620605141](https://github.com/AndreyCokol/ChemSim/actions/runs/41620605141).
