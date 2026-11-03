@@ -345,7 +345,7 @@ public sealed class ToleranceConvergenceBenchmarkTests
                     "half-order-A-to-B",
                     new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
                     new Dictionary<string, double> { ["A"] = 0.5d },
-                    new RateConstant(rateConstant, -0.5d))
+                    new RateConstant(rateConstant, 0.5d))
             ],
             [
                 new ConservationLaw("total", new Dictionary<string, double>
