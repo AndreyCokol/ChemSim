@@ -30,7 +30,7 @@ public sealed class KineticsPerformanceBenchmarkTests
             for (var i = 0; i < WarmupRuns; i++)
             {
                 var warmup = new KineticsSimulator().Run(benchmarkCase.Request);
-                Assert.True(warmup.IsSuccess, warmup.Diagnostics.Message);
+                AssertBenchmarkResultIsPhysical(benchmarkCase.Request, warmup);
             }
 
             var elapsedMilliseconds = new double[MeasurementRuns];
@@ -49,7 +49,7 @@ public sealed class KineticsPerformanceBenchmarkTests
                 elapsedMilliseconds[i] = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                 allocatedBytes[i] = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
 
-                Assert.True(result.IsSuccess, result.Diagnostics.Message);
+                AssertBenchmarkResultIsPhysical(benchmarkCase.Request, result);
                 lastResult = result;
             }
 
@@ -220,6 +220,48 @@ public sealed class KineticsPerformanceBenchmarkTests
                     })
                 ]))
     ];
+
+    private static void AssertBenchmarkResultIsPhysical(
+        SimulationRequest request,
+        SimulationResult result)
+    {
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+
+        foreach (var sample in result.Samples)
+        {
+            Assert.All(sample.AmountsMol, pair =>
+                Assert.True(
+                    double.IsFinite(pair.Value) && pair.Value >= 0d,
+                    $"Species '{pair.Key}' has invalid amount {pair.Value:G17} mol at t={sample.TimeSeconds:G17} s."));
+
+            foreach (var law in request.Network.ConservationLaws)
+            {
+                var initialInvariant = EvaluateInvariant(request.InitialAmountsMol, law);
+                var actualInvariant = EvaluateInvariant(sample.AmountsMol, law);
+                var tolerance = 1e-9d * Math.Max(1d, Math.Abs(initialInvariant));
+
+                Assert.True(
+                    double.IsFinite(actualInvariant) &&
+                    Math.Abs(actualInvariant - initialInvariant) <= tolerance,
+                    $"Conservation law '{law.Id}' drifted by {actualInvariant - initialInvariant:G17} " +
+                    $"at t={sample.TimeSeconds:G17} s (tolerance {tolerance:G17}).");
+            }
+        }
+    }
+
+    private static double EvaluateInvariant(
+        IReadOnlyDictionary<string, double> amounts,
+        ConservationLaw law)
+    {
+        var value = 0d;
+        foreach (var (speciesId, coefficient) in law.Coefficients)
+        {
+            if (amounts.TryGetValue(speciesId, out var amount))
+                value += coefficient * amount;
+        }
+
+        return value;
+    }
 
     private static BenchmarkCase CreateParallelFirstOrderScaleCase(int reactionCount)
     {
