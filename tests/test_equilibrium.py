@@ -13,7 +13,18 @@ from chemsim.equilibrium import (
     _bisect,
     _scaled_fraction,
     EquilibriumConvergenceError,
+    SolverDiagnostics,
+    _aqueous_result,
 )
+
+
+class AqueousResultValidationTests(unittest.TestCase):
+    def test_rejects_positive_infinite_and_nan_residuals(self):
+        for residual in (float("inf"), float("nan")):
+            diagnostics = SolverDiagnostics(0, residual, 0.0, 0.0, "test", "mol/L")
+            with self.subTest(residual=residual):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
 
 
 class ScaledFractionRobustnessTests(unittest.TestCase):
