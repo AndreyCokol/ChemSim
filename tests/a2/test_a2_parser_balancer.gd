@@ -3,6 +3,7 @@ extends SceneTree
 const Parser = preload("res://src/chemistry/a2/chem_equation_parser.gd")
 const Balancer = preload("res://src/chemistry/a2/chem_reaction_balancer.gd")
 const SpanCodec = preload("res://src/chemistry/a2/chem_source_span.gd")
+const Stoichiometry = preload("res://src/chemistry/a2/chem_stoichiometry_handoff.gd")
 
 func _initialize() -> void:
 	_test_formula_ast()
@@ -13,6 +14,7 @@ func _initialize() -> void:
 	_test_single_charge_canonical_round_trip()
 	_test_negative_cases()
 	_test_exact_conservation_admission_vectors()
+	_test_trusted_stoichiometry_handoff()
 	_test_balance_validation()
 	_test_external_reaction_dto_validation()
 	_test_balance_proposal()
@@ -490,6 +492,115 @@ func _test_exact_conservation_admission_vectors() -> void:
 	var abstract_model: Dictionary = parser.parse_reaction("A -> B")
 	assert(not abstract_model.ok)
 	assert(abstract_model.code == "PARSE_UNKNOWN_ELEMENT")
+
+
+func _test_trusted_stoichiometry_handoff() -> void:
+	# This A2-local fact builder reparses trusted original text. It never
+	# accepts external FormulaAST dictionaries or invents stable species IDs.
+	var source := "N2O4(g) -> 2NO2(g)"
+	var fact: Dictionary = Stoichiometry.extract_balanced_terms(source)
+	assert(fact.ok)
+	assert(fact.schema_version == 1)
+	assert(fact.original_input == source)
+	assert(fact.arrow_type == "FORWARD")
+	assert(fact.terms.size() == 2)
+	assert(fact.element_residuals == {"N": 0, "O": 0})
+	assert(fact.charge_residual == 0)
+
+	var reactant: Dictionary = fact.terms[0]
+	var product: Dictionary = fact.terms[1]
+	assert(reactant.side == "REACTANT")
+	assert(reactant.stoichiometric_coefficient == 1)
+	assert(reactant.signed_stoichiometric_coefficient == -1)
+	assert(reactant.formula_source_text == "N2O4(g)")
+	assert(reactant.element_counts == {"N": 2, "O": 4})
+	assert(reactant.net_charge == 0)
+	assert(reactant.phase == "GAS")
+	assert(product.side == "PRODUCT")
+	assert(product.stoichiometric_coefficient == 2)
+	assert(product.signed_stoichiometric_coefficient == 2)
+	assert(product.formula_source_text == "NO2(g)")
+	assert(product.element_counts == {"N": 1, "O": 2})
+	assert(product.net_charge == 0)
+	assert(product.phase == "GAS")
+	assert(reactant.source_term_id != product.source_term_id)
+	assert(reactant.source_span.start_offset < reactant.source_span.end_offset)
+	assert(product.source_span.start_offset < product.source_span.end_offset)
+	assert(not fact.has("species_ref"))
+	assert(not reactant.has("species_id"))
+	assert(not reactant.has("record_revision"))
+	assert(not fact.has("kinetic_order"))
+	assert(not fact.has("rate_constant"))
+
+	# The A4 signed stoichiometric products-minus-reactants convention is
+	# checked independently of the A2 left-minus-right balance residuals.
+	for element in ["N", "O"]:
+		var signed_residual := 0
+		for term in fact.terms:
+			signed_residual += int(term.element_counts.get(element, 0)) * int(term.signed_stoichiometric_coefficient)
+		assert(signed_residual == -int(fact.element_residuals[element]))
+
+	# Duplicates are never silently aggregated: source locators remain
+	# distinct, while chemical arithmetic still accepts exact balance.
+	var duplicates: Dictionary = Stoichiometry.extract_balanced_terms("H2 + H2 + O2 -> 2H2O")
+	assert(duplicates.ok)
+	assert(duplicates.terms.size() == 4)
+	assert(duplicates.terms[0].source_term_id != duplicates.terms[1].source_term_id)
+	assert(duplicates.terms[0].formula_source_text == "H2")
+	assert(duplicates.terms[1].formula_source_text == "H2")
+	assert(duplicates.terms[0].signed_stoichiometric_coefficient == -1)
+	assert(duplicates.terms[1].signed_stoichiometric_coefficient == -1)
+	assert(duplicates.terms[3].signed_stoichiometric_coefficient == 2)
+	assert(duplicates.terms[0].phase == "UNSPECIFIED")
+
+	# Exact charge is separate from atomic conservation and from the
+	# model-specific aqueous electroneutrality requirement.
+	var ionic: Dictionary = Stoichiometry.extract_balanced_terms("Ag+(aq) + Cl-(aq) -> AgCl(s)")
+	assert(ionic.ok)
+	assert(ionic.terms.size() == 3)
+	assert(ionic.terms[0].net_charge == 1)
+	assert(ionic.terms[1].net_charge == -1)
+	assert(ionic.terms[2].net_charge == 0)
+	assert(ionic.terms[0].phase == "AQUEOUS")
+	assert(ionic.terms[2].phase == "SOLID")
+
+	var unbalanced: Dictionary = Stoichiometry.extract_balanced_terms("H2 + O2 -> H2O")
+	assert(not unbalanced.ok)
+	assert(unbalanced.code == "A2_REACTION_UNBALANCED")
+	assert(unbalanced.element_residuals == {"H": 0, "O": 1})
+	assert(unbalanced.charge_residual == 0)
+	assert(not unbalanced.has("terms"))
+
+	var wrong_charge: Dictionary = Stoichiometry.extract_balanced_terms("Na+ -> Na")
+	assert(not wrong_charge.ok)
+	assert(wrong_charge.code == "A2_REACTION_UNBALANCED")
+	assert(wrong_charge.element_residuals == {"Na": 0})
+	assert(wrong_charge.charge_residual == 1)
+	assert(not wrong_charge.has("terms"))
+
+	var invalid: Dictionary = Stoichiometry.extract_balanced_terms("Fe3+ -> Fe")
+	assert(not invalid.ok)
+	assert(invalid.code == "A2_REACTION_PARSE_FAILED")
+	assert(invalid.parser_code == "PARSE_AMBIGUOUS_CHARGE")
+	assert(not invalid.has("terms"))
+
+	var missing_arrow: Dictionary = Stoichiometry.extract_balanced_terms("H2 + O2")
+	assert(not missing_arrow.ok)
+	assert(missing_arrow.code == "A2_REACTION_PARSE_FAILED")
+	assert(missing_arrow.parser_code == "PARSE_MISSING_ARROW")
+	assert(missing_arrow.source_span == {"start_offset": 7, "end_offset": 7})
+
+	# Reversible reactions are represented explicitly; only an A4 consumer
+	# may reject that arrow for its current irreversible kinetics model.
+	var equilibrium: Dictionary = Stoichiometry.extract_balanced_terms("H2 + I2 <-> 2HI")
+	assert(equilibrium.ok)
+	assert(equilibrium.arrow_type == "REVERSIBLE")
+
+	# No retained mutable cache: an edited fact cannot poison a new parse.
+	fact.terms[0].element_counts["N"] = 999
+	var fresh: Dictionary = Stoichiometry.extract_balanced_terms(source)
+	assert(fresh.ok)
+	assert(fresh.terms[0].element_counts["N"] == 2)
 
 
 func _test_balance_validation() -> void:
