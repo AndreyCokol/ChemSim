@@ -3,8 +3,12 @@ extends SceneTree
 const MainScript = preload("res://scripts/main.gd")
 
 func _initialize() -> void:
+	call_deferred("_run")
+
+func _run() -> void:
 	var main = MainScript.new()
 	root.add_child(main)
+	await process_frame
 	assert(main.visual_field != null, "The main workspace must build its visual field")
 	assert(main.visual_field.focus_mode == Control.FOCUS_ALL, "The visual field must participate in keyboard focus traversal")
 	var next_focus: Control = main.visual_field.find_next_valid_focus()
