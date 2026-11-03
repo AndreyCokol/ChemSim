@@ -234,6 +234,23 @@ Required A2 regression cases before implementation approval:
 
 This is a focused A2-owned serializer invariant and does not define shared DTO version negotiation, migration, ErrorEnvelope versioning, or compatibility policy. Those remain integrator decisions. The finding was verified against the current A2 branch: `parse_reaction()` emits version 1, while `serialize_reaction()` currently validates sides, arrow and terms but omits the top-level version check. Implementation and tests remain gated by product-owner approval of this DRAFT OpenSpec.
 
+## Межагентное ревью: подтверждённый consumer contract A4 (2026-11-03)
+
+A4 опубликовал implementation-aligned consumer contract в `docs/engineering/a4-kinetics-input-contract.md` (ветка `feature/a4-kinetics-core`, commit `56f4011ed92fb7112c8c04cddb941bce40e4defc`). Это описание текущего A4-среза, а не утверждение общего DTO или baseline.
+
+Подтверждённая граница для A2 → A4:
+
+- A2 предоставляет проверяемую формульную композицию и целочисленный заряд в FormulaAST, отдельный occurrence phase, положительный целочисленный стехиометрический коэффициент, сторону/направление через структуру Reaction DTO и parse-local source locator(s).
+- A4 ReactionDefinition использует знаковые стехиометрические коэффициенты (реагенты отрицательные, продукты положительные), explicit kinetic-order map keyed by species ID и RateConstant. Следовательно, знак/ID mapping и преобразование A2-side lists в A4 network — ответственность adapter/caller, а не парсера.
+- Kinetic orders независимы от стехиометрии; A2 не выводит их из коэффициентов или стрелки. A2 также не выводит RateConstant, его единицы, температурную поправку или equilibrium K.
+- Текущий A4 solver ограничен closed, well-mixed, constant-volume, isothermal power-law моделью. Adapter обязан проверить species/network identity, полное начальное состояние, явные конверсии amount/volume/time, dimensional compatibility и model applicability.
+- Provenance, uncertainty, quality/review, validity range и redistribution/license остаются A1-owned upstream concerns; текущий A4 RateConstant их не хранит и не валидирует.
+- A4 SimulationResult может содержать валидный prefix при non-success status; downstream обязан сохранять status/diagnostics и не трактовать частичный профиль как завершённую траекторию.
+
+**Принято A2 как consumer boundary:** текущий A2 FormulaAST/ReactionTerm набор не требует добавления кинетических полей или нового parser-owned идентификатора. Caller/adapter отвечает за стабильные species IDs, знак стехиометрии для A4 и преобразование DTO. Parse-local locators остаются диагностической привязкой к исходному тексту. Фазу и все source locators необходимо сохранить на общей границе; точный mapping/aggregation policy должен быть закреплён интегратором.
+
+Это подтверждение закрывает запрос A2 к A4 по минимальному parser-consumer набору на уровне текущей модели. Оно **не** утверждает shared Reaction DTO, canonical phase wire enum, Unit Registry, ErrorEnvelope, общую schema-version policy или adapter ownership.
+
 ## Ограничения и риски
 
 - Балансировка — ограниченный точный перебор, а не универсальный ILP solver; статус ограничения поиска не эквивалентен отсутствию решения.
@@ -245,7 +262,7 @@ This is a focused A2-owned serializer invariant and does not define shared DTO v
 
 ## Статус и критерии выхода из DRAFT
 
-Спецификация остаётся DRAFT. A1 дал логическую позицию по Substance ID, unresolved descriptors и duplicate-term policy; A3 дал provisional consumer requirements и подтвердил достаточность parse-local locator для численного решения. Эти позиции отражены здесь, но общий DTO и OpenSpec baseline не утверждены. Ревью A4 и решение интегратора по фазовому wire contract, адаптеру и версиям DTO/ErrorEnvelope всё ещё ожидаются. До утверждения:
+Спецификация остаётся DRAFT. A1 дал логическую позицию по Substance ID, unresolved descriptors и duplicate-term policy; A3 дал provisional consumer requirements и подтвердил достаточность parse-local locator для численного решения. Эти позиции отражены здесь, но общий DTO и OpenSpec baseline не утверждены. A4 подтвердил текущий consumer contract и минимальные parser-consumer данные; это отражено выше. Решения интегратора по canonical phase wire contract, adapter/call-site ownership, shared Reaction DTO/schema versioning, Unit Registry и ErrorEnvelope всё ещё ожидаются. До утверждения:
 - реализация не расширяется новыми химическими возможностями;
 - межагентные DTO-контракты не объявляются окончательными;
 - открытые решения фиксируются как вопросы, а не закрываются предположениями.
