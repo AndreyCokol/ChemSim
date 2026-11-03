@@ -412,7 +412,10 @@ def solve_agcl_precipitation(
 
     h = sqrt(kw)
     oh = sqrt(kw)
-    charge = ag + sodium_total_mol_l + h - cl - nitrate_total_mol_l - oh
+    # Pair like-charge feed contributions before combining them. Summing
+    # O(1e308) cations first can round away the much smaller H+/OH- terms
+    # and report a false charge residual for an otherwise neutral solution.
+    charge = (ag - cl) + (sodium_total_mol_l - nitrate_total_mol_l) + (h - oh)
     ag_balance = abs(ag + solid - silver_total_mol_l)
     cl_balance = abs(cl + solid - chloride_total_mol_l)
     return _aqueous_result(
