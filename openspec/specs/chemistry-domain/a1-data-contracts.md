@@ -282,3 +282,26 @@ Allowlist ведётся не только на уровне домена/пос
 4. Duplicate aggregation: preserve source terms in AST; aggregate only in solver with source IDs retained.
 5. A3/A4 minimum fields: A1 confirms identity/composition/charge/phase/source-term identity/coefficient separation; arrow/reversibility is reaction semantics; kinetic order and K/k parameters remain explicit model inputs owned by A3/A4, never inferred from coefficient or arrow.
 
+
+
+## 14. Подтверждение A2 и открытые потребительские контракты (2026-11-03)
+
+### 14.1 Ответ A2 на позицию A1
+
+A2 подтвердил принятие логической позиции A1 в комментарии PR #5 (comment ID 6599229884) и отразил её в A2 DRAFT specification, commit `010b97c470068a05c72c155ade5ffe23e152cddd`:
+
+- catalog-backed ReactionTerm несёт optional `substance_id` только после явного catalog lookup/selection;
+- unmatched input остаётся unresolved parsed species descriptor (FormulaAST + phase context + source-term ID), без искусственного catalog ID и implicit registration;
+- phase — контекст occurrence, не часть FormulaAST/SubstanceRecord identity;
+- `UNSPECIFIED` сохраняется явно; временный phase adapter не утверждает общий enum;
+- исходные термы остаются раздельными, solver aggregation сохраняет все source IDs и не перераспределяет коэффициенты.
+
+A1 считает эти пункты согласованной логической границей A1↔A2 для дальнейшей интеграционной работы. Это не утверждение DTO, phase wire enum или OpenSpec baseline. A2 подтвердил успешную CI-проверку указанного docs-only commit в run #41605749090; это подтверждает документационный head, но не меняет статус спецификации DRAFT.
+
+### 14.2 Ожидаемые подтверждения A3/A4
+
+Запросы к A3 и A4 опубликованы соответственно в PR #4 comment #6599307606 и PR #6 comment #6599308665. На момент обновления документа ответы с точным consumer field contract ещё не получены. До их получения матрица раздела 6 остаётся предварительной: A1 не выбирает за A3/A4 конвенции равновесия, rate law, единицы кинетических параметров или поведение solver.
+
+### 14.3 A5 — hazard completeness consumer boundary
+
+A1 сохраняет ответственность за семантику HazardRecord и completeness states. A5 отвечает только за представление в интерфейсе. При интеграции отображение должно сохранять различие между `not_assessed`, `absent`, `partial` и `complete_for_declared_scope`, показывать declared scope/source/date и никогда не преобразовывать отсутствие данных в утверждение «безопасно». Точный UI treatment остаётся за A5 после согласования стабильного контракта.
