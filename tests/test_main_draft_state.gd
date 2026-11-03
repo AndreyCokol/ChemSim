@@ -186,6 +186,9 @@ func _initialize() -> void:
 	assert(main.components.is_empty(), "Removing a component should delete its draft record")
 	assert(main.visual_field.markers.is_empty(), "Removing a component should remove its marker")
 	assert(main.draft_dirty, "Removing a component should mark the draft dirty")
+	assert(main.selected_component_id == -1, "Removing the selected component must clear model selection")
+	assert(main.visual_field.selected_marker_id == -1, "Removing the selected component must clear visual selection")
+	assert(not main.visual_field.move_marker_by(added_id, Vector2.RIGHT, 0.01), "A removed component must not remain keyboard-movable")
 
 	main._request_new_experiment()
 	assert(main.discard_dialog.visible, "New experiment should request confirmation when the draft is dirty")
