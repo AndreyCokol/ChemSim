@@ -178,6 +178,53 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["Cl-"], 0.01000)
         self.assertLess(result.diagnostics.charge_balance_residual, 1e-12)
 
+    def test_w02_independent_synthetic_quadratic_oracle_and_invariants(self):
+        """Check an external algebraic oracle; numerical fixtures are not source-admitted."""
+        kw = 1.0e-14  # Synthetic typed-model input; not an A1 reference constant.
+        inputs = (
+            (0.01, 0.01),             # equivalence
+            (0.01, 0.0),              # acid excess
+            (0.0, 0.01),              # base excess
+            (0.010000000001, 0.01),   # near-equivalence acid side
+            (0.01, 0.010000000001),   # near-equivalence base side
+            (1.0e-12, 1.0e-12),       # trace, water-dominated
+        )
+        for acid, base in inputs:
+            with self.subTest(acid=acid, base=base):
+                delta = acid - base
+                discriminant_root = math.hypot(delta, 2.0 * math.sqrt(kw))
+                expected_h = (
+                    (delta + discriminant_root) / 2.0
+                    if delta >= 0.0 else
+                    2.0 * kw / (discriminant_root - delta)
+                )
+                expected_oh = kw / expected_h
+
+                result = solve_strong_neutralization(acid, base, kw)
+                species = result.species_mol_l
+                self.assertAlmostEqual(
+                    species["H+"], expected_h, delta=expected_h * 1.0e-9
+                )
+                self.assertAlmostEqual(
+                    species["OH-"], expected_oh, delta=expected_oh * 1.0e-9
+                )
+                self.assertEqual(species["Na+"], base)
+                self.assertEqual(species["Cl-"], acid)
+                self.assertEqual(
+                    result.diagnostics.component_balance_residual,
+                    max(abs(species["Na+"] - base), abs(species["Cl-"] - acid)),
+                )
+                charge_scale = max(expected_h, expected_oh, acid, base)
+                charge_error = abs((species["H+"] - species["OH-"]) + (base - acid))
+                self.assertLessEqual(charge_error, charge_scale * 1.0e-9)
+                self.assertLessEqual(
+                    abs(math.log(species["H+"]) + math.log(species["OH-"]) - math.log(kw)),
+                    1.0e-9,
+                )
+                self.assertAlmostEqual(
+                    result.pH, -math.log10(expected_h), delta=1.0e-9
+                )
+
     def test_strong_acid_trace_concentration_is_not_lost_to_absolute_residual_tolerance(self):
         result = solve_strong_neutralization(1.0e-100, 0.0, 1.0e-200)
         expected_h = 0.5 * (1.0 + math.sqrt(5.0)) * 1.0e-100

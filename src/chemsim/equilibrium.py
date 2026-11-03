@@ -343,10 +343,21 @@ def solve_strong_neutralization(
     # Pair the large spectator-ion inventories before adding the much
     # smaller free H+/OH- contribution; the left-associated form can erase it.
     charge = (naoh_mol_l - hcl_mol_l) + (h - oh)
+    species = {"H+": h, "OH-": oh, "Na+": naoh_mol_l, "Cl-": hcl_mol_l}
+    # Audit both spectator components against the supplied analytical feed.
+    # This is an output/feed identity check, not independent source validation:
+    # the strong-electrolyte model assigns both spectator values directly.
+    spectator_error = max(
+        abs(species["Na+"] - naoh_mol_l),
+        abs(species["Cl-"] - hcl_mol_l),
+    )
     return _aqueous_result(
-        {"H+": h, "OH-": oh, "Na+": naoh_mol_l, "Cl-": hcl_mol_l},
+        species,
         -log10(h),
-        SolverDiagnostics(iterations, f_residual, 0.0, abs(charge), "log-space bisection", "mol/L"),
+        SolverDiagnostics(
+            iterations, f_residual, spectator_error, abs(charge),
+            "log-space bisection", "mol/L",
+        ),
     )
 
 
