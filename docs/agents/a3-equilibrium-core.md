@@ -1,0 +1,333 @@
+# ChemSim A3 equilibrium core
+
+> **A3-19 numeric charge audit (2026-11-03):** Local W01–W05 outputs now independently recompute normalized ionic charge from their *A3-only fixture charge assignments* and compare it with the already-reported absolute charge residual before building scientific observations. This prevents a changed charged-ion concentration or forged old residual from passing, including a coordinated pH edit. Float/ULP tolerance does not certify real-solution electroneutrality, A2-authenticated ionic identity, source admission or a normative shared DTO. [A3-19 charge-audit matrix](a3-local-charge-audit.md); code/tests `298ec20`, [CI #41671442572](https://github.com/AndreyCokol/ChemSim/actions/runs/41671442572) **90 tests / OK**.
+
+> **A3-18 scientific cross-field check (2026-11-03):** The A3-local observation layer now requires exact W01–W05/G01–G02 fixture species-key sets and matching aqueous method, residual kind, component kind, and solid state, rather than trusting arbitrary finite maps. G01/G02 positive-species par­tial pressures must be proportional to their mole amounts under one ideal-gas T/V; the validator compares `ln(p_i)-ln(n_i)` using scale/ULP-aware tolerances, not an overflowing ratio. These are **synthetic fixture consistency checks, NOT authenticated canonical SpeciesRefs, source-backed model validity or a general equilibrium proof**. [Science and test matrix](a3-local-cross-field-integrity.md). Source/tests commit `19458711c48953b9f59f5c108ada3353bc72ad7f`; [CI #41669588960](https://github.com/AndreyCokol/ChemSim/actions/runs/41669588960) **87 tests / OK**. No A1/A2/A4/A5 or integrator-owned wire changes.
+
+> **A3-17 local science projection — 2026-11-03:** Seven local aqueous/gas fixture results now have an **A3-owned, JSON-safe, Availability-shaped observation projection** with strict per-field scientific units/kinds; W01/W02/W04 `not_modelled` solid placeholder emits **not_assessed** (not numerical 0), W03 reservoir inventory **unknown** and numerical checks **not_assessed**, W05 assessed absence of precipitate **present zero**, W05 zero-ion logarithmic index **not_applicable with domain_status=zero_ion_activity** and unit metadata `1`, gas charge/pH **not_applicable**. Includes fail-closed validation, `reference_admitted=false`, `redistribution_approved=false`, and **single-state** qualifier, not a versioned shared transport DTO. [A3-17 mapping and consumer acceptance](a3-local-science-observation-projection.md). Source/test commits `6837754` and `6535e9a`; [CI #41667873794](https://github.com/AndreyCokol/ChemSim/actions/runs/41667873794) **84 tests / OK**. Real A1/integrator/A5 interoperability remains unverified.
+
+> **A3-16 checkpoint (2026-11-03):** A3 has added a strict synthetic-only 25 °C W02 thermodynamic model-preflight that checks final-mixture feed basis, temperature, water Kw reaction identity, aqueous ideal concentration standard state and explicit unknown source-quality status. It returns **model compatibility only**, never catalog admission, source rights or a deployable v0.1 result. See [A3-16 compatibility/rights map](a3-w02-25c-model-preflight.md). Source/test commits 10df347 and 643ea76; [CI #41664649865](https://github.com/AndreyCokol/ChemSim/actions/runs/41664649865) **78 tests / OK**. A3-07 real trusted adapter, A1 source rights, A5/Windows runtime remain open.
+
+**A3-14 typed scientific diagnostics (2026-11-03):** The seven local equilibrium fixtures now expose equation-specific `residual_kind/residual_unit`, typed component and charge residual kinds/units and aqueous `pH_method=ideal_concentration_approximation`. W03 `residual=None` and `component_balance_residual=None` are *not assessed*, never verified zeros. The old `balance_unit` is retained for compatibility only and MUST NOT be used to label the generic residual. See [scientific mapping](a3-typed-residuals-v01-handoff.md). [Exact source/test CI #41661392329](https://github.com/AndreyCokol/ChemSim/actions/runs/41661392329): **71 tests / OK**. This is not a shared JSON DTO or A1-admitted thermodynamic benchmark.
+
+This package currently implements the seven A3 benchmark fixtures as an isolated,
+dependency-free reference core. It is not yet a general chemical-speciation engine.
+
+**A3-13 verified result semantics (2026-11-03):** W03 AgCl(s) excess-reservoir inventory is unknown (`AqueousResult.solid_mol_l=None`, `solid_phase_state=reservoir_inventory_unknown`), not numeric zero. W05 single-solid precipitation returns `solid_phase_state=no_precipitate|new_precipitate`; a missing dissolved ion produces `diagnostics.residual=None`, `residual_status=zero_ion_activity`, not a non-finite log-saturation numeric result. Other W05 saturation residuals remain finite. This is local Python fixture metadata, not a final Godot/JSON wire API. [Exact source/test CI #41660184041](https://github.com/AndreyCokol/ChemSim/actions/runs/41660184041) passed **69 tests** on commit `f9404ecc1a2a57104271ae7a87a9f1092f8abe19`. A1 source and model applicability admission remain separate.
+
+**A3-15 local gas-result validation (2026-11-03):** `_gas_result` now rejects inconsistent G01/G02 amounts, partial/total pressures, extent or scientific diagnostic model/kind/unit/status before constructing a frozen `GasResult`. Input APIs and numerical algorithm remain unchanged. Validated [CI #41662629358](https://github.com/AndreyCokol/ChemSim/actions/runs/41662629358): **74 tests / OK** on commit `b40f73646435f74d6ee8e013f1a2587c540f1b03`. These gas numerical/semantic checks do not certify I₂ phase stability, A1 source-backed Kp or app compatibility; see [A3 typed scientific handoff](a3-typed-residuals-v01-handoff.md).
+
+## Scope
+
+- W01: monoprotic weak acid with water autoionization.
+- W02: fully dissociated HCl/NaOH with spectator ions.
+- W03: AgCl solubility with excess solid reservoir.
+- W04: NH3/NH4+ buffer with nitrogen and chloride totals.
+- W05: one-phase AgCl precipitation using an active/inactive solid check.
+- G01: 2 NO2(g) <=> N2O4(g), fixed T/V, ideal gas.
+- G02: H2(g) + I2(g) <=> 2 HI(g), fixed T/V, ideal gas.
+
+All aqueous calculations use the explicitly simplified ideal-dilute convention
+(gamma_i = 1, concentration standard state 1 mol/L). Gas calculations use
+ideal partial pressures with p° = 1 bar. Constants must be dimensionless and
+must match those standard states. Temperature dependence is not inferred.
+
+The module intentionally rejects missing/nonphysical inputs. It does not implement
+complexation, non-ideal activity models, multiple solids, gas fugacity, phase
+transitions, or a time integrator. The AgCl solubility fixture assumes an excess
+solid reservoir and does not invent a remaining solid mass.
+
+## Tests
+
+From the repository root:
+
+    python -m pip install -e .
+    python -m unittest discover -s tests -v
+
+## Numerical diagnostics
+
+Each result carries the solver residual, iteration count, component-balance residual,
+charge-balance residual, method, activity model, reliability status, and an explicit balance unit.
+The current fixtures always report `idealized_approximation`: constants are supplied by the
+caller, provenance is not yet attached to individual constants, and ideal activity/gas
+models are not experimental validation. Downstream UI must preserve this status rather
+than presenting the output as an unqualified exact result.
+
+The scalar bisection validates its interval/tolerances and compares residual signs without
+multiplication, avoiding overflow and indeterminate products for infinite endpoint residuals.
+The internal gas extent solver also rejects mismatched species/stoichiometry keys and
+non-finite or zero stoichiometric coefficients. Regression tests exercise infinite endpoint
+residuals, invalid bisection bounds/tolerances, and unbracketed roots.
+
+Balance units:
+- aqueous fixtures report concentration-balance residuals in mol/L;
+- gas fixtures report extent-update residuals in mol.
+
+The gas helper uses only the two fixed benchmark stoichiometries. It does not
+perform a general elemental-matrix rank check; atom conservation follows from
+those hard-coded balanced reactions. A future general reaction API must validate
+stoichiometry and elemental conservation independently before solving.
+
+
+## Cross-agent integration boundary (reviewed 2026-11-02)
+
+This branch is an executable **fixture prototype**, not the normative A3
+EquilibriumProblem/EquilibriumResult contract. The repository's round-1 review
+proposals and integrator decision register still leave public DTOs and several
+shared contracts unapproved. In particular, INT-04–09, INT-13–16, INT-19–20,
+INT-22, INT-34–39 must be resolved before this module can be promoted as the
+application-facing equilibrium API.
+
+### Important semantic gaps in this prototype
+
+- `AqueousResult.pH` is calculated as `-log10([H+]/c°)` with gamma=1. It is
+  only an **ideal concentration approximation**, not thermodynamic activity pH.
+  The scalar field is retained for benchmark compatibility and must not be
+  exposed as an unqualified pH value by UI or downstream adapters.
+- `ka`, `kw`, `ksp`, and gas `kp` are currently plain numeric arguments.
+  They do not carry the A1 ThermoConstantRecord reference, source, uncertainty,
+  reference temperature, applicability interval, basis, or standard-state ID.
+  The fixture caller is responsible for supplying compatible values.
+- The aqueous solvers implement a deliberately narrow ideal-dilute convention
+  (`gamma_i = 1`, molarity scale). They do not establish a general activity
+  model or ionic-strength validity range.
+- The precipitation fixture is specific to neutral AgNO3/NaCl feeds and one
+  AgCl(s) phase. It is not a general complementarity solver for arbitrary
+  reaction networks or multiple solids.
+- `SolverDiagnostics.reliability_status` is a local prototype flag, not the
+  A5 ReliabilityVector. Numerical convergence, conservation residuals, input
+  data quality, model applicability, and result completeness remain separate
+  dimensions in the integration contract.
+- Gas calculations use dimensionless partial pressures relative to 1 bar and
+  ideal-gas assumptions. They do not support fugacity or conversion from
+  activity-basis K without an explicit thermodynamic transformation.
+
+### Promotion gate
+
+Do not use this module as the public application API until the owner/integrator
+approves the OpenSpec baseline and the shared contracts. Before promotion,
+replace bare constant arguments with typed, provenance-linked references;
+introduce a typed pH result; align error/status envelopes and units with the
+shared registries; and add independently sourced numeric benchmarks with
+declared conditions, uncertainty, and benchmark-specific tolerances.
+
+The current seven fixtures remain useful as isolated regression examples.
+Passing them demonstrates implementation consistency for those assumptions,
+not scientific validation outside their documented domains.
+
+
+## A1 consumer requirements — aqueous equilibrium inputs (2026-11-03)
+
+This section answers A1's request for the minimum thermodynamic-data requirements consumed by A3. It is a model-specific consumer contract proposal, not an approval or freeze of shared DTOs. The current public functions still accept bare numeric constants; a future adapter must validate the typed records before converting them to the current scalar inputs.
+
+### Equilibrium constants
+
+All constants consumed by the current aqueous fixtures must be finite, positive, dimensionless values on the stated standard-state convention. A1's logical ThermoConstantRecord should expose, at minimum:
+
+- stable constant/reaction identity and constant kind (Ka, Kw, Ksp; Kb only for a future explicit base-dissociation fixture);
+- numeric value plus uncertainty and significant-figure/precision metadata;
+- basis (activity or explicitly declared concentration approximation), dimensionless convention, and standard-state reference for every participating species;
+- temperature at which the value applies, source-supported temperature interval, and pressure interval when the source/model says pressure is relevant;
+- solvent/medium, phase assignment, and activity-model identifier or explicit ideal-model applicability statement;
+- source identity/version/date/retrieval metadata, method, quality/status, and provenance classification.
+
+Current fixture-specific semantics:
+
+| Constant | Equilibrium represented | Current A3 convention |
+|---|---|---|
+| Ka (weak acid) | HA(aq) ⇌ H+(aq) + A−(aq) | Dimensionless activity constant approximated by concentration ratios using c° = 1 mol/L and gamma_i = 1 |
+| Ka (ammonium) | NH4+(aq) ⇌ NH3(aq) + H+(aq) | Same ideal concentration convention; the implementation consumes Ka(NH4+), not Kb(NH3) |
+| Kw | H2O(l) ⇌ H+(aq) + OH−(aq) | Dimensionless water-ionization constant on the same aqueous standard-state convention; water activity is treated as unity |
+| Ksp (AgCl) | AgCl(s) ⇌ Ag+(aq) + Cl−(aq) | Dimensionless activity product approximated by ([Ag+]/c°)([Cl−]/c°); pure AgCl solid activity is unity |
+
+A Kb record is not currently consumed by any public A3 fixture. Do not silently pass Kb where Ka is expected. A future adapter may derive Ka = Kw/Kb only when both records refer to the same temperature, solvent, standard-state/activity convention and compatible species reaction; it must preserve both source records and the derived-value provenance.
+
+The current aqueous functions do not accept temperature as an argument. Therefore their numeric Ka/Kw/Ksp values are assumed already evaluated at one mutually compatible declared condition. This is a known API limitation, not permission to assume 25 °C or to ignore source applicability. Until a temperature-aware API exists, an adapter must reject records whose declared conditions do not match the selected calculation condition, and must not claim A3 has independently applied a temperature correction.
+
+### Species identity and aqueous conventions
+
+For the current fixtures, each species input/term needs a stable identity or unresolved FormulaAST descriptor, formula/composition, integer net charge, and phase. A3 specifically uses aqueous H+, OH−, A−, HA, NH4+, NH3, Ag+, Cl−, Na+, NO3− and the solid AgCl(s). Phase is chemically material: AgCl(aq) and AgCl(s) are not interchangeable.
+
+The current numerical vocabulary uses H+ as the aqueous proton species (a conventional shorthand for hydrated proton); it does not separately model H3O+ or proton hydration clusters. It treats liquid water as the solvent with unit activity and does not include H2O as an explicit solved species. A future canonical identity layer may choose H3O+ as its display/identity convention, but any mapping to A3's H+ must be explicit and must preserve charge, reaction stoichiometry and the constant's standard-state convention. Do not silently count both H+ and H3O+ as independent species.
+
+The AgCl precipitation fixture has an additional narrow feed constraint: neutral AgNO3 and NaCl analytical feeds, with Ag_total = nitrate_total and Na_total = chloride_total within the documented relative tolerance; one AgCl(s) phase; no initial solid inventory. It is not a general precipitation/speciation network.
+
+### Activity model and supporting data
+
+Current A3 aqueous fixtures support only an explicitly declared ideal-dilute model with gamma_i = 1 and concentration scale c° = 1 mol/L. No ionic-strength calculation, activity-coefficient correlation, ion-size parameter, solvent dielectric model, complexation model or salinity correction is consumed. Inputs whose intended basis requires a non-ideal activity model are not compatible with the current solver and must be rejected or routed to a future capable model; they must not be silently treated as ideal.
+
+For a future non-ideal aqueous model, A3 will need the model identifier/version and the model-specific inputs needed to compute each activity coefficient at the stated T/P/medium (potentially ionic strength, solvent composition/dielectric properties, ion-size or interaction parameters, and species charge). The exact list depends on the selected activity model and must not be guessed in the generic ThermoConstantRecord.
+
+### Provenance and calculation eligibility
+
+A3 needs provenance/quality dimensions preserved separately from numerical convergence and model applicability. Curated/reference or experimental values can be eligible when their source, conditions, basis and uncertainty satisfy the selected model. Calculated/estimated values may be eligible only under an explicit model policy with method and uncertainty retained. User-defined values may be used in an explicitly exploratory scenario if clearly labelled and propagated to the result; they must not be upgraded to reference/verified status. Hypothetical or unknown-origin values must not silently qualify for a reference/validated result. License/redistribution status governs catalog packaging, not the mathematical validity of an already supplied value, and should remain a separate gate.
+
+The current fixture API has no provenance parameter and cannot enforce these policies itself. Until the typed adapter and result metadata are approved, the caller is responsible for not passing ineligible constants; the result must continue to be labelled as an idealized prototype result.
+
+### Failure semantics required at the A3 boundary
+
+Before calling the scalar solver, the adapter must reject a missing constant, non-finite/non-positive value, non-dimensionless or incompatible basis, absent/ambiguous standard state, incompatible solvent/phase, incompatible temperature/applicability interval, unsupported activity model, or invalid species charge/phase identity. Unit/basis conversion is allowed only when the required conversion data and validated thermodynamic transformation are present. No default basis, 25 °C, gamma=1, H+/H3O+ mapping, or missing value = zero may be inferred from an incomplete record.
+
+The existing low-level EquilibriumInputError is the current fixture's input-failure signal; mapping it to the shared ErrorEnvelope is an integrator decision. Numerical non-representability/non-convergence remains EquilibriumConvergenceError. This mapping is provisional and does not define the shared application error DTO.
+
+### Gas benchmark note
+
+For completeness, G01/G02 consume dimensionless Kp on p° = 100,000 Pa (1 bar), using ideal-gas partial pressures p_i = n_i RT/V and no fugacity coefficients. The reaction quotient is formed from p_i/p°. Kp must therefore declare pressure standard state, reaction stoichiometry, temperature/applicability and ideal-gas model. The current gas functions accept T and V, but do not perform fugacity or non-ideal gas corrections.
+
+
+## A2 parser/balancer consumer boundary (2026-11-03)
+
+A3 consumes reaction semantics, not reaction text. The current seven fixture functions do not yet accept A2 DTOs; they take explicit analytical totals and scalar constants. A future adapter between A2 and a generalized A3 problem should require:
+
+- validated FormulaAST/species descriptor with elemental composition and integer net charge;
+- phase as a separate occurrence-level field (AQUEOUS, SOLID, LIQUID, GAS, or explicitly UNSPECIFIED); do not infer UNSPECIFIED;
+- positive integer stoichiometric coefficient, side/direction, and preserved source-term identity/duplicate-term provenance;
+- validated reaction balance (element and charge) from A2, or an independently repeated validation at the A3 boundary before constructing a closed-system equilibrium problem;
+- explicit equilibrium-constant reference and its direction/basis/standard-state metadata from the thermodynamic-data layer. A reversible arrow is not itself a K value, and A3 must not infer K from the arrow or stoichiometric coefficients.
+
+A3 does not require a catalog Substance ID for every parsed species: unresolved parsed descriptors can participate in a hypothetical calculation if the formula, composition, charge and phase are valid and the model has the required thermodynamic data. If a model requires a catalog-backed constant/species property, the adapter must report that unresolved lookup as a missing required input rather than fabricate an identity.
+
+The A2 parser's current term_id is parse-local (source-offset based), not a stable cross-edit identity. A3 must not use it as a persistent species/reaction key. Duplicate terms must preserve source-term mapping when A2 aggregates them; A3's stoichiometric matrix may aggregate chemically identical species only after phase and identity equivalence are established, and must retain the mapping needed for diagnostics/provenance.
+
+For aqueous fixture compatibility, the adapter must map the A2 phase vocabulary explicitly and preserve the current A3 conventions: H+ is the solver's hydrated-proton shorthand, OH− is explicit, liquid water has unit activity and is not a solved species, and the current AgCl precipitation fixture only supports AgNO3/NaCl neutral feeds plus one AgCl(s) phase. A2 syntax support alone does not establish that a species or reaction is supported by an A3 thermodynamic model. In particular, unsupported complexes/hydrates/radicals or unknown phase must fail explicitly.
+
+No A2 files or DTOs are changed by this consumer-boundary note. Canonical phase enum, persistent reaction/term IDs, DTO versioning and the parser-to-solver adapter call site remain integrator decisions.
+
+
+## A4 kinetics consumer boundary (2026-11-03)
+
+A4 has published an implementation-aligned consumer note at `docs/engineering/a4-kinetics-input-contract.md` (commit `56f4011ed92fb7112c8c04cddb941bce40e4defc`). A3 reviewed the note and confirmed the following separation:
+
+- A4 state is species amount in mol; concentrations are derived as mol·m⁻³ using an explicit positive volume in m³.
+- A4 rate laws are volumetric power laws in mol·m⁻³·s⁻¹ with explicit finite non-negative kinetic orders, independent of stoichiometric coefficients. The dimensional exponent of the kinetic rate constant is (1-\sum_i \alpha_i).
+- A4's current implementation is closed, constant-volume and isothermal. It does not accept thermodynamic K/Ka/Kb/Ksp/Kp, apply Arrhenius corrections, or consume an A3 equilibrium result.
+- A3 must never convert thermodynamic K into kinetic k or infer a universal (k_f/k_r=K) relation.
+- The current MVP does not require an A3-to-A4 equilibrium coupling interface. If a future workflow initializes a kinetic simulation from equilibrium, this is an explicit orchestration step: solve with a selected A3 model and typed/applicable constants, then map the resulting state into A4's exact mol-valued initial-state vector with explicit volume/unit conversion and complete species coverage. The result remains one equilibrium state, not a kinetic trajectory.
+- A4's non-success status remains authoritative even when a valid prefix of samples exists; an adapter/UI must preserve partial-result status rather than claim a completed trajectory.
+
+These are consumer-boundary confirmations only. A4's local RateConstant and SimulationResult are not shared DTOs; Unit Registry, shared schema/version, ErrorEnvelope, ReliabilityVector and adapter ownership remain integrator decisions. A3 does not change A4-owned files.
+
+## A5 presentation/consumption boundary (2026-11-03)
+
+The current Python prototype exposes AqueousResult with species_mol_l, concentration-based pH, SolverDiagnostics, and optional solid_mol_l; gas fixtures expose GasResult with species amounts, partial pressures in Pa, total pressure in Pa, extent in mol, and diagnostics. These are implementation dataclasses, not stable Godot DTOs or an approved serialization contract.
+
+For any future A5 adapter, preserve at least:
+
+- each species identity and phase, numeric value, explicit unit/basis, and whether it is dissolved/solid/solvent;
+- pH value together with its basis/model qualifier (current value is -log10([H+]/c°) under gamma=1, not thermodynamic activity pH);
+- solid amount and active/inactive phase status, without fabricating a solid inventory where none was supplied;
+- equilibrium residual, component-balance residual, charge-balance residual, their units/scaling, solver method and iteration count;
+- input-data provenance/quality and model applicability separately from numerical convergence;
+- warnings/limitations and a typed termination/error status; do not map missing diagnostics or non-finite results to zero or success.
+
+An equilibrium solve produces a single equilibrium state, not a time series. A5 must not synthesize a time axis, graph series or kinetic history from an A3 result. Parameter sweeps or scenario comparisons, if later requested, need their own explicit input dimensions and result metadata and are not interchangeable with A4 kinetic trajectories.
+
+Until shared DTOs, Unit Registry, ErrorEnvelope, schema version and ReliabilityVector are approved, A5 should treat these outputs as unavailable for normative integration; a presentation prototype may show clearly labelled placeholders or a specifically versioned local adapter, but must not claim compatibility with the final API. A3 does not define A5 UI behavior or change A5-owned files.
+
+
+### Persistent source-term identity clarification
+
+A3 does **not** require a persistent source-term ID at parse time for numerical equilibrium solving. A parse-local source locator is sufficient to report diagnostics against the exact parsed input. If the application needs continuity across text edits, saved experiments or result provenance, the caller/experiment layer must assign and persist its own stable term ID at the adapter boundary and maintain an explicit mapping from that ID to the current parse-local locator(s). When duplicate terms are aggregated, preserve the complete set of source locators and caller-owned IDs. A3 must not manufacture stable IDs from source offsets, formula strings or stoichiometric coefficients.
+
+
+## A3-07 integration decision register and readiness gate (2026-11-03)
+
+This register records only decisions that block a safe adapter from the current A3 reference fixtures. It is not a shared DTO proposal and does not assign implementation ownership to A3.
+
+| Decision | Required owner(s) | A3 consumer position / safe interim rule | What remains blocked |
+|---|---|---|---|
+| Canonical phase enum and serialized tokens, including UNSPECIFIED | Integrator, with A1/A2/A3/A5 review | One typed vocabulary; preserve UNSPECIFIED as unknown, never default it to aqueous | Parser/catalog/solver/UI phase adapter |
+| ReactionTerm and species identity boundary | Integrator with A1/A2; A3 consumer | Formula/composition/charge plus occurrence phase; optional catalog reference; parse-local source locator is enough for a solve; retain all source locators after aggregation | General reaction-to-equilibrium adapter |
+| Constant/property and standard-state record | A1 owns domain record; A3 confirms model requirements | Typed reaction identity, dimensionless basis/standard state, medium/phase, T applicability, uncertainty and provenance; no bare numeric K as catalog-ready | Catalog-backed aqueous calculation |
+| Unit Registry and conversion policy | Integrator/A1, consumers validate dimensions | Preserve explicit input/output units and dimension; reject unknown/incompatible units; no implicit molarity/molality or pressure-standard conversion | Cross-language serialization and unit-safe API |
+| Shared result schema/versioning | Integrator with A1–A5 | Versioned DTO; preserve species/phase, units, pH qualifier, solid status, diagnostics and model applicability | Stable Python-to-Godot result adapter |
+| ErrorEnvelope and termination taxonomy | Integrator; each solver maps its native errors | Distinguish invalid input, unsupported model/input, numerical non-convergence, unrepresentable result and internal failure; never turn failure into a successful partial result | Unified UI/error handling and machine-readable client behavior |
+| ReliabilityVector semantics | Integrator/A5 with solver consumers | Keep numerical convergence, conservation, input quality and model applicability as separate dimensions; A3's local reliability flag is not a substitute | Cross-solver reliability display/aggregation |
+| Adapter call-site and ownership | Integrator | One explicit boundary adapter; no hidden duplicate phase/unit normalization in individual consumers | End-to-end A2→A1→A3→A5 integration |
+
+### Minimum acceptance checks before enabling a normative A3 adapter
+
+1. A2 parse of a reaction retains element composition, charge, occurrence phase, coefficient, direction and parse-local source locators; duplicate aggregation retains every contributing locator.
+2. An unresolved formula remains unresolved unless an explicit catalog lookup supplies a catalog reference. A missing catalog reference is acceptable only for a model explicitly permitting hypothetical input.
+3. The adapter resolves a typed, reaction-specific Ka/Kw/Ksp record and verifies its standard state, dimensionless convention, solvent/phase, temperature applicability and activity-model compatibility before extracting a scalar.
+4. UNSPECIFIED, unknown phase, missing constant, incompatible standard state, unsupported activity model, and incompatible units fail explicitly with a typed error; none is defaulted.
+5. Result serialization round-trips units, phase, pH basis, solid amount/status, diagnostics, model applicability and provenance without replacing absent values with zero.
+6. A3 fixture results remain explicitly marked idealized/reference-fixture outputs until a generalized speciation model and its applicability envelope are separately specified and validated.
+
+### Current readiness
+
+The current A3 branch satisfies the numerical-fixture portion of this gate, but not the typed-data, shared DTO, unit, error, reliability or adapter-ownership gates. Therefore no production/normative integration is approved by this document. A3-07 stays open until the integrator records the shared decisions and owners; A3 will then implement only the A3-owned adapter/consumer slice assigned to it.
+
+## A3 handoff readiness checkpoint (2026-11-03)
+
+### Verified fixture readiness
+
+A3-01 through A3-06 and A3-08 are complete for the isolated reference fixtures. The latest exact source/test head is `eef8b41b62d2df6a9b23354db97a82049ee122ee`; GitHub Actions run [#41625186378](https://github.com/AndreyCokol/ChemSim/actions/runs/41625186378) passed all 65 tests. The fixture layer rejects malformed/non-finite aqueous inputs and result diagnostics, prevents mutation of validated aqueous/gas result maps, and has independent aqueous charge/component and gas atom/pressure consistency checks plus acid/base limiting-regime coverage.
+
+This validation is specific to the seven fixture functions and their documented assumptions. It does not validate a generalized equilibrium network or establish physical applicability outside the idealized models.
+
+### Cross-agent contract review
+
+The current review confirms these ownership boundaries and unresolved handoff requirements:
+
+| Area | A3 consumer requirement | Current status / blocker |
+|---|---|---|
+| A1 thermodynamic data | Typed, reaction-specific constant record with dimensionless basis, standard-state ID, medium/phase, T/P applicability, uncertainty and provenance; no bare numeric K as catalog-ready data | A1 Issue #10 remains in progress; its current main-branch domain spec does not yet freeze the full thermodynamic-record contract. No constants were imported into A3. |
+| A2 parser/balancer | Validated formula composition, charge, occurrence phase, coefficient, direction and parse-local source locators; duplicate aggregation must retain all source locators | A2 parser spec remains DRAFT; A3 consumer requirements are documented, but shared DTO and adapter call site are not approved. |
+| A4 kinetics | Keep thermodynamic K separate from kinetic parameters; equilibrium is a state constraint, not a rate law or time trajectory | A4 currently owns a closed, constant-volume, isothermal RK45 kinetic slice; an approved equilibrium-coupling interface is not present. |
+| A5 Godot | Preserve species identity/phase, units, pH basis, solid state, diagnostics, provenance/model applicability and typed failure; do not turn one equilibrium state into a time series | A5 PR #3 explicitly leaves solver-backed graphs and final result integration pending shared DTOs. |
+| Integrator / owner | Decide canonical phase enum including explicit UNSPECIFIED, Unit Registry, shared DTO/schema version, ErrorEnvelope, ReliabilityVector and single adapter owner | These decisions remain open; A3 does not own or freeze them. |
+
+### A3 integration gate
+
+Until the above shared decisions are recorded and approved, the seven fixture functions remain a reference/benchmark implementation only. The current aqueous model uses gamma=1 and concentration-based pH; the gas model uses ideal partial pressures at p°=1 bar. Neither model supplies non-ideal activities/fugacities, complexes, arbitrary reaction networks or multiple-solid equilibrium. A3-07 therefore remains open for coordination and safe handoff; it is not a claim that production integration is ready.
+
+## A3-07 cross-review refresh — A1/A2 proposals (2026-11-03)
+
+This refresh incorporates the latest A1 data-contract and A2 parser/balancer proposals from `openspec/review-round-1`. It records consumer compatibility findings only; neither proposal is an approved shared schema.
+
+### A1 thermodynamic-data proposal: consumer alignment
+
+The current A1 proposal now explicitly separates origin, quality, review, model-specific eligibility and redistribution disposition, with lifecycle/value-state/applicability/freshness retained as separate concerns. This is compatible with A3's required separation of:
+- scientific applicability to the selected equilibrium model and conditions;
+- provenance/quality/review of the supplied constant;
+- permission to package or redistribute that source data;
+- numerical solver convergence and conservation diagnostics.
+
+A3-specific eligibility gate before any scalar fixture call:
+1. constant identity and reaction direction match the exact equilibrium expression (Ka vs Kb is not interchangeable);
+2. value is present, finite, positive and dimensionless under the declared basis;
+3. standard-state convention and every participating species' phase/medium are compatible;
+4. T/P and model validity intervals cover the requested condition; current aqueous fixture functions cannot apply K(T) corrections;
+5. activity basis is compatible with the selected activity model; current aqueous fixtures accept only explicit ideal-dilute gamma=1 and c°=1 mol/L;
+6. origin/quality/review satisfy the selected calculation policy; hypothetical/unknown/conflicting/rejected values are not silently promoted to reference values;
+7. uncertainty/precision and provenance are retained in result context;
+8. redistribution disposition is checked separately if data are packaged in the application.
+
+A1's matrix does not itself decide which provenance combinations A3 must accept for exploratory user-defined runs. That remains a model/policy decision; no permissive default is inferred.
+
+### A2 FormulaAST/SpeciesRef proposal: consumer alignment
+
+The latest A2 proposal makes FormulaAST the owner of elemental composition and signed integer net charge, while SpeciesRef carries the stable species reference, FormulaAST reference and phase. ReactionTerm separately carries side and positive stoichiometric coefficient. This removes the prior concern about duplicate charge sources and matches A3's required chemical invariants.
+
+A3 adapter requirements remain:
+- validate formula composition and charge before constructing an equilibrium expression;
+- require phase explicitly for each model-relevant occurrence; preserve UNSPECIFIED rather than guessing;
+- preserve reaction direction and coefficient independently of kinetic order;
+- retain source-term locators through any canonical aggregation, so diagnostics can map back to the original input;
+- require a validated balanced reaction or independently re-check elemental and charge conservation at the A3 boundary;
+- do not silently normalize duplicate terms or change reaction direction while resolving K.
+
+The proposal still leaves public identity lifecycle, phase serialization/optional semantics, source-span details, and final Reaction DTO/versioning to integrator/owner approval. A3 must not create a competing SpeciesRef or Reaction wire schema.
+
+### Updated gate disposition
+
+| Gate | Latest evidence | A3 disposition |
+|---|---|---|
+| A1 typed constant and provenance semantics | Detailed A1 proposal now covers thermodynamic metadata and independent origin/quality/review/eligibility/redistribution axes | Consumer requirements are sufficiently specified for review; shared record fields, enum tokens and eligibility policy remain unapproved |
+| A2 formula/charge/phase ownership | A2 proposal assigns composition + net charge to FormulaAST and phase to SpeciesRef/occurrence boundary | Conceptually aligned; canonical phase token/UNSPECIFIED serialization and stable identity/version remain open |
+| A4 kinetic boundary | A4 implementation note documents mol, mol·m⁻³, volumetric rate basis, explicit orders and fixed-volume/isothermal scope | Reviewed and acknowledged; no A3→A4 solver coupling required for MVP |
+| Shared adapter and result envelope | No approved Unit Registry, shared schema/version, ErrorEnvelope, ReliabilityVector or adapter call-site owner | Still blocked; no production adapter implementation is safe |
+| Product-owner baseline approval | Review artifacts remain proposals | Still blocked; no promotion of fixture functions to normative API |
+
+**Conclusion:** A3 has completed its consumer-side scientific review of the current A1/A2/A4 proposals. A3-07 remains open only for the integrator/owner-controlled shared decisions and explicit assignment of the A3 adapter boundary. This is not an implementation authorization. PR #4 remains Draft; `main` is untouched.
