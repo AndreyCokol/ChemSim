@@ -1,6 +1,7 @@
 extends Control
 
 const VisualFieldScript = preload("res://scripts/visual_field.gd")
+const GraphSeriesViewScript = preload("res://scripts/graph_series_view.gd")
 const DraftCodec = preload("res://scripts/draft_codec.gd")
 const DraftRepository = preload("res://scripts/draft_repository.gd")
 const BG := Color("#0B1118")
@@ -18,6 +19,7 @@ var composition_list: VBoxContainer
 var experiment_name_input: LineEdit
 var visual_field
 var graph_title: Label
+var graph_view
 var reaction_input: LineEdit
 var temperature_input: LineEdit
 var pressure_input: LineEdit
@@ -203,13 +205,10 @@ func _graph_panel() -> Control:
 	row.add_child(_graph_tab("Скорость", "rate"))
 	row.add_child(_graph_tab("Температура", "temperature"))
 	column.add_child(row)
-	var chart_area := Control.new()
-	chart_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	chart_area.set_script(null)
-	var chart_label := _label("Нет расчётных временных рядов", 12, MUTED)
-	chart_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	chart_area.add_child(chart_label)
-	column.add_child(chart_area)
+	graph_view = GraphSeriesViewScript.new()
+	graph_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	graph_view.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(graph_view)
 	column.add_child(_label("Температура постоянна: изотермическая модель", 11, MUTED))
 	return panel
 
@@ -535,6 +534,7 @@ func _graph_tab(caption: String, mode: String) -> Button:
 	button.modulate = Color.WHITE if mode == active_graph else Color(0.68, 0.75, 0.82, 1.0)
 	button.pressed.connect(func():
 		active_graph = mode
+		graph_view.set_active_quantity(mode)
 		match mode:
 			"concentration":
 				graph_title.text = "КОНЦЕНТРАЦИЯ · ВРЕМЯ"
@@ -547,6 +547,13 @@ func _graph_tab(caption: String, mode: String) -> Button:
 			graph_button.modulate = Color.WHITE if graph_mode == active_graph else Color(0.68, 0.75, 0.82, 1.0)
 	)
 	return button
+
+# Presentation-only admission point. The caller must supply a versioned,
+# producer-associated GraphSeries. No chemistry values are generated here.
+func _accept_graph_series(series: Dictionary, contract_version: String) -> Dictionary:
+	if graph_view == null:
+		return {"ok": false, "error": "График ещё не инициализирован."}
+	return graph_view.submit_series(series, contract_version)
 
 func _request_new_experiment() -> void:
 	pending_open_path = ""
