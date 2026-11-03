@@ -335,3 +335,37 @@ A4 опубликовал benchmark matrix `docs/engineering/a4-solver-benchmark
 6. A3 сообщение пока не подтверждает полный список полей consumer DTO, точную конвенцию H+/H3O+/water, quality eligibility или typed failure mapping. Эти решения остаются открытыми; перечисленные пункты фиксируют только явно объявленные ограничения текущей реализации.
 
 Источник: PR #4, комментарий A3 6599473392 от 2026-11-03. Это уточнение применимости текущего benchmark core, не утверждение общего aqueous DTO и не одобрение OpenSpec baseline.
+
+## 17. Зафиксированные требования потребителя A3 после ответа (2026-11-03)
+
+A3 ответил на вопросы A1 в PR #4, comment `6600097355`. Ниже фиксируются требования текущего A3 reference core; это не общий DTO и не утверждение, что текущая реализация уже валидирует все метаданные.
+
+### 17.1 Константы и термодинамическая конвенция
+
+Текущие aqueous fixtures потребляют конечные положительные безразмерные константы в ideal-dilute convention с концентрационным стандартным состоянием \(c^\circ=1\,\mathrm{mol/L}\) и \(\gamma_i=1\):
+- слабая кислота: \(HA\rightleftharpoons H^+ + A^-\), Ka;
+- аммиачная fixture: Ka(NH4+) для \(NH_4^+\rightleftharpoons NH_3+H^+\), а не Kb(NH3); Kb текущей реализацией не потребляется;
+- Kw: автопротолиз воды при активности жидкой воды, принятой равной 1;
+- AgCl Ksp: \(AgCl(s)\rightleftharpoons Ag^+ + Cl^-\), активность твёрдой фазы 1, а Q приближается как \(([Ag^+]/c^\circ)([Cl^-]/c^\circ)\).
+
+Для A1 это означает, что запись константы должна сохранять как минимум reaction/constant identity, value, uncertainty/precision, basis, dimensionless convention, standard state, T и applicability interval, при необходимости pressure interval, solvent/medium, phase, activity-model identifier/applicability, source/version/date/retrieval/method и provenance/quality. Activity-basis constant нельзя передавать в concentration approximation без валидированного преобразования. Вывод Ka из Kw/Kb допустим только при совместимых условиях и конвенциях и с сохранением provenance derivation.
+
+### 17.2 Условия и идентичность
+
+Текущие aqueous функции не принимают температуру и не вычисляют температурную поправку: вызывающая сторона должна предоставить константы, уже приведённые к одной совместимой объявленной температуре. A3 не предполагает 25 °C по умолчанию. Отсутствующие или несовместимые условия должны приводить к отказу адаптера, а не к догадке.
+
+A3 требует stable identity либо unresolved FormulaAST descriptor, formula/composition, integer charge и phase. В текущем aqueous vocabulary используется H+ как shorthand hydrated proton; OH− — отдельный ион; H2O(l) является solvent с unit activity и не выступает отдельной решаемой species; H3O+ отдельно не представлена. Любое отображение H3O+ ↔ H+ должно быть явным и стехиометрически/термодинамически согласованным. AgCl(s) и aqueous ions имеют разные фазы.
+
+### 17.3 Модель активности и качество
+
+Текущий A3 поддерживает только явно заданное ideal-dilute gamma=1, c°=1 mol/L. Он не потребляет ionic strength, dielectric/solvent properties, ion-size/interaction parameters или complexation data. Неидеальная модель требует отдельного versioned model contract и собственных supporting inputs; неподдерживаемые записи отклоняются, а не идеализируются молча.
+
+Provenance, quality, applicability и numerical convergence должны оставаться разными измерениями. Curated/reference и experimental данные могут быть допустимы при совпадении условий/basis/uncertainty. Calculated/estimated требуют явной политики модели и сохранения метода/неопределённости. User-defined допускаются только как явно exploratory и должны оставаться помеченными в downstream результатах. Hypothetical/unknown-origin не могут молча считаться reference/validated. License — отдельный redistribution gate, а не показатель численной валидности. Текущий scalar API эти правила не обеспечивает; их должен применять адаптер.
+
+### 17.4 Отказы и gas convention
+
+Адаптер должен отклонять отсутствующие/non-finite/non-positive константы, несовместимые basis/units/standard state, отсутствующие или несовместимые T/medium/phase, неподдерживаемую activity model и невалидные identity/charge/phase. Нельзя подставлять basis, 25 °C, gamma=1, proton mapping или missing value=0 по умолчанию. Текущие низкоуровневые сигналы A3: `EquilibriumInputError` для некорректного ввода и `EquilibriumConvergenceError` для численной неудачи; отображение в общий ErrorEnvelope решает интегратор.
+
+Для газовых G01/G02 A3 уточнил: используется dimensionless Kp с pressure standard state \(p^\circ=1\,\mathrm{bar}\), идеальные partial pressures \(p_i=n_iRT/V\), без fugacity coefficients. Это не подтверждает применимость к неидеальным газам и не отменяет отдельного уточнения A1 по фазе I2 для GAS-02.
+
+Источник: PR #4 comment `6600097355` от 2026-11-03. Требования описывают текущую fixture-конвенцию и будущую адаптерную проверку; они не замораживают shared DTO, Unit Registry, ErrorEnvelope или OpenSpec baseline.
