@@ -262,6 +262,16 @@ class AqueousBenchmarkTests(unittest.TestCase):
         )
         self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
 
+    def test_agcl_precipitation_at_exact_saturation_does_not_create_solid(self):
+        result = solve_agcl_precipitation(
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0e-14
+        )
+        self.assertEqual(result.solid_mol_l, 0.0)
+        self.assertEqual(result.species_mol_l["Ag+"], 1.0)
+        self.assertEqual(result.species_mol_l["Cl-"], 1.0)
+        self.assertAlmostEqual(result.diagnostics.residual, 0.0, delta=1.0e-15)
+        self.assertEqual(result.diagnostics.charge_balance_residual, 0.0)
+
     def test_precipitation_is_inactive_when_undersaturated(self):
         result = solve_agcl_precipitation(
             1e-6, 1e-6, 1e-6, 1e-6, 10 ** -9.748, 1e-14
