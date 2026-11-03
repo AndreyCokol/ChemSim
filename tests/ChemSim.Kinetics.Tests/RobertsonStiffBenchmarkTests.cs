@@ -75,6 +75,18 @@ public sealed class RobertsonStiffBenchmarkTests
         Assert.InRange(result.Diagnostics.RejectedSteps, 0, stepBudget);
         Assert.True(result.Diagnostics.RightHandSideEvaluations >= 0);
 
+        Assert.NotEmpty(result.Samples);
+        foreach (var sample in result.Samples)
+        {
+            var sampleA = sample.AmountsMol["A"];
+            var sampleB = sample.AmountsMol["B"];
+            var sampleC = sample.AmountsMol["C"];
+            Assert.InRange(sampleA, 0d, 1d);
+            Assert.InRange(sampleB, 0d, 1d);
+            Assert.InRange(sampleC, 0d, 1d);
+            Assert.InRange(Math.Abs(sampleA + sampleB + sampleC - 1d), 0d, 5e-9d);
+        }
+
         // A budget exhaustion is a valid diagnostic outcome for this explicit
         // method. Do not relax accuracy or silently turn it into a pass.
         Assert.True(
