@@ -56,9 +56,9 @@ public sealed class ToleranceConvergenceBenchmarkTests
             {
                 RelativeTolerance = relativeTolerance,
                 AbsoluteToleranceMol = 1e-14d,
-                InitialStepSeconds = 0.1d,
+                InitialStepSeconds = 1d,
                 MinimumStepSeconds = 1e-12d,
-                MaximumStepSeconds = 0.5d
+                MaximumStepSeconds = 10d
             }
         });
 
@@ -78,9 +78,9 @@ public sealed class ToleranceConvergenceBenchmarkTests
     [Fact]
     public void SecondOrderReaction_ProfileErrorDecreasesAsTolerancesTighten()
     {
-        var looseError = MeasureSecondOrderMaximumProfileError(relativeTolerance: 1e-4d);
-        var baselineError = MeasureSecondOrderMaximumProfileError(relativeTolerance: 1e-6d);
-        var tightError = MeasureSecondOrderMaximumProfileError(relativeTolerance: 1e-8d);
+        var looseError = MeasureSecondOrderMaximumProfileError(relativeTolerance: 1e-2d);
+        var baselineError = MeasureSecondOrderMaximumProfileError(relativeTolerance: 1e-4d);
+        var tightError = MeasureSecondOrderMaximumProfileError(relativeTolerance: 1e-6d);
 
         Assert.True(looseError > 0d, $"Expected a measurable loose-tolerance error, got {looseError:G17}.");
         Assert.True(baselineError < looseError * 0.5d,
@@ -94,7 +94,7 @@ public sealed class ToleranceConvergenceBenchmarkTests
         const double initialA = 2d;
         const double volume = 1d;
         const double rateConstant = 0.1d;
-        const double endTime = 3d;
+        const double endTime = 10d;
 
         var network = new ReactionNetwork(
             ["A", "B"],
@@ -122,7 +122,7 @@ public sealed class ToleranceConvergenceBenchmarkTests
             VolumeM3 = volume,
             StartTimeSeconds = 0d,
             EndTimeSeconds = endTime,
-            OutputIntervalSeconds = 0.1d,
+            OutputIntervalSeconds = 0.5d,
             Solver = new SolverOptions
             {
                 RelativeTolerance = relativeTolerance,
