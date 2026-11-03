@@ -13,6 +13,7 @@ public sealed class ReactionDefinition
     public IReadOnlyDictionary<string, int> Stoichiometry { get; }
     public IReadOnlyDictionary<string, double> KineticOrders { get; }
     public RateConstant RateConstant { get; }
+    public double TotalKineticOrder { get; }
 
     public ReactionDefinition(
         string id,
@@ -64,5 +65,6 @@ public sealed class ReactionDefinition
         Stoichiometry = new ReadOnlyDictionary<string, int>(stoichCopy);
         KineticOrders = new ReadOnlyDictionary<string, double>(orderCopy);
         RateConstant = rateConstant;
+        TotalKineticOrder = totalOrder;
     }
 }
