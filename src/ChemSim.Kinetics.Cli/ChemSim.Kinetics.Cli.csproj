@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../ChemSim.Kinetics/ChemSim.Kinetics.csproj" />
+    <InternalsVisibleTo Include="ChemSim.Kinetics.Tests" />
   </ItemGroup>
 </Project>
