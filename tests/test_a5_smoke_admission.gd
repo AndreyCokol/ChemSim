@@ -11,13 +11,10 @@ func _build_response(request: Dictionary) -> Dictionary:
 	for i in range(21):
 		var t := float(i) * 0.25
 		var amount_a := exp(-0.1 * t)
-		samples.append({
-			"time_s": t,
-			"amounts_mol": {
-				Contract.A_ID: amount_a,
-				Contract.B_ID: 2.0 * (1.0 - amount_a)
-			}
-		})
+		var amounts: Dictionary = {}
+		amounts[Contract.A_ID] = amount_a
+		amounts[Contract.B_ID] = 2.0 * (1.0 - amount_a)
+		samples.append({"time_s": t, "amounts_mol": amounts})
 	return {
 		"contract_version": "0.1",
 		"message_id": "qa-valid-result-1",
