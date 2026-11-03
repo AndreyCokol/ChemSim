@@ -90,6 +90,38 @@ func _initialize() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_sidecar))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_collision_path))
 
+	var stale_temp_path := "user://experiments/stale-temp.chemsim.json"
+	var stale_temp_sidecar := stale_temp_path + ".tmp"
+	assert(DraftRepository.save_draft(stale_temp_path, payload).ok, "Stale-temp fixture should have a canonical draft")
+	_write_text(stale_temp_sidecar, "possibly recoverable user data")
+	var stale_temp_load := DraftRepository.load_draft(stale_temp_path)
+	assert(stale_temp_load.ok, "A valid canonical draft should remain openable beside a stale temp sidecar")
+	assert(String(stale_temp_load.get("recovery_warning", "")).contains(stale_temp_sidecar), "Opening a canonical draft should warn about its stale temp sidecar")
+	assert(_read_text(stale_temp_sidecar) == "possibly recoverable user data", "Opening must preserve stale temp content")
+	var stale_temp_save := DraftRepository.save_draft(stale_temp_path, payload)
+	assert(not stale_temp_save.ok, "Save must not overwrite a stale temp sidecar")
+	assert(String(stale_temp_save.error).contains("вручную"), "Temp collision error should explain the manual recovery action")
+	assert(DraftRepository.load_draft(stale_temp_path).ok, "Temp collision must leave the canonical draft readable")
+	assert(_read_text(stale_temp_sidecar) == "possibly recoverable user data", "Failed save must preserve stale temp content")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_temp_sidecar))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_temp_path))
+
+	var stale_backup_path := "user://experiments/stale-backup.chemsim.json"
+	var stale_backup_sidecar := stale_backup_path + ".bak"
+	assert(DraftRepository.save_draft(stale_backup_path, payload).ok, "Stale-backup fixture should have a canonical draft")
+	_write_text(stale_backup_sidecar, "possibly recoverable backup data")
+	var stale_backup_load := DraftRepository.load_draft(stale_backup_path)
+	assert(stale_backup_load.ok, "A valid canonical draft should remain openable beside a stale backup sidecar")
+	assert(String(stale_backup_load.get("recovery_warning", "")).contains(stale_backup_sidecar), "Opening a canonical draft should warn about its stale backup sidecar")
+	var stale_backup_save := DraftRepository.save_draft(stale_backup_path, payload)
+	assert(not stale_backup_save.ok, "Save must not overwrite a stale backup sidecar")
+	assert(String(stale_backup_save.error).contains("вручную"), "Backup collision error should explain the manual recovery action")
+	assert(DraftRepository.load_draft(stale_backup_path).ok, "Backup collision must leave the canonical draft readable")
+	assert(_read_text(stale_backup_sidecar) == "possibly recoverable backup data", "Failed save must preserve stale backup content")
+	assert(not FileAccess.file_exists(stale_backup_path + ".tmp"), "Failed backup collision must clean up the new temporary file")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_backup_sidecar))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(stale_backup_path))
+
 	var recovery_path := "user://experiments/recovery-test.chemsim.json"
 	var recovery_backup := recovery_path + ".bak"
 	assert(DraftRepository.save_draft(recovery_path, payload).ok, "Recovery fixture should be saved")
