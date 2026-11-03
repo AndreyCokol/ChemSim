@@ -36,13 +36,14 @@ class EquilibriumConvergenceError(RuntimeError):
 @dataclass(frozen=True)
 class SolverDiagnostics:
     iterations: int
-    residual: float
+    residual: float | None  # None only at the W05 zero-ion saturation boundary.
     component_balance_residual: float
     charge_balance_residual: float | None  # None: charge check not applicable (gas fixtures).
     method: str
     balance_unit: str
     activity_model: str = "ideal_dilute_gamma_equals_1"
     reliability_status: str = "idealized_approximation"
+    residual_status: str = "finite"  # "zero_ion_activity" means no finite ln(Q/Ksp).
 
 
 @dataclass(frozen=True)
@@ -50,7 +51,8 @@ class AqueousResult:
     species_mol_l: dict[str, float]
     pH: float
     diagnostics: SolverDiagnostics
-    solid_mol_l: float = 0.0
+    solid_mol_l: float | None = 0.0  # None means unknown reservoir inventory.
+    solid_phase_state: str = "not_modelled"  # Also: reservoir_inventory_unknown, no_precipitate, new_precipitate.
 
 
 @dataclass(frozen=True)
@@ -89,7 +91,8 @@ def _aqueous_result(
     species_mol_l: dict[str, float],
     pH: float,
     diagnostics: SolverDiagnostics,
-    solid_mol_l: float = 0.0,
+    solid_mol_l: float | None = 0.0,
+    solid_phase_state: str = "not_modelled",
 ) -> AqueousResult:
     if (
         not isinstance(species_mol_l, dict)
@@ -100,22 +103,51 @@ def _aqueous_result(
             for name, value in species_mol_l.items()
         )
         or not _finite_number(pH)
-        or not _finite_number(solid_mol_l)
-        or solid_mol_l < 0.0
+        or solid_phase_state not in (
+            "not_modelled", "reservoir_inventory_unknown",
+            "no_precipitate", "new_precipitate",
+        )
+        or (
+            solid_phase_state == "reservoir_inventory_unknown"
+            and solid_mol_l is not None
+        )
+        or (
+            solid_phase_state != "reservoir_inventory_unknown"
+            and (
+                not _finite_number(solid_mol_l)
+                or solid_mol_l < 0.0
+                or (
+                    solid_phase_state in ("not_modelled", "no_precipitate")
+                    and solid_mol_l != 0.0
+                )
+                or (solid_phase_state == "new_precipitate" and solid_mol_l <= 0.0)
+            )
+        )
         or not isinstance(diagnostics, SolverDiagnostics)
         or isinstance(diagnostics.iterations, bool)
         or not isinstance(diagnostics.iterations, int)
         or diagnostics.iterations < 0
-        # Negative infinity is the intentional log-saturation sentinel for
-        # an absent dissolved ion in an inactive-solid state. NaN and positive
-        # infinity are never valid converged aqueous residuals.
+        # ln(Q/Ksp) at zero dissolved-ion activity has no finite value.
+        # Preserve its domain state, never export a non-finite JSON number.
         or (
-            not _finite_number(diagnostics.residual)
+            diagnostics.residual_status == "finite"
+            and not _finite_number(diagnostics.residual)
+        )
+        or (
+            diagnostics.residual_status == "zero_ion_activity"
             and not (
-                diagnostics.residual == -float("inf")
+                diagnostics.residual is None
                 and diagnostics.method == "inactive-solid check"
+                and solid_phase_state == "no_precipitate"
+                and species_mol_l.get("Ag+") is not None
+                and species_mol_l.get("Cl-") is not None
+                and (
+                    species_mol_l["Ag+"] == 0.0
+                    or species_mol_l["Cl-"] == 0.0
+                )
             )
         )
+        or diagnostics.residual_status not in ("finite", "zero_ion_activity")
         or not _finite_number(diagnostics.component_balance_residual)
         or diagnostics.component_balance_residual < 0.0
         or not _finite_number(diagnostics.charge_balance_residual)
@@ -128,7 +160,10 @@ def _aqueous_result(
         raise EquilibriumConvergenceError(
             "Aqueous equilibrium produced non-finite or nonphysical result values"
         )
-    return AqueousResult(MappingProxyType(dict(species_mol_l)), pH, diagnostics, solid_mol_l)
+    return AqueousResult(
+        MappingProxyType(dict(species_mol_l)),
+        pH, diagnostics, solid_mol_l, solid_phase_state,
+    )
 
 
 def _finite_number(value: object) -> bool:
@@ -378,6 +413,8 @@ def solve_agcl_solubility(ksp: float, kw: float) -> AqueousResult:
         SolverDiagnostics(
             0, 0.0, 0.0, abs((s + h) - (s + oh)), "closed-form ideal solubility", "mol/L"
         ),
+        solid_mol_l=None,
+        solid_phase_state="reservoir_inventory_unknown",
     )
 
 
@@ -470,7 +507,8 @@ def solve_agcl_precipitation(
     initial_log_saturation = log_saturation(silver_total_mol_l, chloride_total_mol_l)
     if initial_log_saturation <= 0.0:
         ag, cl, solid, iterations, residual = (
-            silver_total_mol_l, chloride_total_mol_l, 0.0, 0, initial_log_saturation
+            silver_total_mol_l, chloride_total_mol_l, 0.0, 0,
+            None if initial_log_saturation == -float("inf") else initial_log_saturation
         )
     else:
         # Solve for the remaining concentration of the limiting ion, not the
@@ -514,8 +552,10 @@ def solve_agcl_precipitation(
             iterations, residual, max(ag_balance, cl_balance), abs(charge),
             "active-set + bisection" if solid > 0 else "inactive-solid check",
             "mol/L",
+            residual_status="zero_ion_activity" if residual is None else "finite",
         ),
         solid_mol_l=solid,
+        solid_phase_state="new_precipitate" if solid > 0 else "no_precipitate",
     )
 
 

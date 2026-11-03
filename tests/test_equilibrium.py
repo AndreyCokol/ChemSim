@@ -26,6 +26,37 @@ class AqueousResultValidationTests(unittest.TestCase):
                 with self.assertRaises(EquilibriumConvergenceError):
                     _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
 
+    def test_rejects_invalid_solid_phase_or_saturation_combinations(self):
+        finite = SolverDiagnostics(0, 0.0, 0.0, 0.0, "test", "mol/L")
+        no_finite_si = SolverDiagnostics(
+            0, None, 0.0, 0.0, "inactive-solid check", "mol/L",
+            residual_status="zero_ion_activity",
+        )
+        species = {"Ag+": 0.0, "Cl-": 0.01, "H+": 1.0e-7}
+        invalid = (
+            (finite, 0.0, "reservoir_inventory_unknown", species),
+            (finite, None, "not_modelled", species),
+            (finite, 0.01, "no_precipitate", species),
+            (finite, 0.0, "new_precipitate", species),
+            (finite, -1.0, "new_precipitate", species),
+            (finite, 0.0, "invented_status", species),
+            (no_finite_si, 0.0, "not_modelled", species),
+            (no_finite_si, 0.01, "new_precipitate", species),
+            (no_finite_si, 0.0, "no_precipitate", {"Ag+": 0.1, "Cl-": 0.1}),
+            (SolverDiagnostics(0, -math.inf, 0.0, 0.0,
+                               "inactive-solid check", "mol/L"), 0.0,
+             "no_precipitate", species),
+            (SolverDiagnostics(0, None, 0.0, 0.0, "test", "mol/L"),
+             0.0, "no_precipitate", species),
+        )
+        for diagnostics, solid, state, output in invalid:
+            with self.subTest(solid=solid, state=state, diagnostics=diagnostics):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _aqueous_result(
+                        output, 7.0, diagnostics,
+                        solid_mol_l=solid, solid_phase_state=state,
+                    )
+
     def test_rejects_negative_balance_residual_diagnostics(self):
         for component, charge in ((-1.0, 0.0), (0.0, -1.0)):
             diagnostics = SolverDiagnostics(
@@ -160,7 +191,9 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertTrue(all(math.isfinite(value) for value in result.species_mol_l.values()))
         self.assertEqual(result.solid_mol_l, 0.0)
         self.assertTrue(math.isfinite(result.pH))
-        self.assertEqual(result.diagnostics.residual, float("-inf"))
+        self.assertIsNone(result.diagnostics.residual)
+        self.assertEqual(result.diagnostics.residual_status, "zero_ion_activity")
+        self.assertEqual(result.solid_phase_state, "no_precipitate")
 
     def test_w01_acetic_acid(self):
         ka = 10 ** -4.756
@@ -265,7 +298,8 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["Ag+"], 1.335e-5, delta=2e-8)
         self.assertAlmostEqual(result.species_mol_l["Ag+"], result.species_mol_l["Cl-"], places=14)
         self.assertAlmostEqual(result.pH, 7.0, places=10)
-        self.assertEqual(result.solid_mol_l, 0.0)  # no initial solid inventory is fabricated
+        self.assertIsNone(result.solid_mol_l)  # excess solid reservoir, unknown inventory
+        self.assertEqual(result.solid_phase_state, "reservoir_inventory_unknown")
 
     def test_w04_ammonia_buffer(self):
         result = solve_ammonia_buffer(0.02000, 0.01000, 10 ** -9.245, 1.0e-14)
@@ -391,6 +425,29 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.diagnostics.residual, 0.0, delta=1.0e-15)
         self.assertEqual(result.diagnostics.charge_balance_residual, 0.0)
 
+    def test_precipitation_solid_and_saturation_states_are_unambiguous(self):
+        cases = (
+            ((0.01, 0.01, 0.01, 0.01, 1.0e-10, 1.0e-14),
+             "new_precipitate", "finite", True),
+            ((1.0e-6, 1.0e-6, 1.0e-6, 1.0e-6, 1.0e-10, 1.0e-14),
+             "no_precipitate", "finite", False),
+            ((1.0e-2, 0.0, 0.0, 1.0e-2, 1.0e-10, 1.0e-14),
+             "no_precipitate", "zero_ion_activity", False),
+        )
+        for params, expected_phase, expected_residual, has_solid in cases:
+            with self.subTest(case=params):
+                result = solve_agcl_precipitation(*params)
+                self.assertEqual(result.solid_phase_state, expected_phase)
+                self.assertEqual(result.diagnostics.residual_status, expected_residual)
+                if has_solid:
+                    self.assertGreater(result.solid_mol_l, 0.0)
+                else:
+                    self.assertEqual(result.solid_mol_l, 0.0)
+                if expected_residual == "finite":
+                    self.assertTrue(math.isfinite(result.diagnostics.residual))
+                else:
+                    self.assertIsNone(result.diagnostics.residual)
+
     def test_precipitation_is_inactive_when_undersaturated(self):
         result = solve_agcl_precipitation(
             1e-6, 1e-6, 1e-6, 1e-6, 10 ** -9.748, 1e-14
@@ -435,9 +492,10 @@ class AqueousBenchmarkTests(unittest.TestCase):
                     silver, chloride, sodium, nitrate, 1.0e-12, 1.0e-14
                 )
                 self.assertEqual(result.solid_mol_l, 0.0)
-                # A missing counter-ion makes log(Q/Ksp) exactly -inf; this is
-                # a valid inactive-solid sentinel, not a failed solver residual.
-                self.assertEqual(result.diagnostics.residual, -math.inf)
+                # Q=0 has no finite log(Q/Ksp); retain the domain status.
+                self.assertIsNone(result.diagnostics.residual)
+                self.assertEqual(result.diagnostics.residual_status, "zero_ion_activity")
+                self.assertEqual(result.solid_phase_state, "no_precipitate")
                 self.assertEqual(result.species_mol_l["Ag+"], silver)
                 self.assertEqual(result.species_mol_l["Cl-"], chloride)
                 self.assertEqual(result.species_mol_l["Na+"], sodium)
