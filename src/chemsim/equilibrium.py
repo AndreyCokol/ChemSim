@@ -352,7 +352,10 @@ def solve_ammonia_buffer(
     nh3 = _scaled_fraction(total_nitrogen_mol_l, ka_nh4, h)
     oh = kw / h
     mass_error = abs(nh3 + nh4 - total_nitrogen_mol_l)
-    charge_error = abs(nh4 + h - chloride_mol_l - oh)
+    # Match the cancellation-safe algebra used by the root residual; direct
+    # NH4+ + H+ - Cl- - OH- can erase trace acid/base charge beside a huge
+    # common nitrogen/chloride inventory.
+    charge_error = abs((total_nitrogen_mol_l - chloride_mol_l) - nh3 + h - oh)
     return _aqueous_result(
         {"NH3": nh3, "NH4+": nh4, "H+": h, "OH-": oh, "Cl-": chloride_mol_l},
         -log10(h),
