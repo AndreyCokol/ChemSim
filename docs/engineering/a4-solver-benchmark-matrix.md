@@ -76,6 +76,18 @@ This provides a stiff transient with an independent closed-form reference and ex
 
 For both stiff cases, record whether RK45 succeeds within the configured step budget, how many steps/rejections/RHS evaluations it uses, and whether the requested accuracy is achieved. A budget exhaustion or excessive work is a valid finding about the explicit method's applicability; do not weaken correctness criteria to make it pass.
 
+### STIFF-02 diagnostic execution — separated first-order time scales
+
+Added `StiffBenchmarkTests.SeparatedFirstOrderTimeScales_MatchesAnalyticalProfileAndReportsWork` for A→B→C with `kf=1e6 s⁻¹`, `ks=1 s⁻¹`, initial state (1,0,0) mol and V=1 m³. The test uses the closed-form trajectory:
+
+- `A(t)=exp(-kf t)`
+- `B(t)=kf/(kf-ks) * (exp(-ks t)-exp(-kf t))`
+- `C(t)=1-A(t)-B(t)`
+
+Two schedules cover complementary regions without generating millions of uniformly spaced output points: a fast-layer window [0, 1e-5] s sampled every 1e-6 s, and a slow-tail window [0, 5] s sampled every 0.5 s. Both runs completed successfully with the current explicit RK45 solver under a 100,000 internal-step budget. Every requested sample is checked against the closed form (absolute tolerance 5e-7 mol); non-negativity and the A+B+C=1 invariant are checked separately. The test also verifies that accepted-step and RHS-evaluation diagnostics are populated. It does not assert a wall-clock threshold or claim that RK45 is generally suitable for stiff systems.
+
+.NET 10 Restore, Build and all 30 tests passed on exact source/test commit `91d9af535b79f119e45a2d2a794b4c315463f95a` in GitHub Actions run [41612899661](https://github.com/AndreyCokol/ChemSim/actions/runs/41612899661).
+
 ## Tolerance-convergence protocol
 
 Run each correctness case with at least three tolerance pairs, for example:
