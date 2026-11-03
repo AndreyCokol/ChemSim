@@ -201,3 +201,32 @@ Until shared DTOs, Unit Registry, ErrorEnvelope, schema version and ReliabilityV
 ### Persistent source-term identity clarification
 
 A3 does **not** require a persistent source-term ID at parse time for numerical equilibrium solving. A parse-local source locator is sufficient to report diagnostics against the exact parsed input. If the application needs continuity across text edits, saved experiments or result provenance, the caller/experiment layer must assign and persist its own stable term ID at the adapter boundary and maintain an explicit mapping from that ID to the current parse-local locator(s). When duplicate terms are aggregated, preserve the complete set of source locators and caller-owned IDs. A3 must not manufacture stable IDs from source offsets, formula strings or stoichiometric coefficients.
+
+
+## A3-07 integration decision register and readiness gate (2026-11-03)
+
+This register records only decisions that block a safe adapter from the current A3 reference fixtures. It is not a shared DTO proposal and does not assign implementation ownership to A3.
+
+| Decision | Required owner(s) | A3 consumer position / safe interim rule | What remains blocked |
+|---|---|---|---|
+| Canonical phase enum and serialized tokens, including UNSPECIFIED | Integrator, with A1/A2/A3/A5 review | One typed vocabulary; preserve UNSPECIFIED as unknown, never default it to aqueous | Parser/catalog/solver/UI phase adapter |
+| ReactionTerm and species identity boundary | Integrator with A1/A2; A3 consumer | Formula/composition/charge plus occurrence phase; optional catalog reference; parse-local source locator is enough for a solve; retain all source locators after aggregation | General reaction-to-equilibrium adapter |
+| Constant/property and standard-state record | A1 owns domain record; A3 confirms model requirements | Typed reaction identity, dimensionless basis/standard state, medium/phase, T applicability, uncertainty and provenance; no bare numeric K as catalog-ready | Catalog-backed aqueous calculation |
+| Unit Registry and conversion policy | Integrator/A1, consumers validate dimensions | Preserve explicit input/output units and dimension; reject unknown/incompatible units; no implicit molarity/molality or pressure-standard conversion | Cross-language serialization and unit-safe API |
+| Shared result schema/versioning | Integrator with A1–A5 | Versioned DTO; preserve species/phase, units, pH qualifier, solid status, diagnostics and model applicability | Stable Python-to-Godot result adapter |
+| ErrorEnvelope and termination taxonomy | Integrator; each solver maps its native errors | Distinguish invalid input, unsupported model/input, numerical non-convergence, unrepresentable result and internal failure; never turn failure into a successful partial result | Unified UI/error handling and machine-readable client behavior |
+| ReliabilityVector semantics | Integrator/A5 with solver consumers | Keep numerical convergence, conservation, input quality and model applicability as separate dimensions; A3's local reliability flag is not a substitute | Cross-solver reliability display/aggregation |
+| Adapter call-site and ownership | Integrator | One explicit boundary adapter; no hidden duplicate phase/unit normalization in individual consumers | End-to-end A2→A1→A3→A5 integration |
+
+### Minimum acceptance checks before enabling a normative A3 adapter
+
+1. A2 parse of a reaction retains element composition, charge, occurrence phase, coefficient, direction and parse-local source locators; duplicate aggregation retains every contributing locator.
+2. An unresolved formula remains unresolved unless an explicit catalog lookup supplies a catalog reference. A missing catalog reference is acceptable only for a model explicitly permitting hypothetical input.
+3. The adapter resolves a typed, reaction-specific Ka/Kw/Ksp record and verifies its standard state, dimensionless convention, solvent/phase, temperature applicability and activity-model compatibility before extracting a scalar.
+4. UNSPECIFIED, unknown phase, missing constant, incompatible standard state, unsupported activity model, and incompatible units fail explicitly with a typed error; none is defaulted.
+5. Result serialization round-trips units, phase, pH basis, solid amount/status, diagnostics, model applicability and provenance without replacing absent values with zero.
+6. A3 fixture results remain explicitly marked idealized/reference-fixture outputs until a generalized speciation model and its applicability envelope are separately specified and validated.
+
+### Current readiness
+
+The current A3 branch satisfies the numerical-fixture portion of this gate, but not the typed-data, shared DTO, unit, error, reliability or adapter-ownership gates. Therefore no production/normative integration is approved by this document. A3-07 stays open until the integrator records the shared decisions and owners; A3 will then implement only the A3-owned adapter/consumer slice assigned to it.
