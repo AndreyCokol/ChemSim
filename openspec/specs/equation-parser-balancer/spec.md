@@ -312,6 +312,27 @@ A4 опубликовал implementation-aligned consumer contract в `docs/engi
 
 **Условия выхода из P1:** интегратор утверждает contract/adapter owner и явную обработку `UNSPECIFIED`; владелец утверждает OpenSpec; A2/A4/A5 совместно запускают тесты на одном интегрированном Godot runtime и записывают SHA+CI. До этого таблица — спецификация/hand-off, не исполняемые тесты и не утверждённый DTO. A2 не пишет A4 bridge/UI, не приписывает A1 научной достоверности демо-k и не объявляет общую готовность.
 
+## P1 реализовано: исходные UTF-8 диапазоны локального A2-handoff (A2-UTF8-HANDOFF-10, 2026-11-03)
+
+`ChemStoichiometryHandoff.extract_balanced_terms(original_source)` SHALL сохранять оригинальный текст без нормализации и, при успешной проверке, возвращать для **каждого** исходного вхождения одновременно `source_span:{start_offset,end_offset}` в индексах Godot `String` и `source_span_utf8:{utf8_byte_start,utf8_byte_end}` в исходных UTF-8 байтах. При синтаксической ошибке A2 SHALL возвращать оба диапазона в локальном `A2_REACTION_PARSE_FAILED`, не возвращая `terms` или `conservation_rows`.
+
+Преобразование SHALL выполняться через `ChemSourceSpan.to_utf8_byte_span` на **том же** `original_source`, строго отклоняя выход за границы, отсутствие диапазонов и ошибки конвертации как `A2_SOURCE_SPAN_CONVERSION_FAILED`, без подстановки символов или создания частичного результата. При `A2_REACTION_UNBALANCED` нельзя выдумывать `source_span_utf8` для «единственного виновного члена», так как химическая невязка не идентифицирует однозначно ошибочную запись.
+
+### Scenario: Unicode и оригинальные байтовые границы
+- WHEN `N2O4(g) → 2NO2(g)` принят
+- THEN второй исходный член имеет Godot-character [9,17), UTF-8 bytes [11,19); оба диапазона обратимы без нормализации текста
+- WHEN `H2 + O2 → H2Ж` отклонён
+- THEN исходная ошибочная кириллическая позиция [12,13) соответствует байтам [14,16), и члены/строки сохранения отсутствуют
+- WHEN `H2 → H2😀` отклонён
+- THEN UTF-8 span [9,13) покрывает целый четырёхбайтовый Unicode символ, а не его часть
+
+### Scenario: Законная позиция вставки в конце ввода
+- WHEN `H2 + O2` отклонён как `PARSE_MISSING_ARROW`
+- THEN `source_span` равен [7,7), `source_span_utf8` равен [7,7), и A2 не придумывает расширение до одного символа
+- AND интегратор/A5 MUST отдельно определить политику общего `ErrorEnvelope.SourceSpan` для insertion-point (INT-15): этот A2-локальный результат не является утверждением wire-валидации
+
+**Код:** [8d31756](https://github.com/AndreyCokol/ChemSim/commit/8d31756a30e17409315490fa049e2bdd62c790f3). **Тесты:** [2157d1a](https://github.com/AndreyCokol/ChemSim/commit/2157d1acfa07af934768a44751c82d1e4b421c0b). Полная интеграция ErrorEnvelope/A5 или Windows E2E не утверждается.
+
 ## P1 реализовано: точные source-local строки сохранения атомов/заряда (A2-EXACT-LAWS-09, 2026-11-03)
 
 Вход — только исходная строка реакции. `ChemStoichiometryHandoff.extract_balanced_terms(source)` повторно запускает реальный `ChemEquationParser.parse_reaction()` и `check_balance()`; **не** доверяет сгенерированному извне словарю `FormulaAST`. Для ошибочной или несбалансированной реакции возвращает `ok=false` без `terms` и без `conservation_rows`.
