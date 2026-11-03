@@ -497,3 +497,69 @@ A3's current ideal-dilute fixtures and A4's current kinetic model therefore have
 ### 19.6 Open decisions
 
 The exact serialized enum names, review-event schema, eligibility reason vocabulary and policy ownership require integrator/product-owner agreement. This proposal does not freeze a shared DTO, prescribe a global source-ranking policy, approve any source for redistribution, or authorize implementation before OpenSpec baseline approval.
+
+## 20. Schema evolution and migration compatibility — A1 proposal (2026-11-03)
+
+This section defines domain-level migration invariants and acceptance scenarios for A1-owned chemistry records. It does not choose the repository-wide schema version format, serialization envelope, migration runner, or release policy; those remain integrator/product-owner decisions.
+
+### 20.1 Versioning invariants
+
+- Every persisted chemistry record and every catalog bundle must be interpretable against an explicit schema version. Missing version is not silently treated as the latest version.
+- A schema version identifies structure and semantics, not merely field names. A change to unit meaning, standard-state convention, phase interpretation, origin semantics, completeness semantics or default behavior is a semantic change even if serialized shape is unchanged.
+- A1-owned record types must be independently identifiable within the agreed shared envelope (for example Substance identity, Property assertion, Source provenance, Thermodynamic constant and Hazard assessment). A shared envelope/name/ID scheme is not selected by A1.
+- Unknown fields may be preserved by a lossless pass-through implementation, but must not be interpreted as known semantics. Unknown enum values must be retained or rejected explicitly; they must never be mapped to a reassuring/default value.
+- A reader must either support the exact schema version, perform a registered deterministic migration, or fail with an actionable incompatibility. Best-effort guessing is prohibited for scientific fields.
+- Migration must be deterministic, idempotent for the same source version and target version, and non-destructive. Original input/version and migration provenance must remain recoverable.
+- Migration must not manufacture scientific facts: no default temperature, pressure, phase, basis, standard state, uncertainty, source, license, hazard absence, or model eligibility.
+- Migration of a record does not itself revalidate its scientific correctness, applicability, source rights or model eligibility.
+
+### 20.2 Change classification and compatibility posture
+
+| Change class | Example | Proposed compatibility posture |
+|---|---|---|
+| Additive optional metadata | Add retrieval timestamp or method citation without changing prior meaning | Potentially backward-readable; old records remain explicitly incomplete where field is required by a consumer |
+| Additive required metadata | Consumer now requires standard state or phase | Old records remain readable only as incomplete/unqualified; calculation adapter rejects until enriched |
+| Semantic reinterpretation | Change pH basis, K convention, phase token meaning, or hazard completeness meaning | Breaking semantic migration; require explicit versioned transformation or reject |
+| Unit/dimension correction | Correct a value stored as mol/L but declared mol/m³ | Never relabel silently; require evidence-backed conversion and retain original assertion |
+| Enum vocabulary change | Rename/partition origin, phase, quality or hazard state | Explicit mapping table; unknown/unmapped values preserved as unknown or rejected |
+| Identity/key change | Replace formula-derived key with stable catalog identity | Preserve old key as migration alias/reference; never infer a canonical identity from formula alone |
+| Provenance/license enrichment | Add source version or per-field license disposition | Enrichment requires evidence; absence remains unknown/blocked, not approved |
+| Record removal/deprecation | Retire obsolete field or source | Preserve historical data and migration note; do not erase audit evidence |
+
+Backward readability is not equivalent to calculation eligibility. A record may deserialize successfully yet remain blocked from a model because required basis, conditions, source or review evidence is absent.
+
+### 20.3 Migration execution requirements
+
+1. Identify source schema version and record type before parsing domain values.
+2. Validate source structure and retain the original payload or a lossless archival representation.
+3. Apply only a registered migration path with explicit source and target versions.
+4. Record migration identifier/version, timestamp, tool/build version, input digest and warnings; exact envelope fields are for integrator agreement.
+5. Preserve assertion identity/history and all source/field provenance. If a transformation changes value or semantics, create a new assertion/version linked to the original rather than overwriting it.
+6. Re-run structural/domain validation after migration, then recompute model-specific eligibility from current policies. Never carry an old eligibility decision forward as authoritative.
+7. Keep redistribution disposition independent; migration cannot turn unknown/restricted source data into redistributable data.
+8. On unsupported version, missing required migration, lossy transformation, identity ambiguity or unresolvable semantic conflict, fail closed and report the record/path and reason. Do not partially publish a catalog bundle.
+
+### 20.4 A1 migration acceptance matrix
+
+| Case | Input condition | Expected outcome |
+|---|---|---|
+| M01 | Explicit supported current version, all required fields valid | Read and validate; eligibility still evaluated per model |
+| M02 | Older version with registered lossless additive-field migration | Migrate deterministically; mark newly required but absent fields incomplete |
+| M03 | Missing schema version | Reject or quarantine as unversioned; never assume current |
+| M04 | Future/unknown schema version | Preserve opaque payload if supported, otherwise reject; never parse unknown semantics as current |
+| M05 | Unknown enum token (phase/origin/hazard state) | Preserve as unknown/unmapped or reject; never map to a default safe/eligible state |
+| M06 | Old bare numeric K/Ka/Kb/Ksp without basis/standard state/conditions | May retain as legacy descriptive datum; must remain calculation-ineligible |
+| M07 | Old numeric property with missing or ambiguous unit | Do not infer unit; reject conversion and calculation eligibility |
+| M08 | Molarity-to-molality conversion requested but solvent density/composition/temperature inputs absent | Reject conversion; retain original basis |
+| M09 | Phase token migration where old value is ambiguous or UNSPECIFIED | Preserve unresolved/unspecified state; do not guess phase |
+| M10 | Formula-based legacy identity lacks validated composition/charge mapping | Keep unresolved legacy reference; do not mint stable Substance ID by formula alone |
+| M11 | Source provenance exists but license/redistribution rights absent | Preserve source assertion; block affected export/bundle |
+| M12 | Legacy hazard record has no evidence of assessment scope | Map to not_assessed/unknown only when semantically justified; never map to absent or complete |
+| M13 | Migration changes numeric value/unit/basis/conditions | Create linked transformed assertion with method and uncertainty; preserve original |
+| M14 | Previous model eligibility exists but policy/model version changed | Re-evaluate; stale decision cannot authorize current use |
+| M15 | Same migration is run twice on the same source/target version | Result is idempotent; no duplicate assertions or provenance events |
+| M16 | One record in an import bundle fails a required migration | Fail bundle publication atomically or quarantine the failed record under an explicit policy; never silently omit it |
+
+### 20.5 Open integration decisions
+
+Integrator/product owner must decide the shared schema-version envelope, version numbering policy, migration registry/runner, unknown-field preservation guarantees, bundle atomicity/quarantine policy, and error mapping. A1 supplies domain invariants and test cases only. No migration code, serialized DTO or baseline implementation is authorized by this proposal.
