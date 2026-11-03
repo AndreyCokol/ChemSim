@@ -82,6 +82,12 @@ func _draw() -> void:
 		draw_circle(position, 4.0, color)
 		draw_string(ThemeDB.fallback_font, position + Vector2(18, 4), str(marker.label), HORIZONTAL_ALIGNMENT_LEFT, 180, 12, TEXT_COLOR)
 
+func _input(event: InputEvent) -> void:
+	# A drag may end outside this Control, where _gui_input will not receive
+	# the release. Observe the global release so a later re-entry cannot resume it.
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		dragging_marker_id = -1
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
