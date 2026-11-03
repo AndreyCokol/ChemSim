@@ -45,6 +45,8 @@ var pending_open_path: String = ""
 var current_draft_path: String = ""
 
 func _ready() -> void:
+	# Keep the three-panel workspace usable without clipping its fixed side panels.
+	get_window().min_size = Vector2i(1120, 680)
 	_build_ui()
 	_create_add_dialog()
 	_refresh_composition()
