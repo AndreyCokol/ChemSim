@@ -108,7 +108,8 @@ internal sealed class DormandPrince54
             }
         }
 
-        return new(StepStatus.Success, y, endTime, accepted, rejected, evaluations);
+        return new(StepStatus.Success, y, endTime, accepted, rejected, evaluations,
+            SuggestedNextStep: h);
     }
 
     private double ErrorNorm(double[] error, double[] oldState, double[] newState)
@@ -254,4 +255,5 @@ internal sealed record IntegrationOutcome(
     int AcceptedSteps,
     int RejectedSteps,
     int RightHandSideEvaluations,
-    string? FailureMessage = null);
+    string? FailureMessage = null,
+    double SuggestedNextStep = double.NaN);
