@@ -5,6 +5,13 @@ extends RefCounted
 ## This is NOT a shared wire DTO, scientific source certification, or license approval.
 ## Do not infer missing metadata, substitute default temperatures, or convert units.
 
+# IDs listed by the approved integrator v0.1 interchange contract. This first
+# slice does not attempt derived/dimensional k or molal/molar conversions.
+const REGISTERED_UNIT_IDS: Array[String] = [
+	"1", "mol", "kg", "g", "m3", "L", "s", "K", "degC",
+	"Pa", "bar", "mol/m3", "mol/L", "mol/s", "mol/(m3*s)", "J/mol"
+]
+
 const REQUIRED_CONTEXT_FIELDS: Array[String] = [
 	"property_kind", "unit_id", "basis", "standard_state",
 	"phase_context", "medium", "model_id", "model_version"
@@ -16,6 +23,10 @@ static func validate_numeric_contract(record: Dictionary, required: Dictionary) 
 	for key in REQUIRED_CONTEXT_FIELDS:
 		if not _nonempty(required.get(key)):
 			_flag(errors, "A1_REQUIREMENT_INCOMPLETE")
+	if typeof(required.get("require_positive")) != TYPE_BOOL:
+		_flag(errors, "A1_REQUIREMENT_INCOMPLETE")
+	if not REGISTERED_UNIT_IDS.has(required.get("unit_id")) or not REGISTERED_UNIT_IDS.has(record.get("unit_id")):
+		_flag(errors, "A1_UNIT_UNREGISTERED")
 
 	if not _nonempty(record.get("property_id")) or not _positive_int(record.get("assertion_revision")):
 		_flag(errors, "A1_IDENTITY_INCOMPLETE")
@@ -42,6 +53,18 @@ static func validate_numeric_contract(record: Dictionary, required: Dictionary) 
 		_flag(errors, "A1_TEMPERATURE_MISSING")
 	elif _finite_number(requested_t) and float(record_t) != float(requested_t):
 		_flag(errors, "A1_TEMPERATURE_MISMATCH")
+
+	# Pressure is checked only when a chosen model declares it required.
+	# No default atmosphere or implicit pressure extrapolation is permitted.
+	if required.has("pressure_pa"):
+		var required_p: Variant = required["pressure_pa"]
+		var record_p: Variant = record.get("pressure_pa")
+		if not _finite_number(required_p) or float(required_p) < 0.0:
+			_flag(errors, "A1_REQUIREMENT_INCOMPLETE")
+		if not _finite_number(record_p) or float(record_p) < 0.0:
+			_flag(errors, "A1_PRESSURE_MISSING")
+		elif _finite_number(required_p) and float(record_p) != float(required_p):
+			_flag(errors, "A1_PRESSURE_MISMATCH")
 
 	if record.get("uncertainty_status") == "reported":
 		if not _finite_number(record.get("uncertainty")) or float(record["uncertainty"]) < 0.0:
