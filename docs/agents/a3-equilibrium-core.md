@@ -159,3 +159,22 @@ The existing low-level EquilibriumInputError is the current fixture's input-fail
 ### Gas benchmark note
 
 For completeness, G01/G02 consume dimensionless Kp on p° = 100,000 Pa (1 bar), using ideal-gas partial pressures p_i = n_i RT/V and no fugacity coefficients. The reaction quotient is formed from p_i/p°. Kp must therefore declare pressure standard state, reaction stoichiometry, temperature/applicability and ideal-gas model. The current gas functions accept T and V, but do not perform fugacity or non-ideal gas corrections.
+
+
+## A2 parser/balancer consumer boundary (2026-11-03)
+
+A3 consumes reaction semantics, not reaction text. The current seven fixture functions do not yet accept A2 DTOs; they take explicit analytical totals and scalar constants. A future adapter between A2 and a generalized A3 problem should require:
+
+- validated FormulaAST/species descriptor with elemental composition and integer net charge;
+- phase as a separate occurrence-level field (AQUEOUS, SOLID, LIQUID, GAS, or explicitly UNSPECIFIED); do not infer UNSPECIFIED;
+- positive integer stoichiometric coefficient, side/direction, and preserved source-term identity/duplicate-term provenance;
+- validated reaction balance (element and charge) from A2, or an independently repeated validation at the A3 boundary before constructing a closed-system equilibrium problem;
+- explicit equilibrium-constant reference and its direction/basis/standard-state metadata from the thermodynamic-data layer. A reversible arrow is not itself a K value, and A3 must not infer K from the arrow or stoichiometric coefficients.
+
+A3 does not require a catalog Substance ID for every parsed species: unresolved parsed descriptors can participate in a hypothetical calculation if the formula, composition, charge and phase are valid and the model has the required thermodynamic data. If a model requires a catalog-backed constant/species property, the adapter must report that unresolved lookup as a missing required input rather than fabricate an identity.
+
+The A2 parser's current term_id is parse-local (source-offset based), not a stable cross-edit identity. A3 must not use it as a persistent species/reaction key. Duplicate terms must preserve source-term mapping when A2 aggregates them; A3's stoichiometric matrix may aggregate chemically identical species only after phase and identity equivalence are established, and must retain the mapping needed for diagnostics/provenance.
+
+For aqueous fixture compatibility, the adapter must map the A2 phase vocabulary explicitly and preserve the current A3 conventions: H+ is the solver's hydrated-proton shorthand, OH− is explicit, liquid water has unit activity and is not a solved species, and the current AgCl precipitation fixture only supports AgNO3/NaCl neutral feeds plus one AgCl(s) phase. A2 syntax support alone does not establish that a species or reaction is supported by an A3 thermodynamic model. In particular, unsupported complexes/hydrates/radicals or unknown phase must fail explicitly.
+
+No A2 files or DTOs are changed by this consumer-boundary note. Canonical phase enum, persistent reaction/term IDs, DTO versioning and the parser-to-solver adapter call site remain integrator decisions.
