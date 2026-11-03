@@ -971,4 +971,29 @@ public sealed class KineticsSimulatorTests
         Assert.InRange(Math.Abs(final["A"] + final["B"] - 1d), 0d, 2e-10);
         Assert.Equal(catalystAmount, final["Cat"]);
     }
+
+    [Fact]
+    public void ReactionNetwork_RejectsNullReactionEntryWithArgumentException()
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            new ReactionNetwork(["A", "B"], [null!]));
+
+        Assert.Contains("Reaction entries cannot be null", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ReactionNetwork_RejectsNullConservationLawEntryWithArgumentException()
+    {
+        var reaction = new ReactionDefinition(
+            "A-to-B",
+            new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+            new Dictionary<string, double> { ["A"] = 1d },
+            new RateConstant(1d, 0d));
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            new ReactionNetwork(["A", "B"], [reaction], [null!]));
+
+        Assert.Contains("Conservation-law entries cannot be null", exception.Message, StringComparison.Ordinal);
+    }
+
 }
