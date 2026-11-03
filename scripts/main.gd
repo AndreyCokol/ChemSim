@@ -2,6 +2,8 @@ extends Control
 
 const VisualFieldScript = preload("res://scripts/visual_field.gd")
 const GraphSeriesViewScript = preload("res://scripts/graph_series_view.gd")
+const DemoContractScript = preload("res://scripts/a5_smoke_contract.gd")
+const SolverProcessScript = preload("res://scripts/a5_solver_process.gd")
 const DraftCodec = preload("res://scripts/draft_codec.gd")
 const DraftRepository = preload("res://scripts/draft_repository.gd")
 const BG := Color("#0B1118")
@@ -45,6 +47,19 @@ var discard_dialog: ConfirmationDialog
 var io_error_dialog: AcceptDialog
 var pending_open_path: String = ""
 var current_draft_path: String = ""
+var solver_process
+var demo_run_button: Button
+var playback_step_button: Button
+var playback_button: Button
+var playback_rewind_button: Button
+var playback_slider: HSlider
+var playback_label: Label
+var playback_speed_control: OptionButton
+var playback_history: Array = []
+var playback_index: int = 0
+var playback_elapsed_s: float = 0.0
+var playback_speed: float = 1.0
+var playback_running: bool = false
 
 func _ready() -> void:
 	# Keep the three-panel workspace usable without clipping its fixed side panels.
@@ -52,6 +67,9 @@ func _ready() -> void:
 	_build_ui()
 	_create_add_dialog()
 	_refresh_composition()
+	solver_process = SolverProcessScript.new()
+	add_child(solver_process)
+	solver_process.completed.connect(_on_demo_result)
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -249,13 +267,17 @@ func _right_panel() -> Control:
 	diagnostic_label = _label("Черновик не проверен. Расчёт недоступен до подключения и проверки химических модулей.", 11, WARNING)
 	diagnostic_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(diagnostic_label)
-	var run := _button("▶  Запустить расчёт", true)
-	run.disabled = true
-	run.tooltip_text = "Ожидает A1–A4 и утверждённых контрактов"
-	box.add_child(run)
-	var step := _button("Один шаг", false)
-	step.disabled = true
-	box.add_child(step)
+	# This opt-in control launches ONLY the documented synthetic A2→A4 test.
+	# It never interprets the user's arbitrary raw draft as validated kinetics.
+	demo_run_button = _button("▶  Учебный тест N₂O₄ → 2 NO₂", true)
+	demo_run_button.tooltip_text = "Условная константа k=0,1 с⁻¹, не справочная кинетика NO₂. Нужен локальный A4 CLI."
+	demo_run_button.pressed.connect(_run_demo)
+	box.add_child(demo_run_button)
+	playback_step_button = _button("Один шаг по вычисленной истории", false)
+	playback_step_button.disabled = true
+	playback_step_button.pressed.connect(_step_demo)
+	box.add_child(playback_step_button)
+	box.add_child(_label("Настоящий расчёт пользовательского черновика пока недоступен. Учебный тест использует отдельную явно гипотетическую модель.", 10, WARNING))
 	return panel
 
 func _timeline() -> Control:
@@ -264,24 +286,30 @@ func _timeline() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	panel.add_child(_pad(row, 16, 9, 16, 9))
-	var rewind := _button("↶", false)
-	rewind.disabled = true
-	rewind.tooltip_text = "История и повторный расчёт будут подключены после согласования A4"
-	row.add_child(rewind)
-	var play := _button("▶", false)
-	play.disabled = true
-	row.add_child(play)
-	var slider := HSlider.new()
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slider.editable = false
-	row.add_child(slider)
-	row.add_child(_label("t = —", 11, MUTED))
-	var speed := OptionButton.new()
-	speed.add_item("1×")
-	speed.add_item("2×")
-	speed.add_item("4×")
-	speed.disabled = true
-	row.add_child(speed)
+	playback_rewind_button = _button("↶", false)
+	playback_rewind_button.disabled = true
+	playback_rewind_button.tooltip_text = "К началу сохранённой вычисленной истории (не повторный численный расчёт)"
+	playback_rewind_button.pressed.connect(_rewind_demo)
+	row.add_child(playback_rewind_button)
+	playback_button = _button("▶", false)
+	playback_button.disabled = true
+	playback_button.pressed.connect(_toggle_playback)
+	row.add_child(playback_button)
+	playback_slider = HSlider.new()
+	playback_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	playback_slider.editable = false
+	playback_slider.step = 1.0
+	playback_slider.value_changed.connect(_seek_demo)
+	row.add_child(playback_slider)
+	playback_label = _label("t = —", 11, MUTED)
+	row.add_child(playback_label)
+	playback_speed_control = OptionButton.new()
+	playback_speed_control.add_item("1×")
+	playback_speed_control.add_item("2×")
+	playback_speed_control.add_item("4×")
+	playback_speed_control.disabled = true
+	playback_speed_control.item_selected.connect(_set_playback_speed)
+	row.add_child(playback_speed_control)
 	return panel
 
 func _footer() -> Control:
@@ -420,6 +448,7 @@ func _confirm_add_component() -> void:
 	editing_component_id = -1
 	draft_dirty = true
 	graph_view.clear_series()
+	_clear_playback()
 	_refresh_composition()
 
 func _refresh_composition() -> void:
@@ -471,6 +500,7 @@ func _remove_component(component_id: int) -> void:
 	visual_field.remove_marker(component_id)
 	draft_dirty = true
 	graph_view.clear_series()
+	_clear_playback()
 	_refresh_composition()
 	status_label.text = "Черновая запись удалена"
 
@@ -521,11 +551,13 @@ func _on_experiment_name_changed(value: String) -> void:
 func _on_reaction_changed(_value: String) -> void:
 	draft_dirty = true
 	graph_view.clear_series()
+	_clear_playback()
 	_set_draft_status()
 
 func _on_condition_changed(_value: String) -> void:
 	draft_dirty = true
 	graph_view.clear_series()
+	_clear_playback()
 	_set_draft_status()
 
 func _set_draft_status() -> void:
@@ -559,6 +591,123 @@ func _accept_graph_series(series: Dictionary, contract_version: String) -> Dicti
 		return {"ok": false, "error": "График ещё не инициализирован."}
 	return graph_view.submit_series(series, contract_version)
 
+# Explicit synthetic demo. User-authored chemical drafts remain uncalculated.
+func _run_demo() -> void:
+	if solver_process == null or solver_process.is_busy():
+		return
+	graph_view.clear_series()
+	_clear_playback()
+	var built: Dictionary = DemoContractScript.build_demo_request()
+	if not bool(built.get("ok", false)):
+		_show_demo_failure(str(built.get("error", "Ошибка подготовки A2.")))
+		return
+	var launched: Dictionary = solver_process.launch(built.request)
+	if not bool(launched.get("ok", false)):
+		_show_demo_failure(str(launched.get("error", "Ошибка запуска A4.")))
+		return
+	demo_run_button.disabled = true
+	status_label.text = "A2 проверил уравнение · A4 выполняет расчёт"
+	diagnostic_label.text = "Учебный сценарий N₂O₄(g) → 2 NO₂(g), явно гипотетическая k=0,1 с⁻¹. Не справочная химическая кинетика."
+
+func _on_demo_result(result: Dictionary) -> void:
+	demo_run_button.disabled = false
+	if not bool(result.get("ok", false)):
+		graph_view.clear_series()
+		_clear_playback()
+		_show_demo_failure(str(result.get("error", "A4 отклонил вычисление.")))
+		return
+	var concentration_result: Dictionary = _accept_graph_series(result.concentration_series, "0.1")
+	var temperature_result: Dictionary = _accept_graph_series(result.temperature_series, "0.1")
+	if not bool(concentration_result.get("ok", false)) or not bool(temperature_result.get("ok", false)):
+		graph_view.clear_series()
+		_clear_playback()
+		_show_demo_failure("Ответ A4 не прошёл валидацию представления GraphSeries.")
+		return
+	playback_history = result.history.duplicate(true)
+	playback_index = 0
+	playback_elapsed_s = 0.0
+	playback_running = false
+	_refresh_playback_ui()
+	status_label.text = "Учебный A4 расчёт завершён" if bool(result.completed) else "Учебный расчёт A4 остановлен досрочно"
+	diagnostic_label.text = str(result.warning) + " Воспроизведение по проверенным данным, не по придуманной анимации."
+	graph_view.set_active_quantity("concentration")
+	active_graph = "concentration"
+	graph_title.text = "КОНЦЕНТРАЦИЯ · ВРЕМЯ"
+	for mode in graph_buttons:
+		graph_buttons[mode].modulate = Color.WHITE if mode == active_graph else Color(0.68, 0.75, 0.82, 1.0)
+
+func _show_demo_failure(message: String) -> void:
+	status_label.text = "Учебный расчёт недоступен"
+	diagnostic_label.text = message
+
+func _clear_playback() -> void:
+	playback_history.clear()
+	playback_running = false
+	playback_index = 0
+	playback_elapsed_s = 0.0
+	_refresh_playback_ui()
+
+func _refresh_playback_ui() -> void:
+	if playback_slider == null:
+		return
+	var has_result := playback_history.size() > 0
+	playback_rewind_button.disabled = not has_result
+	playback_button.disabled = not has_result
+	playback_step_button.disabled = not has_result
+	playback_speed_control.disabled = not has_result
+	playback_slider.editable = has_result
+	playback_slider.max_value = float(maxi(playback_history.size() - 1, 0))
+	playback_slider.set_value_no_signal(playback_index)
+	playback_button.text = "⏸" if playback_running else "▶"
+	if not has_result:
+		playback_label.text = "t = —"
+		return
+	var sample: Dictionary = playback_history[playback_index]
+	playback_label.text = "t = %.2f c · NO₂ %.4f моль" % [float(sample.time_s), float(sample.no2_mol)]
+
+func _seek_history_index(index: int) -> void:
+	if playback_history.is_empty():
+		return
+	playback_index = clampi(index, 0, playback_history.size() - 1)
+	playback_elapsed_s = float(playback_history[playback_index].time_s)
+	_refresh_playback_ui()
+
+func _seek_demo(value: float) -> void:
+	playback_running = false
+	_seek_history_index(int(roundf(value)))
+
+func _toggle_playback() -> void:
+	if playback_history.is_empty():
+		return
+	if playback_index >= playback_history.size() - 1:
+		_seek_history_index(0)
+	playback_running = not playback_running
+	_refresh_playback_ui()
+
+func _step_demo() -> void:
+	playback_running = false
+	_seek_history_index(playback_index + 1)
+
+func _rewind_demo() -> void:
+	playback_running = false
+	_seek_history_index(0)
+
+func _set_playback_speed(index: int) -> void:
+	playback_speed = pow(2.0, float(index))
+
+func _process(delta: float) -> void:
+	if not playback_running or playback_history.is_empty():
+		return
+	playback_elapsed_s += delta * playback_speed
+	var next_index := playback_index
+	while next_index + 1 < playback_history.size() and float(playback_history[next_index + 1].time_s) <= playback_elapsed_s:
+		next_index += 1
+	if next_index != playback_index:
+		_seek_history_index(next_index)
+	if playback_index >= playback_history.size() - 1:
+		playback_running = false
+		_refresh_playback_ui()
+
 func _request_new_experiment() -> void:
 	pending_open_path = ""
 	if draft_dirty:
@@ -578,6 +727,7 @@ func _new_experiment() -> void:
 	volume_input.text = ""
 	visual_field.clear_markers()
 	graph_view.clear_series()
+	_clear_playback()
 	current_draft_path = ""
 	_refresh_composition()
 	draft_dirty = false
@@ -673,6 +823,7 @@ func _load_draft_from_path(path: String) -> void:
 	var data: Dictionary = decoded.data
 	components = data.components
 	graph_view.clear_series()
+	_clear_playback()
 	visual_field.clear_markers()
 	var max_id := 0
 	for item in components:
