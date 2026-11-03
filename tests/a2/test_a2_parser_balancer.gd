@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_test_negative_cases()
 	_test_exact_conservation_admission_vectors()
 	_test_trusted_stoichiometry_handoff()
+	_test_trusted_handoff_utf8_offsets()
 	_test_exact_source_conservation_rows()
 	_test_balance_validation()
 	_test_external_reaction_dto_validation()
@@ -602,6 +603,68 @@ func _test_trusted_stoichiometry_handoff() -> void:
 	var fresh: Dictionary = Stoichiometry.extract_balanced_terms(source)
 	assert(fresh.ok)
 	assert(fresh.terms[0].element_counts["N"] == 2)
+
+
+func _test_trusted_handoff_utf8_offsets() -> void:
+	# The original UTF-8 byte positions are not Godot character offsets.
+	# Preserve BOTH, because the shared zero-width ErrorEnvelope decision
+	# still belongs to the integrator/A5.
+	var input_source := "N2O4(g) → 2NO2(g)"
+	var success: Dictionary = Stoichiometry.extract_balanced_terms(input_source)
+	assert(success.ok)
+	assert(success.original_input == input_source)
+	assert(success.terms.size() == 2)
+	assert(success.terms[0].source_span == {"start_offset": 0, "end_offset": 8})
+	assert(success.terms[0].source_span_utf8 == {"utf8_byte_start": 0, "utf8_byte_end": 8})
+	assert(success.terms[1].source_span == {"start_offset": 9, "end_offset": 17})
+	assert(success.terms[1].source_span_utf8 == {"utf8_byte_start": 11, "utf8_byte_end": 19})
+	for term in success.terms:
+		var reversed: Dictionary = SpanCodec.to_character_span(input_source, term.source_span_utf8)
+		assert(reversed.ok)
+		assert(reversed.source_span == term.source_span)
+
+	var cyrillic_source := "H2 + O2 → H2Ж"
+	var invalid: Dictionary = Stoichiometry.extract_balanced_terms(cyrillic_source)
+	assert(not invalid.ok)
+	assert(invalid.code == "A2_REACTION_PARSE_FAILED")
+	assert(invalid.parser_code == "PARSE_UNEXPECTED_TOKEN")
+	assert(invalid.source_span == {"start_offset": 12, "end_offset": 13})
+	assert(invalid.source_span_utf8 == {"utf8_byte_start": 14, "utf8_byte_end": 16})
+	assert(SpanCodec.to_character_span(cyrillic_source, invalid.source_span_utf8).source_span == invalid.source_span)
+	assert(not invalid.has("terms"))
+	assert(not invalid.has("conservation_rows"))
+
+	var emoji_source := "H2 → H2😀"
+	var emoji: Dictionary = Stoichiometry.extract_balanced_terms(emoji_source)
+	assert(not emoji.ok)
+	assert(emoji.code == "A2_REACTION_PARSE_FAILED")
+	assert(emoji.source_span == {"start_offset": 7, "end_offset": 8})
+	assert(emoji.source_span_utf8 == {"utf8_byte_start": 9, "utf8_byte_end": 13})
+	assert(SpanCodec.to_character_span(emoji_source, emoji.source_span_utf8).source_span == emoji.source_span)
+
+	var no_arrow := "H2 + O2"
+	var insertion: Dictionary = Stoichiometry.extract_balanced_terms(no_arrow)
+	assert(not insertion.ok)
+	assert(insertion.parser_code == "PARSE_MISSING_ARROW")
+	assert(insertion.source_span == {"start_offset": 7, "end_offset": 7})
+	assert(insertion.source_span_utf8 == {"utf8_byte_start": 7, "utf8_byte_end": 7})
+	assert(SpanCodec.to_character_span(no_arrow, insertion.source_span_utf8).source_span == insertion.source_span)
+
+	var ascii_source := "2H2 + O2 -> 2H2O"
+	var ascii: Dictionary = Stoichiometry.extract_balanced_terms(ascii_source)
+	assert(ascii.ok)
+	for term in ascii.terms:
+		assert(term.source_span_utf8.utf8_byte_start == term.source_span.start_offset)
+		assert(term.source_span_utf8.utf8_byte_end == term.source_span.end_offset)
+
+	# Never offer a partial numeric result when balance fails, and do
+	# not invent an offending byte-span for a chemically ambiguous cause.
+	var unbalanced: Dictionary = Stoichiometry.extract_balanced_terms("H2 + O2 -> H2O")
+	assert(not unbalanced.ok)
+	assert(unbalanced.code == "A2_REACTION_UNBALANCED")
+	assert(not unbalanced.has("source_span_utf8"))
+	assert(not unbalanced.has("terms"))
+	assert(not unbalanced.has("conservation_rows"))
 
 
 func _test_exact_source_conservation_rows() -> void:
