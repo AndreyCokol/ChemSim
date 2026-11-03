@@ -35,7 +35,8 @@ jobs:
       - name: Import integrated Godot scripts
         run: timeout 180s godot --headless --editor --path . --quit
       - name: A2 original parser and balance tests (strict)
-        run: bash .github/scripts/strict-godot-test.sh res://tests/a2/test_a2_parser_balancer.gd "A2 tests: all assertions passed" 180
+        run: |
+          bash .github/scripts/strict-godot-test.sh res://tests/a2/test_a2_parser_balancer.gd "A2 tests: all assertions passed" 180
       - name: A5 original presenter and draft tests (strict)
         run: |
           bash .github/scripts/strict-godot-test.sh res://tests/test_draft_codec.gd "Draft codec tests passed" 180
