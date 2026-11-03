@@ -16,6 +16,13 @@ const MAX_SEARCH_NODES := 2000000
 const FormulaParser = preload("res://src/chemistry/a2/chem_equation_parser.gd")
 
 func propose_balance(reaction: Dictionary, max_sum: int = DEFAULT_MAX_SUM, max_candidates: int = DEFAULT_MAX_CANDIDATES) -> Dictionary:
+	# An externally supplied Reaction DTO must explicitly declare its local
+	# version and direction. Missing metadata cannot be inferred safely.
+	if typeof(reaction.get("schema_version")) != TYPE_INT or int(reaction.schema_version) != 1:
+		return _result("INVALID_INPUT", [], "Unsupported or missing reaction schema version.")
+	var arrow: Variant = reaction.get("arrow_type")
+	if typeof(arrow) != TYPE_STRING or not ["FORWARD", "REVERSIBLE"].has(String(arrow)):
+		return _result("INVALID_INPUT", [], "Reaction arrow type is missing or invalid.")
 	var reactants_value: Variant = reaction.get("reactants", [])
 	var products_value: Variant = reaction.get("products", [])
 	if typeof(reactants_value) != TYPE_ARRAY or typeof(products_value) != TYPE_ARRAY:
@@ -127,12 +134,12 @@ func _is_valid_term(term: Variant) -> bool:
 		return false
 	if typeof(ast.get("source_text")) != TYPE_STRING or String(ast.source_text).is_empty():
 		return false
-	if typeof(species.get("phase", "UNSPECIFIED")) != TYPE_STRING:
+	if typeof(species.get("phase")) != TYPE_STRING:
 		return false
-	var phase := String(species.get("phase", "UNSPECIFIED"))
+	var phase := String(species.phase)
 	if not ["UNSPECIFIED", "SOLID", "LIQUID", "GAS", "AQUEOUS"].has(phase):
 		return false
-	var coefficient: Variant = term.get("stoichiometric_coefficient", 1)
+	var coefficient: Variant = term.get("stoichiometric_coefficient")
 	if typeof(coefficient) != TYPE_INT or int(coefficient) <= 0 or int(coefficient) > MAX_INPUT_COEFFICIENT:
 		return false
 	# Treat the source formula as the authority: a hand-built or stale DTO must
