@@ -267,7 +267,7 @@ def solve_weak_acid(
 
     h, iterations, residual = _log_root_positive(charge_residual)
     a_minus = _scaled_fraction(total_acid_mol_l, ka, h)
-    ha = total_acid_mol_l - a_minus
+    ha = _scaled_fraction(total_acid_mol_l, h, ka)
     oh = kw / h
     mass_error = abs((ha + a_minus) - total_acid_mol_l)
     charge_error = abs(h - a_minus - oh)
@@ -346,7 +346,7 @@ def solve_ammonia_buffer(
 
     h, iterations, residual = _log_root_positive(charge_residual)
     nh4 = _scaled_fraction(total_nitrogen_mol_l, h, ka_nh4)
-    nh3 = total_nitrogen_mol_l - nh4
+    nh3 = _scaled_fraction(total_nitrogen_mol_l, ka_nh4, h)
     oh = kw / h
     mass_error = abs(nh3 + nh4 - total_nitrogen_mol_l)
     charge_error = abs(nh4 + h - chloride_mol_l - oh)
