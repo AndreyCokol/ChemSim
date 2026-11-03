@@ -33,7 +33,7 @@ func _initialize() -> void:
 	var saved := DraftRepository.save_draft(path, payload)
 	assert(saved.ok, "Repository should save a valid UI draft")
 	var loaded := DraftRepository.load_draft(path)
-	assert(loaded.ok, "Repository should load a saved UI draft")
+	assert(loaded.ok, "Repository should load a saved UI draft: " + String(loaded.get("error", "no error detail")))
 	assert(loaded.data.experiment_name == "Repository test", "Experiment name must round-trip")
 	assert(loaded.data.components[0].formula == "X", "Raw formula text must round-trip")
 	assert(loaded.data.conditions.pressure_raw == "raw P", "Raw condition text must round-trip")
