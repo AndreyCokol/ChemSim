@@ -1,0 +1,80 @@
+name: Integrated synthetic A2-A4-A5 smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
+      - "scenes/**"
+      - "project.godot"
+      - "Directory.Build.props"
+      - ".github/workflows/integrated-smoke.yml"
+
+jobs:
+  linux-real-process-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build and unit-test A4 numerical kernel and CLI
+        run: |
+          dotnet test tests/ChemSim.Kinetics.Tests/ChemSim.Kinetics.Tests.csproj -c Release --nologo
+      - name: Publish real Linux x64 self-contained CLI
+        run: |
+          dotnet publish src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o bin --nologo
+          chmod +x bin/chemsim-solver
+      - name: Import integrated Godot scripts
+        run: timeout 180s godot --headless --editor --path . --quit
+      - name: A2 original parser and balance tests
+        run: timeout 180s godot --headless --path . --script res://tests/a2/test_a2_parser_balancer.gd --quit-after 3
+      - name: A5 original presenter and draft tests
+        run: |
+          set -e
+          timeout 180s godot --headless --path . --script res://tests/test_draft_codec.gd --quit-after 3
+          timeout 180s godot --headless --path . --script res://tests/test_draft_repository.gd --quit-after 3
+          timeout 180s godot --headless --path . --script res://tests/test_visual_field.gd --quit-after 3
+          timeout 180s godot --headless --path . --script res://tests/test_graph_series_view.gd --quit-after 3
+          timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd --quit-after 3
+      - name: Actual A2 → .NET 10 CLI → A5 Godot end-to-end
+        run: timeout 180s godot --headless --path . --script res://tests/test_integration_smoke.gd --quit-after 3
+
+  windows-selfcontained-publish:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test A4 on Windows
+        run: dotnet test tests/ChemSim.Kinetics.Tests/ChemSim.Kinetics.Tests.csproj -c Release --nologo
+      - name: Publish Windows x64 self-contained solver
+        shell: pwsh
+        run: |
+          dotnet publish src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o dist/windows --nologo
+          if (-not (Test-Path dist/windows/chemsim-solver.exe)) { throw "Missing Windows solver" }
+      - name: Windows real CLI process smoke
+        shell: pwsh
+        run: |
+          $request = (Resolve-Path tests/ChemSim.Kinetics.Tests/Fixtures/a4-synthetic-request.json).Path
+          $outdir = Join-Path $env:RUNNER_TEMP "chemsim-process"
+          New-Item -ItemType Directory -Force -Path $outdir | Out-Null
+          $requestCopy = Join-Path $outdir "request.json"
+          $responsePath = Join-Path $outdir "response.json"
+          Copy-Item $request $requestCopy
+          & (Resolve-Path dist/windows/chemsim-solver.exe).Path --request $requestCopy --response $responsePath
+          if ($LASTEXITCODE -ne 0) { throw "Windows CLI returned $LASTEXITCODE" }
+          $response = Get-Content $responsePath -Raw | ConvertFrom-Json
+          if ($response.outcome -ne "completed" -or $response.payload.samples.Count -ne 3) { throw "Wrong Windows CLI response" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chemsim-solver-win-x64-synthetic
+          path: dist/windows/chemsim-solver.exe
+          if-no-files-found: error
