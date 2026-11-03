@@ -111,6 +111,16 @@ The current solver enumerates positive integer coefficient vectors in increasing
 
 This is an initial bounded solver, not a general-purpose ILP implementation. Limits and duplicate-term semantics need benchmark-driven refinement before production use.
 
-## Test status
+## Test status: strict Godot 4.3 regression gate (P0 repair)
 
-The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest **source/test validation** is commit `1a0f175d0f3148e49250ed332a922bbdc6220b4e`, passed in workflow run [41662285747](https://github.com/AndreyCokol/ChemSim/actions/runs/41662285747): temporary Godot project setup, import/script parsing, and all A2 parser/balancer tests succeeded, including canonical one-unit-charge round trips, exact chemistry-balance vectors and UTF-8 source-span cases. This evidence applies to that exact source/test commit, not to any later documentation HEAD. Local Godot execution and full integrated-project validation have not been performed in this environment.
+**Important correction to prior CI evidence:** Earlier A2 workflow runs returned process exit code 0 even while the Godot script emitted failed `assert()` diagnostics. For example, [workflow #41670121327](https://github.com/AndreyCokol/ChemSim/actions/runs/41670121327), job `126036138325`, contained **two** `SCRIPT ERROR: Assertion failed.` lines at test `_test_source_span_utf8_conversion` and `_test_balance_validation`, despite a green GitHub job and the `A2 tests: all assertions passed` printout. Therefore those older workflows **do not independently prove all assertions passed**.
+
+Root causes and corrections (A2-owned source/test/CI only):
+
+- The UTF-8 span `[6,7)` in `H2😀O` refers to the **valid** trailing ASCII `O`; the former negative assertion was wrong. It now verifies a successful reverse mapping to Godot characters `[3,4)`.
+- The previous `H1000000000 + H1000000000 -> H2` test is below the `MAX_BALANCE_TOTAL=10^18` aggregate limit; expecting overflow was wrong. The corrected test parses legal `1000000(H1000000)1000 -> H2` and repeats the 1e15-H-atom reactant 1002 times, exceeding 1e18 while staying within the supported term count.
+- [`.github/workflows/a2-parser-tests.yml`](../../../.github/workflows/a2-parser-tests.yml) now runs both Godot editor import and A2 headless tests with `set -euo pipefail`, capturing stdout/stderr via `tee`, failing the job if the output includes `SCRIPT ERROR:`, `ERROR:`, `Parse Error:` or `Assertion failed`, and requiring the explicit A2 completion marker. This guard addresses Godot's possible zero exit code after `assert()` failures; a printed success marker alone is not sufficient.
+
+**Exact checked source/test/workflow HEAD:** `105c652b0a86f987c0ff61ffe0e008e1ebc374c7` passed [Godot 4.3 CI #41671468651](https://github.com/AndreyCokol/ChemSim/actions/runs/41671468651), with both strict steps successful and its actual job log inspected: no runtime `SCRIPT ERROR:` or `Assertion failed`, and the genuine `A2 tests: all assertions passed` marker is present. Fix commits: [A2 tests a6fa04d](https://github.com/AndreyCokol/ChemSim/commit/a6fa04d6448ca099cabe49c1976a1b0630b09dd5) and [strict CI 105c652](https://github.com/AndreyCokol/ChemSim/commit/105c652b0a86f987c0ff61ffe0e008e1ebc374c7).
+
+This evidence certifies **isolated A2 unit/regression tests only**, not the combined Godot bootstrap import, A1 identity mapping, shared wire DTO, Godot↔.NET E2E or clean Windows x64 offline application. No A1/A3/A4/A5 or `main` code was changed.
