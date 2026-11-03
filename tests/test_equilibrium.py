@@ -117,6 +117,21 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(result.species_mol_l["H+"], 1.0e100, delta=1.0e90)
         self.assertAlmostEqual(result.pH, -100.0, delta=1e-10)
 
+    def test_weak_acid_species_fraction_avoids_overflowing_total_times_ka(self):
+        result = solve_weak_acid(1.0e300, 1.0e300, 1.0e-14)
+        self.assertTrue(math.isfinite(result.species_mol_l["A-"]))
+        self.assertTrue(math.isfinite(result.species_mol_l["HA"]))
+        self.assertAlmostEqual(
+            result.species_mol_l["HA"] + result.species_mol_l["A-"],
+            1.0e300,
+            delta=1.0e287,
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["H+"],
+            result.species_mol_l["A-"] + result.species_mol_l["OH-"],
+            delta=result.species_mol_l["H+"] * 1.0e-10,
+        )
+
     def test_w03_agcl_solubility(self):
         result = solve_agcl_solubility(10 ** -9.748, 1.0e-14)
         self.assertAlmostEqual(result.species_mol_l["Ag+"], 1.335e-5, delta=2e-8)
