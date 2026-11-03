@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AndreyCokol/ChemSim/blob/openspec/review-round-1/openspec/contracts/interchange-envelope-v0.1.schema.json",
+  "title": "ChemSim cross-agent interchange candidate v0.1",
+  "description": "Integrator-decided technical candidate. Product-owner OpenSpec baseline approval and producer mappings are still required; not a proof of runtime integration.",
+  "$ref": "#/$defs/Envelope",
+  "$defs": {
+    "Reference": {
+      "type": "object",
+      "required": [
+        "id",
+        "record_revision"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "record_revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "Quantity": {
+      "type": "object",
+      "required": [
+        "value",
+        "unit_id"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit_id": {
+          "type": "string",
+          "enum": [
+            "1",
+            "mol",
+            "kg",
+            "g",
+            "m3",
+            "L",
+            "s",
+            "K",
+            "degC",
+            "Pa",
+            "bar",
+            "mol/m3",
+            "mol/L",
+            "mol/s",
+            "mol/(m3*s)",
+            "J/mol"
+          ]
+        },
+        "basis": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dimension_exponents": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "uncertainty_status": {
+          "type": "string",
+          "enum": [
+            "present",
+            "unknown",
+            "not_reported",
+            "not_assessed",
+            "not_applicable",
+            "withheld"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Availability": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "present",
+            "unknown",
+            "not_reported",
+            "not_assessed",
+            "not_applicable",
+            "withheld"
+          ]
+        },
+        "quantity": {
+          "$ref": "#/$defs/Quantity"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "present"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "quantity"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "quantity"
+              ]
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "SourceSpan": {
+      "type": "object",
+      "required": [
+        "utf8_byte_start",
+        "utf8_byte_end"
+      ],
+      "properties": {
+        "utf8_byte_start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "utf8_byte_end": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "description": "End exclusive; consumer additionally checks end > start and buffer bounds.",
+      "additionalProperties": false
+    },
+    "ErrorEnvelope": {
+      "type": "object",
+      "required": [
+        "code",
+        "severity",
+        "message_key",
+        "context",
+        "recoverable",
+        "responsible_module"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]+$"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error",
+            "fatal"
+          ]
+        },
+        "message_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "object"
+        },
+        "field_path": {
+          "type": "string"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/Reference"
+        },
+        "source_span": {
+          "$ref": "#/$defs/SourceSpan"
+        },
+        "recoverable": {
+          "type": "boolean"
+        },
+        "responsible_module": {
+          "enum": [
+            "A1",
+            "A2",
+            "A3",
+            "A4",
+            "A5",
+            "INTEGRATOR"
+          ]
+        },
+        "details": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ReliabilityVector": {
+      "type": "object",
+      "required": [
+        "data_quality",
+        "model_applicability",
+        "numerical_status",
+        "completeness",
+        "warnings"
+      ],
+      "properties": {
+        "data_quality": {
+          "enum": [
+            "verified",
+            "user_supplied",
+            "hypothetical",
+            "unknown",
+            "conflicting"
+          ]
+        },
+        "model_applicability": {
+          "enum": [
+            "applicable",
+            "approximate",
+            "out_of_domain",
+            "unsupported",
+            "not_assessed"
+          ]
+        },
+        "numerical_status": {
+          "enum": [
+            "not_run",
+            "completed",
+            "completed_with_warnings",
+            "failed",
+            "cancelled",
+            "not_applicable"
+          ]
+        },
+        "completeness": {
+          "enum": [
+            "complete_for_declared_scope",
+            "partial",
+            "absent",
+            "not_assessed"
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ErrorEnvelope"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Sample": {
+      "type": "object",
+      "required": [
+        "time_s",
+        "value_status"
+      ],
+      "properties": {
+        "time_s": {
+          "type": "number"
+        },
+        "value_status": {
+          "enum": [
+            "valid",
+            "missing",
+            "invalid",
+            "out_of_domain"
+          ]
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "value_status": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "value_status"
+            ]
+          },
+          "then": {
+            "required": [
+              "value"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "value"
+              ]
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "GraphSeries": {
+      "type": "object",
+      "required": [
+        "series_id",
+        "result_ref",
+        "quantity_key",
+        "unit_id",
+        "samples"
+      ],
+      "properties": {
+        "series_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "result_ref": {
+          "$ref": "#/$defs/Reference"
+        },
+        "quantity_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "species_ref": {
+          "$ref": "#/$defs/Reference"
+        },
+        "unit_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "basis": {
+          "type": "string"
+        },
+        "samples": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Sample"
+          }
+        }
+      },
+      "description": "Validator MUST additionally enforce strictly increasing finite times, registered dimension/unit/basis, no interpolation over invalid gaps.",
+      "additionalProperties": false
+    },
+    "Envelope": {
+      "type": "object",
+      "required": [
+        "contract_version",
+        "message_id",
+        "kind",
+        "payload",
+        "errors"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "0.1"
+        },
+        "message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "parse_request",
+            "parse_result",
+            "balance_request",
+            "balance_result",
+            "equilibrium_request",
+            "equilibrium_result",
+            "simulation_request",
+            "simulation_result",
+            "error"
+          ]
+        },
+        "request_message_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "blocked",
+            "out_of_domain",
+            "step_limit",
+            "numerical_failure",
+            "invariant_violation",
+            "cancelled",
+            "partial"
+          ]
+        },
+        "payload": {
+          "type": "object"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ErrorEnvelope"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
