@@ -95,6 +95,11 @@ func _initialize() -> void:
 	var round_trip_path := "user://experiments/main-ui-roundtrip.chemsim.json"
 	main._save_draft_to_path(round_trip_path)
 	assert(not main.draft_dirty, "A successful UI save should clear the dirty state")
+	# Reopening the clean active path should load directly without a discard prompt.
+	main._request_load_draft(round_trip_path)
+	assert(not main.discard_dialog.visible, "Opening the current path while clean should not show a discard confirmation")
+	assert(not main.draft_dirty, "A clean same-path Open should leave the draft clean")
+	assert(main.current_draft_path == round_trip_path, "A clean same-path Open should retain the current path")
 	main.experiment_name_input.text = "Unsaved title"
 	assert(main.draft_dirty, "Changing the title should mark the UI draft dirty")
 	main._request_load_draft(round_trip_path)
