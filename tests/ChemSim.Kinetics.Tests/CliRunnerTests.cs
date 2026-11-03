@@ -100,7 +100,7 @@ public sealed class CliRunnerTests
     [InlineData("\"parameter_temperature\":{\"value\":298.15", "\"parameter_temperature\":{\"value\":300", "blocked")]
     [InlineData("\"unit_id\":\"m3\"", "\"unit_id\":\"L\"", "blocked")]
     [InlineData("\"order\":1", "\"order\":-1", "blocked")]
-    [InlineData("\"record_revision\":1", "\"record_revision\":2", "blocked")]
+    [InlineData("\"record_revision\":1", "\"record_revision\":0", "blocked")]
     public void InvalidScientificAdmission_ReturnsBlockedWithoutSamples(
         string original, string changed, string expected)
     {
