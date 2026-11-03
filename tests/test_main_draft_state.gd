@@ -55,6 +55,22 @@ func _initialize() -> void:
 	main.graph_buttons["rate"].pressed.emit()
 	assert(main.active_graph == "rate", "Selecting a graph tab should update the active graph mode")
 	assert(main.graph_title.text == "СКОРОСТЬ · ВРЕМЯ", "Selecting a graph tab should update its title")
+	assert(main.graph_view != null and main.graph_view.active_quantity == "rate", "Graph tabs must switch the actual presentation surface")
+	assert(main.graph_view.series_by_quantity.is_empty(), "No solver values must be shown before admission")
+	var synthetic_graph := {
+		"series_id": "workspace-presentation-only-test",
+		"result_ref": {"id": "synthetic-result", "record_revision": 1},
+		"quantity_key": "rate",
+		"unit_id": "mol/(m3*s)",
+		"samples": [{"time_s": 0.0, "value_status": "valid", "value": 2.0}]
+	}
+	assert(bool(main._accept_graph_series(synthetic_graph, "0.1").get("ok", false)), "A synthetic presentation fixture with correct rate units should be accepted")
+	assert(main.graph_view.series_by_quantity.has("rate"), "The admitted rate should be shown in its own graph tab")
+	main.graph_buttons["concentration"].pressed.emit()
+	assert(main.graph_view.active_quantity == "concentration", "Changing modes must update the real graph view")
+	assert(not main.graph_view.series_by_quantity.has("concentration"), "Rate samples must not leak into concentration")
+	main.graph_view.clear_series()
+	assert(main.graph_view.series_by_quantity.is_empty(), "Clearing synthetic fixture data must restore unavailable state")
 
 	main.components = [{
 		"id": 7,
