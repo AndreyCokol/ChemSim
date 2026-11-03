@@ -9,6 +9,7 @@ func _initialize() -> void:
 	_test_nested_and_round_trip()
 	_test_negative_cases()
 	_test_balance_validation()
+	_test_external_reaction_dto_validation()
 	_test_balance_proposal()
 	_test_search_node_guard()
 	_test_search_node_budget()
@@ -231,7 +232,7 @@ func _test_balance_validation() -> void:
 	assert(unbalanced.ok)
 	var check: Dictionary = parser.check_balance(unbalanced.reaction)
 	assert(not check.balanced)
-	var malformed_check: Dictionary = parser.check_balance({"reactants": [{}], "products": [{}]})
+	var malformed_check: Dictionary = parser.check_balance({"schema_version": 1, "arrow_type": "FORWARD", "reactants": [{}], "products": [{}]})
 	assert(not malformed_check.ok)
 	assert(malformed_check.code == "BALANCE_INVALID_TERM")
 
@@ -253,7 +254,7 @@ func _test_balance_validation() -> void:
 	assert(balanced.ok)
 	assert(parser.check_balance(balanced.reaction).balanced)
 
-	var too_many_terms: Dictionary = {"reactants": [], "products": [balanced.reaction.products[0].duplicate(true)]}
+	var too_many_terms: Dictionary = {"schema_version": 1, "arrow_type": "FORWARD", "reactants": [], "products": [balanced.reaction.products[0].duplicate(true)]}
 	for i in range(4096):
 		too_many_terms.reactants.append(balanced.reaction.reactants[0].duplicate(true))
 	var term_limit_result: Dictionary = parser.check_balance(too_many_terms)
@@ -265,6 +266,65 @@ func _test_balance_validation() -> void:
 	var overflow_result: Dictionary = parser.check_balance(oversized_balance.reaction)
 	assert(not overflow_result.ok)
 	assert(overflow_result.code == "BALANCE_COUNT_OVERFLOW")
+
+func _test_external_reaction_dto_validation() -> void:
+	var parser = Parser.new()
+	var balancer = Balancer.new()
+	var parsed: Dictionary = parser.parse_reaction("2H2 + O2 -> 2H2O")
+	assert(parsed.ok)
+	# A successful parse explicitly materializes coefficient=1 and
+	# phase=UNSPECIFIED; externally supplied DTOs may not omit those keys.
+	assert(parsed.reaction.schema_version == 1)
+	assert(parsed.reaction.arrow_type == "FORWARD")
+	assert(parsed.reaction.reactants[1].stoichiometric_coefficient == 1)
+	assert(parsed.reaction.reactants[0].species.phase == "UNSPECIFIED")
+	assert(parser.check_balance(parsed.reaction).balanced)
+	assert(balancer.propose_balance(parsed.reaction).status == "UNIQUE_OPTIMUM")
+	assert(parser.serialize_reaction(parsed.reaction) == "2H2 + O2 -> 2H2O")
+
+	var missing_version: Dictionary = parsed.reaction.duplicate(true)
+	missing_version.erase("schema_version")
+	var unsupported_version: Dictionary = parsed.reaction.duplicate(true)
+	unsupported_version.schema_version = 2
+	var string_version: Dictionary = parsed.reaction.duplicate(true)
+	string_version.schema_version = "1"
+	var float_version: Dictionary = parsed.reaction.duplicate(true)
+	float_version.schema_version = 1.0
+	var missing_arrow: Dictionary = parsed.reaction.duplicate(true)
+	missing_arrow.erase("arrow_type")
+	var unknown_arrow: Dictionary = parsed.reaction.duplicate(true)
+	unknown_arrow.arrow_type = "SIDEWAYS"
+	var missing_coefficient: Dictionary = parsed.reaction.duplicate(true)
+	missing_coefficient.reactants[1].erase("stoichiometric_coefficient")
+	var missing_phase: Dictionary = parsed.reaction.duplicate(true)
+	missing_phase.reactants[0].species.erase("phase")
+	var invalid_phase: Dictionary = parsed.reaction.duplicate(true)
+	invalid_phase.reactants[0].species.phase = "UNKNOWN"
+
+	var cases: Array = [
+		{"name": "missing schema version", "dto": missing_version, "balance_code": "BALANCE_INVALID_REACTION"},
+		{"name": "unsupported schema version", "dto": unsupported_version, "balance_code": "BALANCE_INVALID_REACTION"},
+		{"name": "string schema version", "dto": string_version, "balance_code": "BALANCE_INVALID_REACTION"},
+		{"name": "float schema version", "dto": float_version, "balance_code": "BALANCE_INVALID_REACTION"},
+		{"name": "missing arrow", "dto": missing_arrow, "balance_code": "BALANCE_INVALID_REACTION"},
+		{"name": "unknown arrow", "dto": unknown_arrow, "balance_code": "BALANCE_INVALID_REACTION"},
+		{"name": "missing coefficient", "dto": missing_coefficient, "balance_code": "BALANCE_INVALID_TERM"},
+		{"name": "missing phase", "dto": missing_phase, "balance_code": "BALANCE_INVALID_TERM"},
+		{"name": "invalid phase", "dto": invalid_phase, "balance_code": "BALANCE_INVALID_TERM"}
+	]
+	for case_entry in cases:
+		var dto: Dictionary = case_entry.dto
+		var balance: Dictionary = parser.check_balance(dto)
+		assert(not balance.ok, String(case_entry.name))
+		assert(not balance.balanced, String(case_entry.name))
+		assert(balance.code == case_entry.balance_code, String(case_entry.name))
+		var proposal: Dictionary = balancer.propose_balance(dto)
+		assert(proposal.status == "INVALID_INPUT", String(case_entry.name))
+		assert(parser.serialize_reaction(dto) == "", String(case_entry.name))
+
+	# The negative checks do not mutate the original parsed DTO.
+	assert(parser.serialize_reaction(parsed.reaction) == "2H2 + O2 -> 2H2O")
+
 
 func _test_search_node_budget() -> void:
 	var balancer = Balancer.new()
