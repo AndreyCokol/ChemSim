@@ -625,4 +625,60 @@ public sealed class KineticsSimulatorTests
         Assert.InRange(Math.Abs(final["B"] / (final["B"] + final["C"]) - k1 / totalRate), 0d, 3e-9);
     }
 
+    [Fact]
+    public void ZeroOrderReaction_MatchesAnalyticalProfileAndVolumeScalingBeforeDepletion()
+    {
+        const double initialA = 1d;
+        const double volume = 2d;
+        const double volumetricRate = 0.05d;
+        const double extentRate = volumetricRate * volume;
+        const double endTime = 8d; // Depletion would occur at 10 s.
+
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "zero-order-A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double>(),
+                    new RateConstant(volumetricRate, 1d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = initialA, ["B"] = 0d
+            },
+            VolumeM3 = volume,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = 0.25d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-9,
+                AbsoluteToleranceMol = 1e-12
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        foreach (var sample in result.Samples)
+        {
+            var expectedA = initialA - extentRate * sample.TimeSeconds;
+            var expectedB = extentRate * sample.TimeSeconds;
+
+            Assert.InRange(Math.Abs(sample.AmountsMol["A"] - expectedA), 0d, 2e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol["B"] - expectedB), 0d, 2e-9);
+            Assert.InRange(Math.Abs(sample.AmountsMol.Values.Sum() - initialA), 0d, 2e-10);
+            Assert.All(sample.AmountsMol.Values, amount => Assert.True(amount >= 0d));
+        }
+    }
+
 }
