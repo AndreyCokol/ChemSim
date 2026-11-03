@@ -6,6 +6,7 @@ This folder contains the first executable A2 domain slice in GDScript 4.x. It ha
 
 - `chem_equation_parser.gd` — formula/reaction parsing, FormulaAST construction, phase and charge parsing, atom/charge balance validation.
 - `chem_reaction_balancer.gd` — bounded positive-integer search for a minimum-sum coefficient vector.
+- `chem_source_span.gd` — validated A2-only conversions between Godot character spans and original UTF-8 byte spans; no shared ErrorEnvelope construction.
 - `tests/a2/test_a2_parser_balancer.gd` — headless smoke tests.
 
 ## Current supported syntax
@@ -25,6 +26,22 @@ Hydrates, square-bracket complexes, redox half-reactions, isotopes, radicals, an
 ## Diagnostic source spans
 
 Parser diagnostics expose `source_span.start_offset` and `source_span.end_offset` as zero-based Godot `String` character indices. The end offset is exclusive. Offsets refer to the original formula or reaction input, including leading whitespace and text before the failing token; they are not UTF-8 byte offsets.
+
+The pure A2 `ChemSourceSpan` utility converts **only offsets**, without rewriting or normalizing the source, changing A2 diagnostics, or choosing the shared wire `ErrorEnvelope` policy:
+
+```gdscript
+var source := "H2 + O2 → H2Ж"
+var parsed := ChemEquationParser.new().parse_reaction(source)
+if not parsed.ok:
+    var bytes := ChemSourceSpan.to_utf8_byte_span(source, parsed.source_span)
+    # For the invalid Cyrillic character: [12,13) -> UTF-8 [14,16).
+    if bytes.ok:
+        var original_chars := ChemSourceSpan.to_character_span(source, bytes.source_span)
+```
+
+Successful results contain `{"ok": true, "source_span": {"utf8_byte_start": ..., "utf8_byte_end": ...}}` or the reverse `{"start_offset": ..., "end_offset": ...}`; invalid values return `{"ok": false, "code": "A2_INVALID_SOURCE_SPAN"}`. Conversion checks missing, wrong-type, negative, reversed and out-of-bounds offsets, and rejects byte ranges ending or starting **inside a UTF-8 multibyte character**. Both functions preserve zero-width character/byte insertion positions, including at EOF. The **integrator/A5 must still decide** whether wire `SourceSpan` accepts zero-width error insertion ranges or encodes a distinct cursor position: this A2 utility does not silently change that policy. Call with the exact unchanged original source; UI offsets from an edited buffer are stale and must be reparsed.
+
+The utility is independently tested with ASCII, UTF-8 Unicode arrows, Cyrillic text and 4-byte emoji and remains part of the A2 scope only; it is **not** an A2→A5 adapter, an approved shared payload or integrated UI validation.
 
 ## API sketch
 
@@ -69,4 +86,4 @@ This is an initial bounded solver, not a general-purpose ILP implementation. Lim
 
 ## Test status
 
-The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest **source/test validation** is commit `dd3de4b396e9a38fe0fccb0f043159ac396fadc6`, passed in workflow run [41657267795](https://github.com/AndreyCokol/ChemSim/actions/runs/41657267795): temporary Godot project setup, import/script parsing, and all A2 parser/balancer tests succeeded. This evidence applies to that exact source/test commit, not to any later documentation HEAD. Local Godot execution and full integrated-project validation have not been performed in this environment.
+The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest **source/test validation** is commit `5301346f2cab397b6652b45c6961b0e53376a92b`, passed in workflow run [41659813692](https://github.com/AndreyCokol/ChemSim/actions/runs/41659813692): temporary Godot project setup, import/script parsing, and all A2 parser/balancer + UTF-8 source-span tests succeeded. This evidence applies to that exact source/test commit, not to any later documentation HEAD. Local Godot execution and full integrated-project validation have not been performed in this environment.
