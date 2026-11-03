@@ -7,6 +7,8 @@ dependency-free reference core. It is not yet a general chemical-speciation engi
 
 **A3-13 verified result semantics (2026-11-03):** W03 AgCl(s) excess-reservoir inventory is unknown (`AqueousResult.solid_mol_l=None`, `solid_phase_state=reservoir_inventory_unknown`), not numeric zero. W05 single-solid precipitation returns `solid_phase_state=no_precipitate|new_precipitate`; a missing dissolved ion produces `diagnostics.residual=None`, `residual_status=zero_ion_activity`, not a non-finite log-saturation numeric result. Other W05 saturation residuals remain finite. This is local Python fixture metadata, not a final Godot/JSON wire API. [Exact source/test CI #41660184041](https://github.com/AndreyCokol/ChemSim/actions/runs/41660184041) passed **69 tests** on commit `f9404ecc1a2a57104271ae7a87a9f1092f8abe19`. A1 source and model applicability admission remain separate.
 
+**A3-15 local gas-result validation (2026-11-03):** `_gas_result` now rejects inconsistent G01/G02 amounts, partial/total pressures, extent or scientific diagnostic model/kind/unit/status before constructing a frozen `GasResult`. Input APIs and numerical algorithm remain unchanged. Validated [CI #41662629358](https://github.com/AndreyCokol/ChemSim/actions/runs/41662629358): **74 tests / OK** on commit `b40f73646435f74d6ee8e013f1a2587c540f1b03`. These gas numerical/semantic checks do not certify I₂ phase stability, A1 source-backed Kp or app compatibility; see [A3 typed scientific handoff](a3-typed-residuals-v01-handoff.md).
+
 ## Scope
 
 - W01: monoprotic weak acid with water autoionization.
