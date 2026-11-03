@@ -31,15 +31,15 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 
 - Added `.github/workflows/a4-dotnet.yml` to restore, build, and test the solution with the .NET 10 SDK on pushes to the A4 feature branch and pull requests.
 - CI uploads TRX test results when available.
-- Verified current PR head `2f1e2541ac157b6a7b88206b37d98063ad3517ee` with GitHub Actions run [41603075099](https://github.com/AndreyCokol/ChemSim/actions/runs/41603075099): Restore, Build and Test all completed successfully.
-- CI status is tied to the exact commit above; re-verify after any subsequent source or test change.
+- Verified source/test commit `d62fd5888254537f48b360a8912459b3d618e16f` with GitHub Actions run [41604271064](https://github.com/AndreyCokol/ChemSim/actions/runs/41604271064): .NET 10 Restore, Build and Test all completed successfully.
+- CI status is tied to the exact source/test commit above; re-verify after any subsequent source or test change.
 
 ## Numerical edge-case hardening
 
 - A final requested integration interval shorter than the configured minimum step is allowed when it is integrated as one final step; the minimum-step limit applies to further subdivision.
 - The integrator advances in elapsed-time coordinates while passing absolute simulation time to the RHS, avoiding loss of step resolution at large absolute start times.
 - The simulator rejects output intervals that cannot advance the representable time coordinate and rejects non-finite total durations.
-- RHS evaluation diagnostics count the stages actually evaluated before a rejected non-physical trial.
+- RHS evaluation diagnostics count actual RHS delegate invocations, including the invocation that throws an arithmetic failure; failed trial steps preserve both the count and original failure message.
 - The output-time ULP calculation uses the inward representable spacing at `double.MaxValue`, avoiding an infinite spacing result from `Math.BitIncrement(double.MaxValue)`.
 
 ## Explicitly not implemented
