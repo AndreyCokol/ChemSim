@@ -56,9 +56,9 @@ public sealed class ToleranceConvergenceBenchmarkTests
             {
                 RelativeTolerance = relativeTolerance,
                 AbsoluteToleranceMol = 1e-14d,
-                InitialStepSeconds = 1d,
+                InitialStepSeconds = 0.1d,
                 MinimumStepSeconds = 1e-12d,
-                MaximumStepSeconds = 10d
+                MaximumStepSeconds = 0.5d
             }
         });
 
@@ -127,9 +127,9 @@ public sealed class ToleranceConvergenceBenchmarkTests
             {
                 RelativeTolerance = relativeTolerance,
                 AbsoluteToleranceMol = 1e-14d,
-                InitialStepSeconds = 0.1d,
+                InitialStepSeconds = 1d,
                 MinimumStepSeconds = 1e-12d,
-                MaximumStepSeconds = 0.5d
+                MaximumStepSeconds = 10d
             }
         });
 
