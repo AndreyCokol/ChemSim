@@ -369,3 +369,57 @@ Provenance, quality, applicability и numerical convergence должны ост�
 Для газовых G01/G02 A3 уточнил: используется dimensionless Kp с pressure standard state \(p^\circ=1\,\mathrm{bar}\), идеальные partial pressures \(p_i=n_iRT/V\), без fugacity coefficients. Это не подтверждает применимость к неидеальным газам и не отменяет отдельного уточнения A1 по фазе I2 для GAS-02.
 
 Источник: PR #4 comment `6600097355` от 2026-11-03. Требования описывают текущую fixture-конвенцию и будущую адаптерную проверку; они не замораживают shared DTO, Unit Registry, ErrorEnvelope или OpenSpec baseline.
+
+
+## 18. HazardRecord completeness semantics — A1 proposal (2026-11-03)
+
+A1 owns the meaning and completeness of hazard data; A5 owns presentation. This section defines domain semantics only. It does not prescribe UI layout or freeze a shared DTO. A5's exact consumer confirmation remains pending (PR #3 comment `6599360808`).
+
+### 18.1 Completeness is scoped, not a safety score
+
+The completeness state applies to a declared assessment scope, not to the substance universally. A scope should identify, where applicable:
+- subject identity (stable Substance/Species reference, with phase/form distinction where hazard classification depends on it);
+- jurisdiction or regulatory framework;
+- source/document and its edition/version;
+- assessed hazard domains/sections (for example physical, health, environmental);
+- assessment date and source publication/effective date.
+
+The state must never be interpreted as a probability of harm, severity score, exposure assessment, or statement that the substance is safe.
+
+### 18.2 Proposed completeness states
+
+| State | Domain meaning | Required interpretation |
+|---|---|---|
+| `not_assessed` | No assessment was performed or no trustworthy assessment evidence is available | Unknown; do not infer absent hazards or safety |
+| `absent` | Assessment was performed for the declared scope and found no applicable hazard information/classification in that scope | Means absent within that assessed scope only; not globally hazard-free |
+| `partial` | Some declared sections/domains have evidence, while others are missing, unavailable, stale, conflicting or not assessed | Preserve which sections are present and which are missing/uncertain |
+| `complete_for_declared_scope` | All required sections for the explicitly declared scope have been assessed and the record has no unresolved required-section gaps | Complete only for that exact scope/source/version/date; never universal “safe” |
+
+A missing record is not equivalent to `absent`. The `absent` state requires positive evidence that the declared scope was actually assessed.
+
+### 18.3 Evidence and conflict handling
+
+A hazard assertion should retain its source/document identity, edition/version, jurisdiction, publication/effective date, retrieval timestamp, relevant section/endpoint, and exact assertion (classification, H/P statement or other hazard datum). If multiple sources disagree:
+- retain each source assertion and its provenance;
+- represent conflict explicitly rather than silently selecting the most reassuring or newest value;
+- do not collapse disagreement into `absent` or `complete_for_declared_scope`;
+- any resolution/precedence policy must be explicit, versioned and scoped to a regulatory use case.
+
+Staleness is separate from completeness. A record can be complete relative to an old source while stale for a current regulatory decision. Preserve both source date and retrieval date; do not silently refresh or overwrite historical evidence.
+
+### 18.4 Negative and acceptance semantics
+
+- No HazardRecord, no H/P statements, unavailable source, or missing section must never produce a “safe”, “non-hazardous” or equivalent positive safety conclusion.
+- `absent` is valid only with evidence of an assessment over a declared scope.
+- `complete_for_declared_scope` requires all required sections for that declared scope and source edition to be accounted for.
+- A partially available source remains `partial`; missing sections are explicit.
+- Conflicting sources remain visible as conflict; completeness cannot hide unresolved disagreement.
+- Stale data remains marked stale independently of completeness.
+- Subject identity mismatch (including substance form/phase where relevant) prevents attaching the assertion to a different catalog entity.
+- User-entered or estimated hazard assertions retain their origin and cannot silently become authoritative regulatory classifications.
+
+### 18.5 Open consumer and policy decisions
+
+A5 has not yet confirmed its minimum fields for rendering unavailable, stale and conflicting hazard evidence. The integrator/owner must also decide whether a shared hazard schema needs additional controlled vocabularies for jurisdiction, hazard domain, source edition and regulatory framework. A1 does not select a global source-precedence policy or legal/regulatory interpretation in this proposal.
+
+Source of coordination request: PR #3 comment `6599360808`, 2026-11-03. This is an A1 semantic proposal, not A5 acceptance or OpenSpec baseline approval.
