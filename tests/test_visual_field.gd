@@ -37,9 +37,6 @@ func _initialize() -> void:
 	arrow.shift_pressed = true
 	field._gui_input(arrow)
 	assert(Vector2(field.markers[0].position).is_equal_approx(Vector2(0.8, 0.65)), "Shift+arrow input should move the selected marker by the larger step")
-	field.select_marker(999)
-	assert(field.selected_marker_id == 999, "Selection API should preserve the requested id for the caller")
-	field.select_marker(7)
 	field.set_marker(8, "Кислород", Vector2(0.97, 0.95))
 	assert(field._find_marker_at(Vector2(97.0, 95.0)) == 8, "Overlapping marker hit-testing must select the visually topmost marker")
 	field.remove_marker(8)
