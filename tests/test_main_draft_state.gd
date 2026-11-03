@@ -7,6 +7,7 @@ func _initialize() -> void:
 	root.add_child(main)
 	assert(main.visual_field != null, "The main workspace must build its visual field")
 	assert(main.status_label != null, "The main workspace must build its status label")
+	assert(main.get_window().min_size == Vector2i(1120, 680), "The workspace window must enforce its minimum usable size")
 	var header_scroll: ScrollContainer = main.find_child("HeaderScroll", true, false)
 	var body_scroll: ScrollContainer = main.find_child("BodyScroll", true, false)
 	assert(header_scroll != null and header_scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO, "The header should remain horizontally navigable in narrow windows")
