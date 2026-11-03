@@ -235,7 +235,7 @@ The current A3 branch satisfies the numerical-fixture portion of this gate, but 
 
 ### Verified fixture readiness
 
-A3-01 through A3-06 are complete for the isolated reference fixtures. The latest exact source/test head is `55a50b74e19ac10b92db023f7c8af1ebc864f89c`; GitHub Actions run [#41624671742](https://github.com/AndreyCokol/ChemSim/actions/runs/41624671742) passed all 63 tests. The fixture layer now rejects malformed/non-finite aqueous inputs and result diagnostics, prevents mutation of validated aqueous species maps, and has independent charge/component checks plus acid/base limiting-regime coverage.
+A3-01 through A3-06 and A3-08 are complete for the isolated reference fixtures. The latest exact source/test head is `eef8b41b62d2df6a9b23354db97a82049ee122ee`; GitHub Actions run [#41625186378](https://github.com/AndreyCokol/ChemSim/actions/runs/41625186378) passed all 65 tests. The fixture layer rejects malformed/non-finite aqueous inputs and result diagnostics, prevents mutation of validated aqueous/gas result maps, and has independent aqueous charge/component and gas atom/pressure consistency checks plus acid/base limiting-regime coverage.
 
 This validation is specific to the seven fixture functions and their documented assumptions. It does not validate a generalized equilibrium network or establish physical applicability outside the idealized models.
 
