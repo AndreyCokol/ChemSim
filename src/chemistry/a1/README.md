@@ -46,3 +46,23 @@ godot --headless --path . --script res://tests/a1/test_a1_identity_gate.gd
 ```
 
 These are **synthetic contract tests**, not scientific validation fixtures or an end-to-end A2→A1→A4 run. Exact-head GitHub Actions evidence must be recorded in PR #15 / Issue #10 after each meaningful change.
+
+
+## A1 local user/hypothetical substance draft catalog (P1)
+
+`a1_user_catalog.gd` is an A1 **private offline draft store**, not the v0.1 interchange envelope, A5 experiment persistence, a verified built-in catalog or a migration of `scripts/domain/substance_record.gd`.
+
+- Only `user_defined` and `hypothetical` origins are accepted. Every draft is explicitly `identity_status: incomplete`, and its hazard coverage is `not_assessed`. Presence of a selected `formula_ast_ref` is **not** an A2 authenticity proof; historical scientific identity binding remains an integrator/A2 task.
+- Caller supplies a stable opaque `substance_id` and `record_revision`. First revision is `1`; append requires the caller's `expected_previous_revision` and a consecutive revision. Every old revision is stored unchanged. Under one ID, `origin`, `formula_ast_ref`, and provenance creation timestamp are immutable; changing formula identity requires **a new catalog ID**, not an overwrite.
+- `properties[]` are explicitly `quality: unverified` with matching local origin. `value_state: unknown/not_reported/not_applicable/withheld` carries no numeric `value`; `value_state: present` permits a finite numeric value (including **0**) only with explicit `unit_id` and `basis`. Neither structure nor numeric presence confers calculation eligibility.
+- Arbitrary `quality: verified`, `redistribution`, `model_eligibility`, serialized `phase`, `net_charge` or `element_counts` are rejected in the local draft format. Do **not** use this store to ingest licensed reference fields, hazards or A2 formula/charge snapshots.
+- Versioned `schema_version: 1` JSON, bounded record/property/file sizes, strict field allowlist, refusal of corrupt JSON and unknown versions. No silent migration. A fixed local file `user://a1_substance_drafts_v1.json` is written through a validated `.tmp` stage, with previous snapshot retained at `.bak`. A failed write attempts rollback; a corrupt primary does **not** silently import the older backup. Restore requires explicit user/integrator review.
+- Test writes use **only** `user://a1_substance_drafts_test_v1.json` (plus test tmp/bak). It is never the production catalog. The store is not yet wired into UI, an authenticated A2 adapter or the shared Save/Replay document. No real chemical value/benchmark is imported.
+
+Exact tests:
+
+```sh
+godot --headless --path . --script res://tests/a1/test_a1_user_catalog.gd
+```
+
+**Known limitations:** this is a local implementation slice. It does not validate literal UTC timestamps beyond structural presence, independently prove provenance truth, enforce scientific unit dimensions, guarantee atomicity under power loss, or resolve concurrent processes on Windows. A5/integrator must specify migration/export/backup UX and cross-module locking before shipping persistent data. No full-app E2E or scientific benchmark admission is implied.
