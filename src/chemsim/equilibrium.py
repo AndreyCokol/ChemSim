@@ -38,7 +38,7 @@ class SolverDiagnostics:
     iterations: int
     residual: float
     component_balance_residual: float
-    charge_balance_residual: float
+    charge_balance_residual: float | None  # None: charge check not applicable (gas fixtures).
     method: str
     balance_unit: str
     activity_model: str = "ideal_dilute_gamma_equals_1"
@@ -623,8 +623,9 @@ def _gas_equilibrium(
         total_pressure,
         extent,
         SolverDiagnostics(
-            iterations, f_residual, component_balance_residual, 0.0,
-            "extent + logQ bisection", "mol"
+            iterations, f_residual, component_balance_residual, None,
+            "extent + logQ bisection", "mol",
+            activity_model="gas_ideal_partial_pressure",
         ),
     )
 

@@ -593,6 +593,15 @@ class GasBenchmarkTests(unittest.TestCase):
             delta=result.total_pressure_pa * 1e-12,
         )
 
+    def test_gas_diagnostics_use_gas_model_and_no_fabricated_charge_audit(self):
+        """Gas log-quotient equilibrium is not an aqueous activity/charge audit."""
+        dimer = solve_no2_dimerization(0.01, 0.0, 298.15, 1.0e-3, 6.73)
+        iodide = solve_h2_i2_hi(0.01, 0.01, 0.0, 298.15, 1.0e-3, 690.2)
+        for result in (dimer, iodide):
+            self.assertEqual(result.diagnostics.activity_model, "gas_ideal_partial_pressure")
+            self.assertIsNone(result.diagnostics.charge_balance_residual)
+            self.assertTrue(math.isfinite(result.diagnostics.component_balance_residual))
+
     def test_gas_result_species_and_pressure_maps_are_read_only(self):
         result = solve_no2_dimerization(0.01, 0.0, 298.15, 1.0e-3, 6.73)
         with self.assertRaises(TypeError):
