@@ -44,6 +44,16 @@ jobs:
           timeout 180s godot --headless --path . --script res://tests/test_main_draft_state.gd --quit-after 3
       - name: Actual A2 → .NET 10 CLI → A5 Godot end-to-end
         run: timeout 180s godot --headless --path . --script res://tests/test_integration_smoke.gd --quit-after 3
+      - name: Export Windows x64 Godot app
+        run: |
+          mkdir -p dist/windows
+          timeout 180s godot --headless --path . --export-release "Windows Desktop" dist/windows/ChemSim.exe
+          test -s dist/windows/ChemSim.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chemsim-godot-win-x64-synthetic
+          path: dist/windows/
+          if-no-files-found: error
 
   windows-selfcontained-publish:
     runs-on: windows-latest
@@ -77,4 +87,36 @@ jobs:
         with:
           name: chemsim-solver-win-x64-synthetic
           path: dist/windows/chemsim-solver.exe
+          if-no-files-found: error
+
+  windows-standalone-package-smoke:
+    needs: [linux-real-process-e2e, windows-selfcontained-publish]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: chemsim-godot-win-x64-synthetic
+          path: package/ChemSim
+      - uses: actions/download-artifact@v4
+        with:
+          name: chemsim-solver-win-x64-synthetic
+          path: package/ChemSim
+      - name: Confirm portable Windows bundle and startup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path package/ChemSim/ChemSim.exe)) { throw "Missing Godot export" }
+          if (-not (Test-Path package/ChemSim/chemsim-solver.exe)) { throw "Missing A4 solver" }
+          Push-Location package/ChemSim
+          try {
+            & ./ChemSim.exe --headless --quit-after 8
+            if ($LASTEXITCODE -ne 0) { throw "Windows Godot startup failed with exit $LASTEXITCODE" }
+          } finally { Pop-Location }
+      - name: Create portable Windows x64 ZIP
+        shell: pwsh
+        run: Compress-Archive -Path package/ChemSim/* -DestinationPath ChemSim-synthetic-smoke-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChemSim-synthetic-smoke-Windows-x64
+          path: ChemSim-synthetic-smoke-win-x64.zip
           if-no-files-found: error
