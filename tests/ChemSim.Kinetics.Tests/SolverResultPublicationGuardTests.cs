@@ -1,3 +1,5 @@
+using System.Text.Json;
+using ChemSim.Kinetics.Cli;
 using ChemSim.Kinetics.Domain;
 using ChemSim.Kinetics.Simulation;
 
@@ -30,6 +32,58 @@ public sealed class SolverResultPublicationGuardTests
 
     private static ValidatedResultPrefix Check(SimulationResult result, int maxSamples = 8) =>
         SolverResultPublicationGuard.Validate(Request(), result, maxSamples);
+
+    [Fact]
+    public void InvalidBackendOutput_MapsToNumericalFailureEnvelope_NotBlockedInput()
+    {
+        var requestId = "dd1b4595-56f6-4a13-9603-4838ade74155";
+        var invalid = Make(SimulationStatus.Success,
+            At(0, 1, 0), At(1, double.NaN, 0.2d));
+        var jsonObject = CliRunner.MakeResult(requestId,
+            new CliRunner.ParsedProblem(Request(), 298.15d, ["A", "B"]),
+            invalid);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(jsonObject));
+        var root = json.RootElement;
+
+        Assert.Equal("0.1", root.GetProperty("contract_version").GetString());
+        Assert.Equal("simulation_result", root.GetProperty("kind").GetString());
+        Assert.Equal(requestId, root.GetProperty("request_message_id").GetString());
+        Assert.Equal("numerical_failure", root.GetProperty("outcome").GetString());
+        var payload = root.GetProperty("payload");
+        Assert.Equal("numerical_failure", payload.GetProperty("termination").GetString());
+        Assert.Empty(payload.GetProperty("samples").EnumerateArray());
+        Assert.Equal("not_reported", payload.GetProperty("last_valid_time_status").GetString());
+        var reliability = payload.GetProperty("reliability");
+        Assert.Equal("hypothetical", reliability.GetProperty("data_quality").GetString());
+        Assert.Equal("failed", reliability.GetProperty("numerical_status").GetString());
+        Assert.Equal("absent", reliability.GetProperty("completeness").GetString());
+        Assert.Equal("KINETICS_RESULT_PUBLICATION_FAILURE",
+            root.GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.Equal("A4", root.GetProperty("errors")[0]
+            .GetProperty("responsible_module").GetString());
+    }
+
+    [Fact]
+    public void ValidFailedBackendOutput_KeepsRealCauseAndPrefix_WithoutFakedEnd()
+    {
+        var result = Make(SimulationStatus.MaximumStepsExceeded,
+            At(0, 1, 0), At(1, 0.8d, 0.2d));
+        var jsonObject = CliRunner.MakeResult(
+            "9d5afeb3-bb79-46c4-8edf-dee9f6b19081",
+            new CliRunner.ParsedProblem(Request(), 298.15d, ["A", "B"]),
+            result);
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(jsonObject));
+        var root = json.RootElement;
+        Assert.Equal("step_limit", root.GetProperty("outcome").GetString());
+        var payload = root.GetProperty("payload");
+        Assert.Equal(1d, payload.GetProperty("last_valid_time_s").GetDouble());
+        Assert.Equal(2d, payload.GetProperty("requested_end_s").GetDouble());
+        Assert.Equal(2, payload.GetProperty("samples").GetArrayLength());
+        Assert.Equal("partial", payload.GetProperty("reliability")
+            .GetProperty("completeness").GetString());
+        Assert.Equal("KINETICS_MAXIMUMSTEPSEXCEEDED",
+            root.GetProperty("errors")[0].GetProperty("code").GetString());
+    }
 
     [Fact]
     public void RealNumericalSuccess_IsVerifiedBeforeItCanBeCalledComplete()
