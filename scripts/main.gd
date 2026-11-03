@@ -469,6 +469,7 @@ func _remove_component(component_id: int) -> void:
 func _select_component_for_placement(component_id: int) -> void:
 	selected_component_id = component_id
 	visual_field.select_marker(component_id)
+	visual_field.grab_focus()
 	_refresh_composition()
 	status_label.text = "Нажмите на визуальное поле для размещения маркера"
 
