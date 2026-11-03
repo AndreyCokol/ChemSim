@@ -303,6 +303,27 @@ class AqueousBenchmarkTests(unittest.TestCase):
             delta=1.0e-15,
         )
 
+    def test_agcl_precipitation_does_not_create_solid_for_single_salt_feeds(self):
+        # AgNO3-only and NaCl-only feeds are individually neutral, but cannot
+        # produce AgCl(s) because one required counter-ion is absent.
+        cases = (
+            ("AgNO3 only", 1.0e-2, 0.0, 0.0, 1.0e-2, "Ag+", "NO3-"),
+            ("NaCl only", 0.0, 1.0e-2, 1.0e-2, 0.0, "Cl-", "Na+"),
+        )
+        for label, silver, chloride, sodium, nitrate, dissolved, spectator in cases:
+            with self.subTest(feed=label):
+                result = solve_agcl_precipitation(
+                    silver, chloride, sodium, nitrate, 1.0e-12, 1.0e-14
+                )
+                self.assertEqual(result.solid_mol_l, 0.0)
+                self.assertEqual(result.species_mol_l["Ag+"], silver)
+                self.assertEqual(result.species_mol_l["Cl-"], chloride)
+                self.assertEqual(result.species_mol_l["Na+"], sodium)
+                self.assertEqual(result.species_mol_l["NO3-"], nitrate)
+                self.assertEqual(result.diagnostics.component_balance_residual, 0.0)
+                self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
+                self.assertEqual(result.species_mol_l[dissolved], result.species_mol_l[spectator])
+
     def test_rejects_relative_feed_mismatch_for_trace_totals(self):
         with self.assertRaises(EquilibriumInputError):
             solve_agcl_precipitation(1.0e-12, 1.0e-12, 1.0e-12, 0.0, 1.0e-10, 1.0e-14)
