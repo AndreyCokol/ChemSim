@@ -220,6 +220,19 @@ A3 предоставил provisional consumer contract в `docs/agents/a3-equil
 | Несбалансированный заряд | `Na+ + Cl- -> Na+` | atom/charge balance reports residual |
 | Повторный член | `H2 + H2 + O2 -> H2O` | two H2 source terms remain distinct in the input DTO; solver aggregates them into one variable with both source IDs; proposed aggregate coefficient is 2; no arbitrary split back to source terms |
 
+## Serializer contract — Reaction DTO versioning (A2 audit, 2026-11-03)
+
+The canonical reaction DTO emitted by `parse_reaction()` carries top-level `schema_version = 1`. A serializer must fail closed for a missing, non-integer, or unsupported top-level Reaction DTO schema version; it must not silently treat an unversioned or newer DTO as version 1. For the current v1 implementation, `serialize_reaction()` returns an empty string for any reaction DTO whose top-level `schema_version` is not the integer `1`.
+
+Required A2 regression cases before implementation approval:
+- Parsed v1 reaction DTO serializes to the existing canonical string.
+- Removing top-level `schema_version` makes serialization fail (empty string).
+- Setting top-level `schema_version` to unsupported integer `2` makes serialization fail.
+- Setting top-level `schema_version` to a non-integer value makes serialization fail.
+- Existing malformed/stale FormulaAST, phase, arrow, term, and round-trip rejection tests continue to pass.
+
+This is a focused A2-owned serializer invariant and does not define shared DTO version negotiation, migration, ErrorEnvelope versioning, or compatibility policy. Those remain integrator decisions. The finding was verified against the current A2 branch: `parse_reaction()` emits version 1, while `serialize_reaction()` currently validates sides, arrow and terms but omits the top-level version check. Implementation and tests remain gated by product-owner approval of this DRAFT OpenSpec.
+
 ## Ограничения и риски
 
 - Балансировка — ограниченный точный перебор, а не универсальный ILP solver; статус ограничения поиска не эквивалентен отсутствию решения.
