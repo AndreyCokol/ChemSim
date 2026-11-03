@@ -84,6 +84,9 @@ func _initialize() -> void:
 
 	main._select_component_for_placement(added_id)
 	assert(main.visual_field.has_focus(), "Selecting a component for placement should move keyboard focus to the visual field")
+	assert(main.visual_field.selected_marker_id == -1, "An unplaced component should not create a phantom visual selection")
+	assert(main.visual_field.markers.is_empty(), "Selecting an unplaced component must not create a visual marker before placement")
+	assert(not main.visual_field.move_marker_by(added_id, Vector2.RIGHT, 0.01), "An unplaced component must not be keyboard-movable before placement")
 	main._on_field_pressed(Vector2(0.3, 0.4))
 	assert(main.visual_field.selected_marker_id == added_id, "Placing a component should select its visual marker for keyboard movement")
 	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.3, 0.4)), "Placement should update normalized draft coordinates")
