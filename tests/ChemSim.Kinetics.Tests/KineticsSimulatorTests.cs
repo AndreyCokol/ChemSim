@@ -858,4 +858,53 @@ public sealed class KineticsSimulatorTests
         Assert.InRange(Math.Abs(result.Samples[1].AmountsMol.Values.Sum() - 1d), 0d, 2e-10);
     }
 
+    [Fact]
+    public void MaximumInternalSteps_CountsRejectedTrialsAgainstGlobalBudget()
+    {
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 1d },
+                    new RateConstant(10d, 0d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double> { ["A"] = 1d, ["B"] = 0d },
+            VolumeM3 = 1d,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = 0.1d,
+            OutputIntervalSeconds = 0.1d,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = 1e-14,
+                AbsoluteToleranceMol = 1e-15,
+                InitialStepSeconds = 0.1d,
+                MinimumStepSeconds = 1e-12,
+                MaximumStepSeconds = 0.1d,
+                MaximumInternalSteps = 1
+            }
+        });
+
+        Assert.Equal(SimulationStatus.MaximumStepsExceeded, result.Status);
+        Assert.Equal(0, result.Diagnostics.AcceptedSteps);
+        Assert.Equal(1, result.Diagnostics.RejectedSteps);
+        Assert.Equal(1, result.Diagnostics.AcceptedSteps + result.Diagnostics.RejectedSteps);
+        Assert.Equal(7, result.Diagnostics.RightHandSideEvaluations);
+        Assert.Single(result.Samples);
+        Assert.Equal(0d, result.Samples[0].TimeSeconds);
+        Assert.Equal(1d, result.Samples[0].AmountsMol["A"]);
+        Assert.Equal(0d, result.Samples[0].AmountsMol["B"]);
+    }
+
 }
