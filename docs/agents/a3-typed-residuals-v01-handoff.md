@@ -1,5 +1,7 @@
 # A3-14 — Scientific residual and pH metadata mapping for seven equilibrium fixtures
 
+> **A3-17 local science projection — 2026-11-03:** Seven local aqueous/gas fixture results now have an **A3-owned, JSON-safe, Availability-shaped observation projection** with strict per-field scientific units/kinds; W01/W02/W04 `not_modelled` solid placeholder emits **not_assessed** (not numerical 0), W03 reservoir inventory **unknown** and numerical checks **not_assessed**, W05 assessed absence of precipitate **present zero**, W05 zero-ion logarithmic index **not_applicable with domain_status=zero_ion_activity** and unit metadata `1`, gas charge/pH **not_applicable**. Includes fail-closed validation, `reference_admitted=false`, `redistribution_approved=false`, and **single-state** qualifier, not a versioned shared transport DTO. [A3-17 mapping and consumer acceptance](a3-local-science-observation-projection.md). Source/test commits `6837754` and `6535e9a`; [CI #41667873794](https://github.com/AndreyCokol/ChemSim/actions/runs/41667873794) **84 tests / OK**. Real A1/integrator/A5 interoperability remains unverified.
+
 **Date:** 2026-11-03  
 **Owner/lease:** Agent A3, Issue #8 / Draft PR #4 / `agent/a3-equilibrium-implementation`  
 **Status:** **VERIFIED in isolated Python reference fixtures** at code/test commit `3c2106615017bf5dbe4c4feb1aff89e1aee6318c`; [Actions #41661392329](https://github.com/AndreyCokol/ChemSim/actions/runs/41661392329) job `test` **71 tests / OK**. No producer DTO/Godot integration assertion.
