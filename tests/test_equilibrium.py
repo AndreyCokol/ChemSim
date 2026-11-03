@@ -345,6 +345,16 @@ class AqueousBenchmarkTests(unittest.TestCase):
             solve_agcl_precipitation(0.01, 0.01, 0.02, 0.01, 1e-10, 1e-14)
 
 
+    def test_strong_neutralization_charge_diagnostic_preserves_large_feed_difference(self):
+        hcl = 1.0e308
+        naoh = math.nextafter(hcl, math.inf)
+        result = solve_strong_neutralization(hcl, naoh, 1.0e-14)
+        expected_net = naoh - hcl
+        self.assertLess(
+            result.diagnostics.charge_balance_residual,
+            abs(expected_net) * 1.0e-14,
+        )
+
     def test_strong_acid_only_and_strong_base_only(self):
         acid = solve_strong_neutralization(0.01000, 0.0, 1.0e-14)
         base = solve_strong_neutralization(0.0, 0.01000, 1.0e-14)
