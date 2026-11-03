@@ -1,0 +1,170 @@
+name: Integrated synthetic A2-A4-A5 smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "src/**"
+      - "tests/**"
+      - "scenes/**"
+      - "project.godot"
+      - "Directory.Build.props"
+      - ".github/workflows/integrated-smoke.yml"
+      - ".github/scripts/**"
+      - "export_presets.cfg"
+
+jobs:
+  linux-real-process-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build and unit-test A4 numerical kernel and CLI
+        run: |
+          dotnet test tests/ChemSim.Kinetics.Tests/ChemSim.Kinetics.Tests.csproj -c Release --nologo
+      - name: Publish real Linux x64 self-contained CLI
+        run: |
+          dotnet publish src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o bin --nologo
+          chmod +x bin/chemsim-solver
+      - name: Import integrated Godot scripts
+        run: timeout 180s godot --headless --editor --path . --quit
+      - name: A2 original parser and balance tests (strict)
+        run: |
+          bash .github/scripts/strict-godot-test.sh res://tests/a2/test_a2_parser_balancer.gd "A2 tests: all assertions passed" 180
+      - name: A5 original presenter and draft tests (strict)
+        run: |
+          bash .github/scripts/strict-godot-test.sh res://tests/test_draft_codec.gd "Draft codec tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_draft_repository.gd "Draft repository tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_visual_field.gd "Visual field tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_graph_series_view.gd "Graph series presentation tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_a5_smoke_admission.gd "A5 smoke admission and negative-result QA tests passed" 180
+          bash .github/scripts/strict-godot-test.sh res://tests/test_main_draft_state.gd "Main draft-state integration tests passed" 180
+      - name: Actual A2 → .NET 10 CLI → A5 Godot end-to-end (strict)
+        run: bash .github/scripts/strict-godot-test.sh res://tests/test_integration_smoke.gd "A2 → A4 actual process → A5 Godot synthetic integration smoke passed" 3000
+      - name: Install/check Godot Windows export templates
+        run: |
+          set -eu
+          destination="$HOME/.local/share/godot/export_templates/4.3.stable"
+          mkdir -p "$destination"
+          if [ -f /root/.local/share/godot/export_templates/4.3.stable/windows_release_x86_64.exe ]; then
+            cp -a /root/.local/share/godot/export_templates/4.3.stable/. "$destination/"
+          fi
+          if [ ! -f "$destination/windows_release_x86_64.exe" ]; then
+            curl --fail --location --retry 3 \
+              https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz \
+              --output /tmp/chemsim-godot-export-templates.tpz
+            mkdir -p /tmp/chemsim-export-templates
+            python3 -m zipfile -e /tmp/chemsim-godot-export-templates.tpz /tmp/chemsim-export-templates
+            cp -a /tmp/chemsim-export-templates/templates/. "$destination/"
+          fi
+          test -s "$destination/windows_release_x86_64.exe"
+      - name: Export Windows x64 Godot app
+        run: |
+          mkdir -p dist/windows
+          timeout 180s godot --headless --path . --export-release "Windows Desktop" dist/windows/ChemSim.exe
+          test -s dist/windows/ChemSim.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chemsim-godot-win-x64-synthetic
+          path: dist/windows/
+          if-no-files-found: error
+
+  windows-selfcontained-publish:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test A4 on Windows
+        run: dotnet test tests/ChemSim.Kinetics.Tests/ChemSim.Kinetics.Tests.csproj -c Release --nologo
+      - name: Publish Windows x64 self-contained solver
+        shell: pwsh
+        run: |
+          dotnet publish src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o dist/windows --nologo
+          if (-not (Test-Path dist/windows/chemsim-solver.exe)) { throw "Missing Windows solver" }
+      - name: Windows real CLI process smoke
+        shell: pwsh
+        run: |
+          $request = (Resolve-Path tests/ChemSim.Kinetics.Tests/Fixtures/a4-synthetic-request.json).Path
+          $outdir = Join-Path $env:RUNNER_TEMP "chemsim-process"
+          New-Item -ItemType Directory -Force -Path $outdir | Out-Null
+          $requestCopy = Join-Path $outdir "request.json"
+          $responsePath = Join-Path $outdir "response.json"
+          Copy-Item $request $requestCopy
+          & (Resolve-Path dist/windows/chemsim-solver.exe).Path --request $requestCopy --response $responsePath
+          if ($LASTEXITCODE -ne 0) { throw "Windows CLI returned $LASTEXITCODE" }
+          $response = Get-Content $responsePath -Raw | ConvertFrom-Json
+          if ($response.outcome -ne "completed" -or $response.payload.samples.Count -ne 3) { throw "Wrong Windows CLI response" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chemsim-solver-win-x64-synthetic
+          path: dist/windows/chemsim-solver.exe
+          if-no-files-found: error
+
+  windows-standalone-package-smoke:
+    needs: [linux-real-process-e2e, windows-selfcontained-publish]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: chemsim-godot-win-x64-synthetic
+          path: package/ChemSim
+      - uses: actions/download-artifact@v4
+        with:
+          name: chemsim-solver-win-x64-synthetic
+          path: package/ChemSim
+      - name: Confirm portable Windows bundle and startup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path package/ChemSim/ChemSim.exe)) { throw "Missing Godot export" }
+          if (-not (Test-Path package/ChemSim/chemsim-solver.exe)) { throw "Missing A4 solver" }
+          Push-Location package/ChemSim
+          try {
+            # Windows GUI-subsystem apps launched via PowerShell's invocation
+            # operator do not reliably populate $LASTEXITCODE. Wait on the
+            # actual process handle and inspect its exit status explicitly.
+            $exe = (Resolve-Path ./ChemSim.exe).Path
+            $process = Start-Process -FilePath $exe -ArgumentList @("--headless", "--quit-after", "8") -PassThru -Wait
+            if ($null -eq $process -or $process.ExitCode -ne 0) {
+              throw "Windows Godot startup failed: $($process.ExitCode)"
+            }
+          } finally { Pop-Location }
+      - name: Real packaged Windows Godot-to-A4 integration QA (Unicode folder)
+        shell: pwsh
+        run: |
+          $qaRoot = Join-Path $env:RUNNER_TEMP "ХимСим Проверка"
+          New-Item -Path $qaRoot -ItemType Directory -Force | Out-Null
+          Copy-Item -Path package/ChemSim/* -Destination $qaRoot -Recurse -Force
+          $exe = Join-Path $qaRoot "ChemSim.exe"
+          $solver = Join-Path $qaRoot "chemsim-solver.exe"
+          if (-not (Test-Path $exe) -or -not (Test-Path $solver)) { throw "Unicode-folder package is missing an executable" }
+          $stdout = Join-Path $env:RUNNER_TEMP "chemsim-qa-stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "chemsim-qa-stderr.log"
+          $args = @("--headless", "--quit-after", "3000", "--", "--qa-packaged-run")
+          $process = Start-Process -FilePath $exe -WorkingDirectory $qaRoot -ArgumentList $args -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $out = (Get-Content $stdout -Raw -ErrorAction SilentlyContinue)
+          $err = (Get-Content $stderr -Raw -ErrorAction SilentlyContinue)
+          Write-Host "PACKAGED STDOUT:"
+          Write-Host $out
+          Write-Host "PACKAGED STDERR:"
+          Write-Host $err
+          if ($null -eq $process -or $process.ExitCode -ne 0) { throw "Packaged Godot->A4 integration failed, exit $($process.ExitCode)" }
+          if ($out -notmatch "CHEMSIM_PACKAGED_WINDOWS_E2E_PASS") { throw "Packaged Godot did not confirm actual A4 calculation and graph admission" }
+          if (($out + $err) -match "SCRIPT ERROR|CHEMSIM_PACKAGED_QA_FAIL") { throw "Packaged Godot emitted a script error" }
+      - name: Create portable Windows x64 ZIP
+        shell: pwsh
+        run: Compress-Archive -Path package/ChemSim/* -DestinationPath ChemSim-synthetic-smoke-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChemSim-synthetic-smoke-Windows-x64
+          path: ChemSim-synthetic-smoke-win-x64.zip
+          if-no-files-found: error

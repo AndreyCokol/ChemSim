@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>ChemSim.Kinetics</RootNamespace>
+    <AssemblyName>ChemSim.Kinetics</AssemblyName>
+  </PropertyGroup>
+</Project>
