@@ -116,3 +116,10 @@ See `openspec/reviews/round-1/a1-kw-source-compatibility-review.md` (source/basi
 - **No backdoor acceptance:** test numbers in A3 code and independent algebraic A3-09 acceptance cases are not an A1 catalog dataset; no default 25 °C, assumed water density, invented mixing volume or corrected W02 diagnostic is created by this checkpoint.
 
 **Current A1 admission statement:** admitted W02 reference inputs = **0**; redistributable Kw fields = **0**; benchmark rows admitted = **0 / 7**. Source review is evidence for a targeted owner/integrator decision, not approval to implement A1 code.
+
+
+## 7. OpenStax first-edition rights stop-condition (2026-11-03)
+
+Correction to §6: first-edition *Chemistry* cannot be treated as unambiguously licensed CC BY 4.0 for packaged reuse merely because its [preface](https://openstax.org/books/chemistry/pages/preface) contains that label. The same page's later attribution section describes noncommercial/share-alike and AI-use restrictions; [current licensing guidance](https://help.openstax.org/s/article/Openstax-textbook-licensing-and-customization) also describes CC BY-NC-SA. The rights status for the particular §14.1 field and intended ChemSim release channel is `blocked_unknown_license` pending written clarification; historical license statements are retained as evidence, **not** authorization.
+
+**Before reference-backed W02 release:** (1) A3 scientific model acceptance at explicitly selected 298.15 K; (2) owner quality/precision and approved OpenSpec baseline; (3) written applicable rights/source-field attribution review; (4) integrator schema/unit/error/adapter approval; (5) A1 semantic and A3 adapter tests with exact-version evidence. Keep `D descriptive candidate`, `M not accepted`, `R blocked` separate. Neither a local demo nor a solver pass automatically lifts R/M. Admission stays 0/7, licensed Kw fields 0.
