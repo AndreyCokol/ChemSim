@@ -88,3 +88,24 @@ godot --headless --path . --script res://tests/a1/test_a1_hazard_gate.gd
 ```
 
 **Not covered:** external source authenticity, applicable regulatory classification, accurate hazard statements, age/version freshness policy, SDS-specific requirements, dangerous-material handling, Windows distribution, and UI accessibility/localization. A1 does not generate safety advice from missing fields.
+
+
+## A1 strict registered-unit dimension gate (P1)
+
+`a1_unit_gate.gd` implements an **A1-local**, pure numerical conversion helper for explicitly supported *integrator v0.1* unit IDs only. It is not a replacement for the scientific model's typed basis, kinetics-specific rate-law dimensions, provenance, applicability, or shared interchange `Quantity` DTO.
+
+- Registered symbols: `1`, `mol`, `kg`, `g`, `m3`, `L`, `s`, `K`, `degC`, `Pa`, `bar`, `mol/m3`, `mol/L`, `mol/s`, `mol/(m3*s)`, `J/mol`. Case-sensitive, no extra aliases.
+- Exact dimensional conversions: `1000 g = 1 kg`, `1000 L = 1 m3`, `1 bar = 100000 Pa`, `1 mol/L = 1000 mol/m3`. Celsius ↔ Kelvin is accepted **only with `temperature_kind: absolute`**, with affine offset `T[K] = T[degC] + 273.15` and rejection of below-absolute-zero values.
+- Caller must supply `required.dimension_id` matching **both** source and destination. For concentration, dimensionless constants, pressure, amount/volumetric rates and molar energy, caller and quantity must supply the same explicit `basis`. If either side supplies a basis for other units, it must match too. A unit conversion never authenticates that basis — the trusted A2/A3/A4 integrator still owns model and data provenance.
+- `convert_availability` preserves `unknown|not_reported|not_assessed|not_applicable|withheld` **without fabricating a quantity or zero**, but still validates the *requested destination* and expected dimension. `present` requires a complete numeric Quantity; a known numerical zero remains `present, value: 0`.
+- Optional Quantity `uncertainty` is **typed Availability**, not a scalar or implicit zero. For `present` uncertainty in linear units, the declared source unit and basis must match, and both value and uncertainty are converted by the same scale. Unknown/not-reported uncertainty remains unknown/not-reported; malformed uncertainty is rejected. Temperature with numeric uncertainty is blocked until an approved **temperature-difference unit** exists (v0.1 `degC` describes absolute temperature; do not use a Celsius offset for error bars).
+- Rejects mass→mol without a trusted molar mass and explicit domain calculation, amount-rate→volumetric-rate without a volume/model, molality `mol/kg`→molarity `mol/L`, mismatched molar versus free-ion basis, overflow/underflow to zero, non-finite numbers, fake unit aliases, and a purported “unit conversion” between equilibrium K and kinetic k.
+- This helper **does not calculate** kinetic rate-law `k` dimensions from reaction orders, thermodynamic K vs k model eligibility, concentration mixing, gas standard-state transformations, temperature dependence, chemical sources/rights, or a `ReliabilityVector`. It cannot certify a K/k mismatch solely from a unit symbol — the required **basis/model identity** is established independently and must be provided by the integrator.
+
+The local preflight requires a Quantity `{value, unit_id, basis?, uncertainty?: Availability}` and a requirement such as `{dimension_id: "concentration", basis: "final_mixture_analytical"}`. Godot tests:
+
+```sh
+godot --headless --path . --script res://tests/a1/test_a1_unit_gate.gd
+```
+
+The A1 suite is synthetic, not a source-backed chemistry benchmark or an approved shared DTO. Windows execution and cross-agent adapter validation are still outstanding.
