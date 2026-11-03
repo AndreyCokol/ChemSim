@@ -70,6 +70,9 @@ func _ready() -> void:
 	solver_process = SolverProcessScript.new()
 	add_child(solver_process)
 	solver_process.completed.connect(_on_demo_result)
+	# Internal opt-in QA: real packaged Godot -> sidecar A4 (never on normal startup).
+	if OS.get_cmdline_user_args().has("--qa-packaged-run"):
+		call_deferred("_run_packaged_qa")
 
 func _build_ui() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -447,8 +450,7 @@ func _confirm_add_component() -> void:
 		status_label.text = "Добавлен черновик: " + str(item.name)
 	editing_component_id = -1
 	draft_dirty = true
-	graph_view.clear_series()
-	_clear_playback()
+	_invalidate_simulation()
 	_refresh_composition()
 
 func _refresh_composition() -> void:
@@ -499,8 +501,7 @@ func _remove_component(component_id: int) -> void:
 		selected_component_id = -1
 	visual_field.remove_marker(component_id)
 	draft_dirty = true
-	graph_view.clear_series()
-	_clear_playback()
+	_invalidate_simulation()
 	_refresh_composition()
 	status_label.text = "Черновая запись удалена"
 
@@ -550,14 +551,12 @@ func _on_experiment_name_changed(value: String) -> void:
 
 func _on_reaction_changed(_value: String) -> void:
 	draft_dirty = true
-	graph_view.clear_series()
-	_clear_playback()
+	_invalidate_simulation()
 	_set_draft_status()
 
 func _on_condition_changed(_value: String) -> void:
 	draft_dirty = true
-	graph_view.clear_series()
-	_clear_playback()
+	_invalidate_simulation()
 	_set_draft_status()
 
 func _set_draft_status() -> void:
@@ -590,6 +589,52 @@ func _accept_graph_series(series: Dictionary, contract_version: String) -> Dicti
 	if graph_view == null:
 		return {"ok": false, "error": "График ещё не инициализирован."}
 	return graph_view.submit_series(series, contract_version)
+
+# A user edit must never allow an old asynchronous computation to repaint
+# the new experiment. A cancelled process does not produce usable samples.
+func _invalidate_simulation() -> void:
+	if solver_process != null and solver_process.is_busy():
+		solver_process.cancel()
+	graph_view.clear_series()
+	_clear_playback()
+
+# Optional QA mode proves packaged Godot launches its *sidecar* A4 process.
+# No UI test data is invented; it consumes the validated solver result.
+func _run_packaged_qa() -> void:
+	if solver_process == null or SolverProcessScript.solver_path().is_empty():
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: bundled A4 solver not found")
+		get_tree().quit(2)
+		return
+	_run_demo()
+	if not solver_process.is_busy():
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: A4 child process failed to start: " + diagnostic_label.text)
+		get_tree().quit(2)
+		return
+	var result: Dictionary = await solver_process.completed
+	if not bool(result.get("ok", false)) or not bool(result.get("completed", false)):
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: A4 did not finish: " + str(result.get("error", result.get("outcome", "?"))))
+		get_tree().quit(3)
+		return
+	if playback_history.size() != 21 or not graph_view.series_by_quantity.has("concentration") or not graph_view.series_by_quantity.has("temperature"):
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: real A4 samples not admitted by Godot graphs")
+		get_tree().quit(4)
+		return
+	if absf(float(playback_history.back().no2_mol) - 2.0 * (1.0 - exp(-0.5))) > 5.0e-6:
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: numerical result deviates from synthetic analytical reference")
+		get_tree().quit(5)
+		return
+	_step_demo()
+	if playback_index != 1:
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: step navigation failed")
+		get_tree().quit(6)
+		return
+	_rewind_demo()
+	if playback_index != 0:
+		printerr("CHEMSIM_PACKAGED_QA_FAIL: rewind navigation failed")
+		get_tree().quit(7)
+		return
+	print("CHEMSIM_PACKAGED_WINDOWS_E2E_PASS: Godot->A2->A4->graphs->history")
+	get_tree().quit(0)
 
 # Explicit synthetic demo. User-authored chemical drafts remain uncalculated.
 func _run_demo() -> void:
@@ -726,8 +771,7 @@ func _new_experiment() -> void:
 	pressure_input.text = ""
 	volume_input.text = ""
 	visual_field.clear_markers()
-	graph_view.clear_series()
-	_clear_playback()
+	_invalidate_simulation()
 	current_draft_path = ""
 	_refresh_composition()
 	draft_dirty = false
@@ -821,9 +865,8 @@ func _load_draft_from_path(path: String) -> void:
 		_show_io_error(str(decoded.get("error", "Не удалось прочитать черновик.")) + " Текущий эксперимент не изменён.")
 		return
 	var data: Dictionary = decoded.data
+	_invalidate_simulation()
 	components = data.components
-	graph_view.clear_series()
-	_clear_playback()
 	visual_field.clear_markers()
 	var max_id := 0
 	for item in components:
