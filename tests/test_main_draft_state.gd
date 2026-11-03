@@ -50,6 +50,19 @@ func _initialize() -> void:
 	assert(added_id == 1, "A new experiment should assign its first component ID")
 	assert(main.selected_component_id == added_id, "The newly added component should become selected")
 
+	# Editing a placed component must move visual selection away from
+	# whichever marker was selected previously.
+	main.components.append({
+		"id": 2,
+		"name": "Кислород",
+		"formula": "O2",
+		"amount": "1",
+		"unit": "моль",
+		"phase": "Газ",
+		"position": Vector2(0.7, 0.7)
+	})
+	main.visual_field.set_marker(2, "Кислород", Vector2(0.7, 0.7))
+	main.visual_field.select_marker(2)
 	main._open_edit_dialog(added_id)
 	main.name_input.text = "Переименованная вода"
 	main.formula_input.text = "H2O"
@@ -60,6 +73,9 @@ func _initialize() -> void:
 	assert(main.components[0].name == "Переименованная вода", "Editing should update the existing component rather than append")
 	assert(main.components.size() == 1, "Editing must not create a duplicate component")
 	assert(main.components[0].unit == "custom unit" and main.components[0].phase == "custom phase", "Editing other fields must not discard custom unit or phase values")
+	assert(main.selected_component_id == added_id, "The edited component should remain selected in the composition")
+	assert(main.visual_field.selected_marker_id == added_id, "Editing a placed component should synchronize visual-marker selection")
+	main._remove_component(2)
 
 	main._on_field_pressed(Vector2(0.3, 0.4))
 	assert(main.visual_field.selected_marker_id == added_id, "Placing a component should select its visual marker for keyboard movement")
