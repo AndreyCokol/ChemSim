@@ -49,6 +49,21 @@ Use three species A, B, C and the following irreversible power-law reactions:
 
 Initial state: A=1 mol, B=0 mol, C=0 mol; volume 1 m³. The sum A+B+C is invariant. This is a standard stiff kinetic structure with a fast transient and widely separated reaction time scales. The reference trajectory must come from an independently validated high-accuracy implementation or published reference values, not from the solver under test.
 
+### STIFF-01 reference data — provisional cross-check
+
+A static reference trajectory is stored in `docs/engineering/benchmarks/robertson-stiff-reference.csv`. It was generated offline with SciPy 1.17.0 `solve_ivp` using both `Radau` and `BDF`, each with `rtol=1e-12`, `atol=1e-15`, initial state (1,0,0), integration interval [0, 1e6] s, and requested samples at 0, 0.4, 4, 40, 1e3, 1e5 and 1e6 s. The one-time generation does not add a Python dependency to ChemSim.
+
+Recorded work counters:
+
+| Method | nfev | njev | nlu |
+|---|---:|---:|---:|
+| Radau | 45,978 | 11 | 252 |
+| BDF | 6,520 | 9 | 501 |
+
+The maximum absolute disagreement between the two trajectories at the requested samples is `2.1886270573645561e-11` in the state units (mol; V=1 m³). Maximum `|A+B+C-1|` across the requested samples is below `4.8e-15` for both methods. Both methods reached the final time successfully.
+
+**Reference status:** provisional computational cross-check, not a published authoritative reference. Radau and BDF are distinct stiff integration algorithms from the same SciPy release, not independent software implementations. Preserve the method/version/tolerances with the CSV; do not silently replace these values. Before using them as strict CI acceptance thresholds, cross-check against a separate implementation or published reference and document any differences.
+
 ### STIFF-02 — Separated first-order time scales
 
 Use A → B with (k_f=10^6\ s^{-1}) and B → C with (k_s=1\ s^{-1}), initial A=1 mol, B=C=0, volume 1 m³. The analytic solution is:
