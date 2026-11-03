@@ -80,15 +80,15 @@ Provenance должен позволять проследить конкретн
 Эти метки описывают происхождение, а не автоматически уровень доверия.
 
 ### 3.2 Качество отдельного свойства
-Предлагаемые категории для интеграционного обсуждения:
+Предлагаемые **семантические** категории качества (уточнены в §24; точные enum wire tokens остаются решением интегратора):
 - verified — происхождение, единицы и условия проверены по допустимому источнику;
-- reviewed — проверено человеком/процедурой, но остаются оговорённые ограничения;
+- limited — проверены с явно зафиксированными ограничениями доказательности/применимости;
 - unverified — данные ещё не прошли проверку;
 - conflicting — имеются несовместимые значения/источники;
 - incomplete — не хватает метаданных, необходимых для оценки;
 - unknown — качество не установлено.
 
-Не трактовать эти слова как числовую вероятность правильности.
+Состояние `reviewed` **не** является ещё одной категорией качества: принятие/отклонение относится к независимому review workflow (`unreviewed`, `accepted`, `rejected`) в §24. Не трактовать категории качества как числовую вероятность правильности и не приравнивать `accepted` к `verified`.
 
 ### 3.3 Пригодность для модели
 Пригодность вычисляется на момент использования и зависит от:
@@ -865,6 +865,34 @@ A4 хранит в текущем `RateConstant` только `Value` и `Concen
 - допустимость exploratory-only использования user_defined/hypothetical/unknown;
 - точная семантика local_review_only в пользовательском импорте;
 - общий формат EligibilityDecision, причины отказа и связь с ErrorEnvelope;
-- A5 presentation mapping и отображение stale/conflicting hazard/property assertions.
+- A5 presentation wire mapping и реализация stale/conflicting hazard/property состояний (потребительский минимум A5 подтверждён в PR #3, comment 6602863645; shared DTO ещё не утверждён).
 
 До согласования этих решений матрица остаётся A1 proposal. Она не утверждает shared schema, baseline или реализацию.
+
+## 27. A1 P1 review checkpoint: typed assertion fields and A5/A3 consumer response (2026-11-03)
+
+Новая A1 матрица `openspec/reviews/round-1/a1-mvp-assertion-field-matrix.md` фиксирует R/C/O поля и fail-closed D/M/R gates для Substance identity, PropertyRecord, ThermoConstantRecord, upstream kinetic rate constant, HazardRecord, SourceRecord и redistribution decision. Это **логические требования**, не сериализованный DTO, не выданные численные данные и не разрешение на импорт/реализацию. AQ-02/W02 рассмотрен как наиболее узкий кандидат для первого input/identity integration smoke-test, однако всё ещё **NOT ADMITTED**; точные обязательные W02 параметры и модельные версии должны быть проверены до теста.
+
+### 27.1 A3 thermodynamic consumer coverage — response to Issue #10
+
+A3 запросил подтверждение полей в Issue #10 (consumer comment о typed reaction-specific constants). A1 предложение в §4, §17 и P1-матрице **явно покрывает**:
+- идентификатор и ориентацию/направление реакции, вид константы, состав/заряд участников и фазовый контекст;
+- положительную конечную безразмерную K, basis, standard-state ID и выбранную activity/pressure convention;
+- medium/phase, явную T/P applicability и проверку выбранного activity/ideal model и model version;
+- uncertainty/not-reported marker, method, source/version/field provenance, independent origin/quality/review, per-model eligibility;
+- fail-closed отказ при missing/incompatible metadata; Kinetic k остаётся отдельным видом утверждения, не выводимым из K.
+
+Актуальная A3 реализация использует только fixture-local идеальное приближение `gamma=1`, `c°=1 mol/L` и газовое `p°=1 bar`, а не общий термодинамический API; эти конвенции не становятся глобальными умолчаниями A1. Общая версия, Unit Registry, ErrorEnvelope и adapter mapping — решения интегратора.
+
+### 27.2 A5 hazard presentation consumer confirmation
+
+A5 подтвердил в PR #3 comment `6602863645`: четыре состояния полноты `not_assessed`, `absent`, `partial`, `complete_for_declared_scope`; evidence/source/document/version/jurisdiction, covered/missing sections, publication/effective and retrieved/assessment dates; **отдельные** freshness и conflict; стабильные record/substance ID и revision. A5 подтверждает запрет трактовать отсутствие записи/H/P statements как безопасность и универсализировать complete-for-declared-scope.
+
+A1 принимает эти требования как **подтверждённый минимум потребителя**; типы полей и shared DTO, UI rendering и presentation adapter остаются на согласовании с интегратором и реализацией A5. Это закрывает *вопрос о минимуме полей A5*, но не задачу A1 hazard-data implementation или финальную интеграцию.
+
+### 27.3 Open P1 gates
+
+1. Owner OpenSpec baseline approval — не получено; A1 runtime implementation не разрешена.
+2. Integrator shared schema/version, phase tokens, Unit Registry, ErrorEnvelope, ReliabilityVector, catalog refs and adapter call-sites — не утверждены.
+3. Numerical source/field/conditions/rights and model-specific eligibility — не допущены ни для одного из семи benchmark rows.
+4. A1 contract proposals require A2/A3/A4/A5/integrator tests once implementation is authorized; positive/negative requirements in P1 matrix are **not executed tests**.
