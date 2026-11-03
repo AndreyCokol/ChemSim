@@ -579,3 +579,6 @@ and therefore `[k] = concentration^(1 − Σα_i) · time^−1`.
 For the half-order A→B case (`Σα_i = 0.5`), `e_k = +0.5`, not `−0.5`. A4 explicitly corrected the fixture's unit exponent in commit `0ee1310ac45919b87bc032769f940280a962351c`; the preceding commit `5f37958df86e0f65f30b8afa459f78d4ccaf741f` had the incorrect exponent and is superseded. The corrected exact-head CI was still queued/in progress in A4's report, so this is recorded as a dimensional correction, not as a passed test or final A4 consumer-contract confirmation.
 
 A1 acceptance implication: a rate-constant record or adapter must validate the exponent/dimension against the independently declared kinetic-order vector and the selected rate-law form. A numerically finite `k` with the wrong concentration exponent is dimensionally incompatible and must be rejected. This does not authorize A1 to define A4's serialized type or change A4 implementation.
+
+
+**Статусное дополнение (2026-11-03):** после первоначальной записи A4 сообщил, что TOL-05 завершён на исправленном commit `32fa6797f58ce55c21d9072f04a016e95855c263`; exact-head runs #41619703969 и #41619711656 прошли все 36 тестов (PR #6 comment `6601214425`, Issue #12). Это подтверждает исправленный размерностный пример, но не закрывает отдельный запрос A1 о полном потребительском контракте RateConstant (`6601102813`).
