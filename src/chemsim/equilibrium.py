@@ -385,16 +385,30 @@ def solve_agcl_precipitation(
             silver_total_mol_l, chloride_total_mol_l, 0.0, 0, initial_log_saturation
         )
     else:
-        upper = min(silver_total_mol_l, chloride_total_mol_l)
+        # Solve for the remaining concentration of the limiting ion, not the
+        # precipitation extent. When solubility is tiny relative to the feed,
+        # subtracting an extent close to the limiting total loses significant
+        # digits in the dissolved concentration and can stop bisection early.
+        limiting_total = min(silver_total_mol_l, chloride_total_mol_l)
+        excess_total = abs(silver_total_mol_l - chloride_total_mol_l)
 
-        def saturation(extent: float) -> float:
-            ag_remaining = max(0.0, silver_total_mol_l - extent)
-            cl_remaining = max(0.0, chloride_total_mol_l - extent)
-            return log_saturation(ag_remaining, cl_remaining)
+        def saturation_of_limiting_remaining(limiting_remaining: float) -> float:
+            return log_saturation(
+                limiting_remaining, excess_total + limiting_remaining
+            )
 
-        solid, iterations, residual = _bisect(saturation, 0.0, upper, f_tol=1e-12)
-        ag = max(0.0, silver_total_mol_l - solid)
-        cl = max(0.0, chloride_total_mol_l - solid)
+        limiting_remaining, iterations, residual = _log_root_positive(
+            saturation_of_limiting_remaining,
+            low_log10=-323.0,
+            high_log10=log10(limiting_total),
+        )
+        solid = limiting_total - limiting_remaining
+        if silver_total_mol_l <= chloride_total_mol_l:
+            ag = limiting_remaining
+            cl = excess_total + limiting_remaining
+        else:
+            ag = excess_total + limiting_remaining
+            cl = limiting_remaining
 
     h = sqrt(kw)
     oh = sqrt(kw)
