@@ -267,3 +267,53 @@ The current review confirms these ownership boundaries and unresolved handoff re
 ### A3 integration gate
 
 Until the above shared decisions are recorded and approved, the seven fixture functions remain a reference/benchmark implementation only. The current aqueous model uses gamma=1 and concentration-based pH; the gas model uses ideal partial pressures at p°=1 bar. Neither model supplies non-ideal activities/fugacities, complexes, arbitrary reaction networks or multiple-solid equilibrium. A3-07 therefore remains open for coordination and safe handoff; it is not a claim that production integration is ready.
+
+## A3-07 cross-review refresh — A1/A2 proposals (2026-11-03)
+
+This refresh incorporates the latest A1 data-contract and A2 parser/balancer proposals from `openspec/review-round-1`. It records consumer compatibility findings only; neither proposal is an approved shared schema.
+
+### A1 thermodynamic-data proposal: consumer alignment
+
+The current A1 proposal now explicitly separates origin, quality, review, model-specific eligibility and redistribution disposition, with lifecycle/value-state/applicability/freshness retained as separate concerns. This is compatible with A3's required separation of:
+- scientific applicability to the selected equilibrium model and conditions;
+- provenance/quality/review of the supplied constant;
+- permission to package or redistribute that source data;
+- numerical solver convergence and conservation diagnostics.
+
+A3-specific eligibility gate before any scalar fixture call:
+1. constant identity and reaction direction match the exact equilibrium expression (Ka vs Kb is not interchangeable);
+2. value is present, finite, positive and dimensionless under the declared basis;
+3. standard-state convention and every participating species' phase/medium are compatible;
+4. T/P and model validity intervals cover the requested condition; current aqueous fixture functions cannot apply K(T) corrections;
+5. activity basis is compatible with the selected activity model; current aqueous fixtures accept only explicit ideal-dilute gamma=1 and c°=1 mol/L;
+6. origin/quality/review satisfy the selected calculation policy; hypothetical/unknown/conflicting/rejected values are not silently promoted to reference values;
+7. uncertainty/precision and provenance are retained in result context;
+8. redistribution disposition is checked separately if data are packaged in the application.
+
+A1's matrix does not itself decide which provenance combinations A3 must accept for exploratory user-defined runs. That remains a model/policy decision; no permissive default is inferred.
+
+### A2 FormulaAST/SpeciesRef proposal: consumer alignment
+
+The latest A2 proposal makes FormulaAST the owner of elemental composition and signed integer net charge, while SpeciesRef carries the stable species reference, FormulaAST reference and phase. ReactionTerm separately carries side and positive stoichiometric coefficient. This removes the prior concern about duplicate charge sources and matches A3's required chemical invariants.
+
+A3 adapter requirements remain:
+- validate formula composition and charge before constructing an equilibrium expression;
+- require phase explicitly for each model-relevant occurrence; preserve UNSPECIFIED rather than guessing;
+- preserve reaction direction and coefficient independently of kinetic order;
+- retain source-term locators through any canonical aggregation, so diagnostics can map back to the original input;
+- require a validated balanced reaction or independently re-check elemental and charge conservation at the A3 boundary;
+- do not silently normalize duplicate terms or change reaction direction while resolving K.
+
+The proposal still leaves public identity lifecycle, phase serialization/optional semantics, source-span details, and final Reaction DTO/versioning to integrator/owner approval. A3 must not create a competing SpeciesRef or Reaction wire schema.
+
+### Updated gate disposition
+
+| Gate | Latest evidence | A3 disposition |
+|---|---|---|
+| A1 typed constant and provenance semantics | Detailed A1 proposal now covers thermodynamic metadata and independent origin/quality/review/eligibility/redistribution axes | Consumer requirements are sufficiently specified for review; shared record fields, enum tokens and eligibility policy remain unapproved |
+| A2 formula/charge/phase ownership | A2 proposal assigns composition + net charge to FormulaAST and phase to SpeciesRef/occurrence boundary | Conceptually aligned; canonical phase token/UNSPECIFIED serialization and stable identity/version remain open |
+| A4 kinetic boundary | A4 implementation note documents mol, mol·m⁻³, volumetric rate basis, explicit orders and fixed-volume/isothermal scope | Reviewed and acknowledged; no A3→A4 solver coupling required for MVP |
+| Shared adapter and result envelope | No approved Unit Registry, shared schema/version, ErrorEnvelope, ReliabilityVector or adapter call-site owner | Still blocked; no production adapter implementation is safe |
+| Product-owner baseline approval | Review artifacts remain proposals | Still blocked; no promotion of fixture functions to normative API |
+
+**Conclusion:** A3 has completed its consumer-side scientific review of the current A1/A2/A4 proposals. A3-07 remains open only for the integrator/owner-controlled shared decisions and explicit assignment of the A3 adapter boundary. This is not an implementation authorization. PR #4 remains Draft; `main` is untouched.
