@@ -594,6 +594,8 @@ func _create_file_dialogs() -> void:
 	add_child(save_dialog)
 
 func _open_draft_picker() -> void:
+	if not current_draft_path.is_empty():
+		open_dialog.current_dir = current_draft_path.get_base_dir()
 	open_dialog.popup_centered_ratio(0.7)
 
 func _request_load_draft(path: String) -> void:
