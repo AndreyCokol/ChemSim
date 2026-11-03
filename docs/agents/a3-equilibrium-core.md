@@ -178,3 +178,21 @@ The A2 parser's current term_id is parse-local (source-offset based), not a stab
 For aqueous fixture compatibility, the adapter must map the A2 phase vocabulary explicitly and preserve the current A3 conventions: H+ is the solver's hydrated-proton shorthand, OH− is explicit, liquid water has unit activity and is not a solved species, and the current AgCl precipitation fixture only supports AgNO3/NaCl neutral feeds plus one AgCl(s) phase. A2 syntax support alone does not establish that a species or reaction is supported by an A3 thermodynamic model. In particular, unsupported complexes/hydrates/radicals or unknown phase must fail explicitly.
 
 No A2 files or DTOs are changed by this consumer-boundary note. Canonical phase enum, persistent reaction/term IDs, DTO versioning and the parser-to-solver adapter call site remain integrator decisions.
+
+
+## A5 presentation/consumption boundary (2026-11-03)
+
+The current Python prototype exposes AqueousResult with species_mol_l, concentration-based pH, SolverDiagnostics, and optional solid_mol_l; gas fixtures expose GasResult with species amounts, partial pressures in Pa, total pressure in Pa, extent in mol, and diagnostics. These are implementation dataclasses, not stable Godot DTOs or an approved serialization contract.
+
+For any future A5 adapter, preserve at least:
+
+- each species identity and phase, numeric value, explicit unit/basis, and whether it is dissolved/solid/solvent;
+- pH value together with its basis/model qualifier (current value is -log10([H+]/c°) under gamma=1, not thermodynamic activity pH);
+- solid amount and active/inactive phase status, without fabricating a solid inventory where none was supplied;
+- equilibrium residual, component-balance residual, charge-balance residual, their units/scaling, solver method and iteration count;
+- input-data provenance/quality and model applicability separately from numerical convergence;
+- warnings/limitations and a typed termination/error status; do not map missing diagnostics or non-finite results to zero or success.
+
+An equilibrium solve produces a single equilibrium state, not a time series. A5 must not synthesize a time axis, graph series or kinetic history from an A3 result. Parameter sweeps or scenario comparisons, if later requested, need their own explicit input dimensions and result metadata and are not interchangeable with A4 kinetic trajectories.
+
+Until shared DTOs, Unit Registry, ErrorEnvelope, schema version and ReliabilityVector are approved, A5 should treat these outputs as unavailable for normative integration; a presentation prototype may show clearly labelled placeholders or a specifically versioned local adapter, but must not claim compatibility with the final API. A3 does not define A5 UI behavior or change A5-owned files.
