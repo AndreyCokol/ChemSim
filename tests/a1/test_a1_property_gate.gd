@@ -108,12 +108,28 @@ func _test_exact_scope_and_temperature() -> void:
 		var changed := _record()
 		changed[field] = "other"
 		_expect_code(Gate.validate_numeric_contract(changed, _required()), "A1_CONTEXT_MISMATCH", "scope " + field)
+	var unregistered := _record()
+	var matching_unregistered := _required()
+	unregistered["unit_id"] = "synthetic/unregistered"
+	matching_unregistered["unit_id"] = "synthetic/unregistered"
+	_expect_code(Gate.validate_numeric_contract(unregistered, matching_unregistered), "A1_UNIT_UNREGISTERED", "unknown units cannot be whitelisted by matching labels")
 	var no_temperature := _record()
 	no_temperature.erase("temperature_k")
 	_expect_code(Gate.validate_numeric_contract(no_temperature, _required()), "A1_TEMPERATURE_MISSING", "missing temperature")
 	var wrong_temperature := _record()
 	wrong_temperature["temperature_k"] = 301.0
 	_expect_code(Gate.validate_numeric_contract(wrong_temperature, _required()), "A1_TEMPERATURE_MISMATCH", "no temperature extrapolation")
+	var missing_positive_policy := _required()
+	missing_positive_policy.erase("require_positive")
+	_expect_code(Gate.validate_numeric_contract(_record(), missing_positive_policy), "A1_REQUIREMENT_INCOMPLETE", "no implicit positivity policy")
+	var pressure_requirement := _required()
+	pressure_requirement["pressure_pa"] = 101325.0
+	_expect_code(Gate.validate_numeric_contract(_record(), pressure_requirement), "A1_PRESSURE_MISSING", "missing required P")
+	var pressure_record := _record()
+	pressure_record["pressure_pa"] = 101325.0
+	_expect_ok(Gate.validate_numeric_contract(pressure_record, pressure_requirement), "exact scoped pressure")
+	pressure_record["pressure_pa"] = 100000.0
+	_expect_code(Gate.validate_numeric_contract(pressure_record, pressure_requirement), "A1_PRESSURE_MISMATCH", "no silent pressure conversion")
 	var no_request_temperature := _required()
 	no_request_temperature.erase("temperature_k")
 	_expect_code(Gate.validate_numeric_contract(_record(), no_request_temperature), "A1_REQUIREMENT_INCOMPLETE", "no implicit request T")
