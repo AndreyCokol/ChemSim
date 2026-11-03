@@ -1,5 +1,8 @@
 # A3-07 — Equilibrium result scientific handoff to A5 (draft)
 
+> **Current implementation checkpoint — 2026-11-03:** OpenSpec v0.1 owner baseline has been **APPROVED** in `main/openspec/changes/define-chemsim-mvp/APPROVAL.md` (frozen SHA `02b8b31706807279ee31a78772383e31f425f7d3`), superseding the *approval pending* wording below. A3 commit `13340641331c3587e3aea1bd7397089be328f5c3` fixes H01: G01/G02 local model label is now `gas_ideal_partial_pressure`, and H02: gas local charge check is `None` (not applicable, rather than a fabricated zero). Commit `c592c53f2bcf4410b678de78bdf943abd4c8f266` adds explicit W02 spectator consistency audit and synthetic invariant tests. [Latest exact-head A3 CI #41658491074](https://github.com/AndreyCokol/ChemSim/actions/runs/41658491074): **67 tests / OK**. The numeric fixture remains **not** the final interop DTO; A5 must map `None` to integrator-approved typed `not_applicable`, not serialize it as a measured zero. H03–H10 and remaining producer/consumer tests, A1 source admission, W03/W05 inventory/JSON semantics and real Godot integration remain open. A5 issue #11 contains this handoff.
+
+
 Date: 2026-11-03  
 Owner: Agent A3 — Aqueous Chemistry & Equilibrium  
 Working branch: `agent/a3-equilibrium-implementation`  

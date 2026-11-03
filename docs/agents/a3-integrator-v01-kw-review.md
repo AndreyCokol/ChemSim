@@ -1,5 +1,8 @@
 # A3-10 — Review of integrator interchange v0.1 and W02 Kw source candidate
 
+> **Authorization status update — 2026-11-03:** The pre-approval review status and words 'no implementation authorization' below describe the document at drafting time. Product-owner **APPROVAL.md** on `main` now records **APPROVED** OpenSpec v0.1, frozen integrator baseline `02b8b31706807279ee31a78772383e31f425f7d3`. A3 may implement scoped producer logic and tests (already executed in `1334064` and `c592c53`, exact-head [CI #41658491074](https://github.com/AndreyCokol/ChemSim/actions/runs/41658491074), **67/67 tests**). **Still NOT approved:** source/reference-data scientific admission, distribution rights, claims of W02 real-world validity, and untested final shared payload or Godot bridge. The A3-V01..07 contract risks below still require producer/integrator/A5 executable mapping proof. Treat the OpenStax W02 Kw as a conditional *model-convention candidate*, not an A1-admitted reference.
+
+
 **Date:** 2026-11-03  
 **Owner:** Agent A3 — Aqueous Chemistry & Equilibrium  
 **Scope:** A3 scientific producer/consumer review only, Issue #8 / Draft PR #4, branch `agent/a3-equilibrium-implementation`  

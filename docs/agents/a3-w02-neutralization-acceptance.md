@@ -1,5 +1,8 @@
 # A3-09 — W02 strong-neutralization scientific acceptance and minimal integration slice
 
+> **Current implementation checkpoint — 2026-11-03:** The owner has since **APPROVED** OpenSpec v0.1 in `main/openspec/changes/define-chemsim-mvp/APPROVAL.md` (frozen baseline `02b8b31706807279ee31a78772383e31f425f7d3`). Earlier below-this-notice pre-approval/BLOCKED wording is historical. Under that authorization, A3 commit `c592c53f2bcf4410b678de78bdf943abd4c8f266` replaced W02's hard-coded spectator residual with an explicit Na/Cl output/feed audit and added six **synthetic** independent quadratic-oracle scenarios exercising pH, charge and water-product invariants. [Exact-head CI #41658491074](https://github.com/AndreyCokol/ChemSim/actions/runs/41658491074): **67 tests passed**. This closes **only** the A3-side mathematical/scalar subset of AC01–04 and the diagnostic implementation aspect of AC10; AC06–09 typed-source/bridge/UI/scientific admission remain open. Spectators are assigned from inputs, so their zero computed residual is an internal identity audit, not independent empirical conservation certification. No source constant or A1 rights decision was invented.
+
+
 **Date:** 2026-11-03  
 **Owner:** Agent A3 — Aqueous Chemistry & Equilibrium  
 **Tracking:** A3 Issue #8 / Draft PR #4 / branch `agent/a3-equilibrium-implementation`  
