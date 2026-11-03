@@ -28,7 +28,28 @@ jobs:
           [rendering]
           renderer/rendering_method="gl_compatibility"
           EOF
-      - name: Import project and parse scripts
-        run: godot --headless --editor --path . --quit
-      - name: Run A2 parser and balancer tests
-        run: godot --headless --path . --script res://tests/a2/test_a2_parser_balancer.gd
+      # Godot 4.3 may exit 0 after printing SCRIPT ERROR from a failed
+      # assert(). Merely trusting the process exit status produces false
+      # greens; scan BOTH import and test output, then check the pass marker.
+      - name: Import project and parse scripts (strict)
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --editor --path . --quit 2>&1 | tee a2-import.log
+          if grep -nE 'SCRIPT ERROR:|ERROR:|Parse Error:|Assertion failed' a2-import.log; then
+            echo "::error::Godot project import reported a script/parser error"
+            exit 1
+          fi
+      - name: Run A2 parser and balancer tests (strict)
+        shell: bash
+        run: |
+          set -euo pipefail
+          godot --headless --path . --script res://tests/a2/test_a2_parser_balancer.gd 2>&1 | tee a2-tests.log
+          if grep -nE 'SCRIPT ERROR:|ERROR:|Parse Error:|Assertion failed' a2-tests.log; then
+            echo "::error::A2 tests emitted assertion or Godot script errors despite their exit code"
+            exit 1
+          fi
+          if ! grep -Fq 'A2 tests: all assertions passed' a2-tests.log; then
+            echo "::error::A2 test completion marker missing"
+            exit 1
+          fi
