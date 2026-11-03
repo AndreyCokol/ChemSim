@@ -1,5 +1,7 @@
 # ChemSim A3 equilibrium core
 
+> **A3-16 checkpoint (2026-11-03):** A3 has added a strict synthetic-only 25 °C W02 thermodynamic model-preflight that checks final-mixture feed basis, temperature, water Kw reaction identity, aqueous ideal concentration standard state and explicit unknown source-quality status. It returns **model compatibility only**, never catalog admission, source rights or a deployable v0.1 result. See [A3-16 compatibility/rights map](a3-w02-25c-model-preflight.md). Source/test commits 10df347 and 643ea76; [CI #41664649865](https://github.com/AndreyCokol/ChemSim/actions/runs/41664649865) **78 tests / OK**. A3-07 real trusted adapter, A1 source rights, A5/Windows runtime remain open.
+
 **A3-14 typed scientific diagnostics (2026-11-03):** The seven local equilibrium fixtures now expose equation-specific `residual_kind/residual_unit`, typed component and charge residual kinds/units and aqueous `pH_method=ideal_concentration_approximation`. W03 `residual=None` and `component_balance_residual=None` are *not assessed*, never verified zeros. The old `balance_unit` is retained for compatibility only and MUST NOT be used to label the generic residual. See [scientific mapping](a3-typed-residuals-v01-handoff.md). [Exact source/test CI #41661392329](https://github.com/AndreyCokol/ChemSim/actions/runs/41661392329): **71 tests / OK**. This is not a shared JSON DTO or A1-admitted thermodynamic benchmark.
 
 This package currently implements the seven A3 benchmark fixtures as an isolated,
