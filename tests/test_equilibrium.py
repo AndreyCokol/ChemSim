@@ -230,6 +230,38 @@ class AqueousBenchmarkTests(unittest.TestCase):
                 )
                 self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
 
+    def test_agcl_precipitation_rejects_unrepresentable_positive_dissolved_root(self):
+        smallest_positive = math.ulp(0.0)
+        with self.assertRaises(EquilibriumConvergenceError):
+            solve_agcl_precipitation(
+                1.0e308,
+                smallest_positive,
+                smallest_positive,
+                1.0e308,
+                smallest_positive,
+                1.0e-14,
+            )
+
+    def test_agcl_precipitation_handles_large_finite_feeds_and_ksp(self):
+        feed = 1.0e308
+        ksp = 1.0e308
+        expected = math.sqrt(ksp)
+        result = solve_agcl_precipitation(
+            feed, feed, feed, feed, ksp, 1.0e-14
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Ag+"], expected, delta=expected * 1.0e-10
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Cl-"], expected, delta=expected * 1.0e-10
+        )
+        self.assertAlmostEqual(
+            result.species_mol_l["Ag+"] * result.species_mol_l["Cl-"],
+            ksp,
+            delta=ksp * 1.0e-10,
+        )
+        self.assertLess(result.diagnostics.charge_balance_residual, 1.0e-15)
+
     def test_precipitation_is_inactive_when_undersaturated(self):
         result = solve_agcl_precipitation(
             1e-6, 1e-6, 1e-6, 1e-6, 10 ** -9.748, 1e-14
