@@ -779,3 +779,92 @@ A4 хранит в текущем `RateConstant` только `Value` и `Concen
 - Non-success `SimulationResult.Status` не превращается в completed trajectory из-за наличия опубликованных samples.
 
 Этот ответ закрывает прежний вопрос о минимальной реализации A4 и уточняет разделы 6, 15 и 21. Он не утверждает расширенный A4 RateConstant DTO, общий Unit Registry, shared schema/ErrorEnvelope, OpenSpec baseline или реализацию A1.
+
+
+## 26. Матрица совместимости origin, quality, review, eligibility и redistribution (2026-11-03)
+
+Цель матрицы — выявлять противоречивые состояния до передачи assertion потребителю. Она задаёт логические ограничения A1, а не wire-enum, общий DTO или единую политику допуска для всех моделей. Конкретная модель может вводить более строгие требования, но не может ослаблять перечисленные запреты без явного решения владельца домена и документированного обоснования.
+
+### 26.1 Независимые оси
+
+Каждая ось отвечает на отдельный вопрос:
+
+| Ось | Вопрос | Предлагаемые значения / форма |
+|---|---|---|
+| Origin | Как появилось утверждение? | curated_reference, experimental, calculated, estimated, user_defined, hypothetical, unknown |
+| Quality | Какие проверки качества пройдены и какие ограничения остались? | verified, limited, unverified, conflicting, incomplete, unknown |
+| Review | Как завершилась формальная проверка конкретной версии assertion? | unreviewed, accepted, rejected |
+| Eligibility | Допустимо ли assertion для конкретной модели/версии и условий? | вычисляемое решение + policy/version + причины |
+| Redistribution | Разрешён ли конкретный способ использования/распространения? | approved_for_redistribution, local_review_only, blocked_unknown_license, blocked_restricted; scope-specific |
+
+Отдельно сохраняются lifecycle (active/deprecated/withdrawn/superseded), value state (present/unknown/not_reported/not_applicable), applicability и freshness. Они не заменяют ни одну из пяти осей.
+
+### 26.2 Жёсткие инварианты
+
+1. Origin не является quality score: experimental не автоматически verified; calculated не автоматически verified; curated_reference не автоматически eligible.
+2. Quality не является formal review: verified + unreviewed допустимо, если проверки автоматизированы и reviewer не назначен; accepted + limited допустимо при зафиксированных ограничениях.
+3. Review не является eligibility: accepted не отменяет несовместимую единицу, basis, фазу, условия, модельную политику или конфликт.
+4. Review/quality не дают прав на распространение: даже verified + accepted остаётся blocked/local-only, если права не установлены для требуемого канала.
+5. Redistribution approval не подтверждает научную корректность: лицензированное значение может быть unverified или calculation-ineligible.
+6. Rejected assertion сохраняется для аудита и не может стать eligible простым изменением lifecycle или повторной упаковкой без новой версии/нового review decision.
+7. Hypothetical и unknown origin не становятся reference/experimental/calculated без нового доказанного assertion; user_defined остаётся user_defined при передаче между моделями.
+8. Conflicting assertion не становится непротиворечивым от принятия review одной стороны. Нужна отдельная consumer-specific, versioned conflict-resolution decision с сохранением всех исходных значений.
+9. Eligibility всегда привязана к модели/версии/условиям; изменение модели, policy, assertion, существенных входов или условий требует повторной оценки.
+10. Ни одна неизвестная ось не получает permissive default. Неизвестность не равна accepted, verified, eligible или approved_for_redistribution.
+
+### 26.3 Матрица типичных комбинаций
+
+| Комбинация | Допустимость | Обязательное поведение |
+|---|---|---|
+| experimental + verified + unreviewed | Допустима | Eligibility оценивается отдельно; автоматические проверки не подменяют review |
+| calculated + limited + accepted | Допустима | Метод, версия, входы, ограничения и uncertainty сохраняются; модель проверяет диапазон применимости |
+| estimated + verified | Условно допустима | Verified означает только прохождение заявленных проверок; модель может запрещать estimated origin |
+| user_defined + accepted | Условно допустима | Только в scope review; не повышать origin и не выдавать за curated/reference |
+| curated_reference + incomplete | Допустима для хранения/справочного показа | Расчёт блокируется, если недостающие поля обязательны |
+| любой origin + conflicting | Допустима для хранения | Выбор единственного значения запрещён без явной политики разрешения |
+| любой origin + rejected | Допустима только для аудита/истории | Не передавать как действующий расчётный параметр |
+| любой origin + verified + blocked_unknown_license | Допустима локально в пределах прав | Не включать в распространяемый bundle |
+| любой origin + approved_for_redistribution + unverified | Допустима по правам | Распространение не делает assertion научно пригодным; eligibility отдельно блокируется при необходимости |
+| hypothetical + eligible для физического расчёта | По умолчанию запрещена | Исключение возможно только в явно гипотетическом сценарии/модели, которая принимает такие данные и маркирует результат |
+| unknown origin + eligible для подтверждённой модели | Запрещена по умолчанию | Требуется установление происхождения или явная политика exploratory-only |
+| accepted + conflicting без conflict decision | Недостаточно для допуска | Review одной стороны не разрешает конфликт |
+
+### 26.4 Порядок вычисления eligibility (предложение)
+
+Для конкретной модели/версии adapter последовательно проверяет:
+1. субъект и идентичность assertion валидны;
+2. value state = present и значение корректно типизировано;
+3. размерность/unit и basis совместимы с моделью;
+4. phase/medium и T/P/прочие условия входят в applicability;
+5. origin/quality/review удовлетворяют policy данной модели;
+6. конфликт отсутствует либо разрешён явным решением;
+7. uncertainty удовлетворяет ограничениям модели или явно допускается;
+8. provenance достаточен для требуемого режима использования;
+9. redistribution disposition допускает именно текущий канал, если данные входят в распространяемый артефакт.
+
+Результат должен содержать policy/model version и диагностические причины отказа. Порядок — логическая последовательность проверок; интегратор определяет общий формат результата и ErrorEnvelope. Успешное прохождение одного gate не отменяет последующие.
+
+### 26.5 Дополнительные acceptance cases
+
+- `experimental + unreviewed + verified` не отклоняется только из-за отсутствия human review, если policy допускает автоматические проверки.
+- `accepted + limited` не теряет ограничений и не становится универсально eligible.
+- `verified + blocked_unknown_license` не попадает в публичный bundle.
+- `approved_for_redistribution + unverified` не считается calculation-ready.
+- `rejected` не становится eligible при изменении только lifecycle.
+- `user_defined` не преобразуется в curated_reference при принятии review.
+- `hypothetical` допускается только в модели/сценарии, явно объявившем такую область применения.
+- `conflicting` блокирует потребителя, которому требуется одно значение, пока нет версионируемого решения.
+- Изменение модели/policy/assertion invalidates прежнее eligibility decision, но не переписывает историческое review.
+- Неизвестное значение любой оси не сериализуется как permissive default.
+
+### 26.6 Нерешённые решения
+
+- точные enum wire tokens и обязательность каждого измерения в общем DTO;
+- полномочия reviewer и процесс повторного review;
+- конкретные origin/quality allowlists для каждой модели A3/A4;
+- допустимость exploratory-only использования user_defined/hypothetical/unknown;
+- точная семантика local_review_only в пользовательском импорте;
+- общий формат EligibilityDecision, причины отказа и связь с ErrorEnvelope;
+- A5 presentation mapping и отображение stale/conflicting hazard/property assertions.
+
+До согласования этих решений матрица остаётся A1 proposal. Она не утверждает shared schema, baseline или реализацию.
