@@ -31,7 +31,8 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 
 - Added `.github/workflows/a4-dotnet.yml` to restore, build, and test the solution with the .NET 10 SDK on pushes to the A4 feature branch and pull requests.
 - CI uploads TRX test results when available.
-- The GitHub connector used for this work exposes pull-request-triggered runs only; it does not currently provide a result for the branch-push run. A passing CI result is therefore not claimed.
+- Verified current PR head `2f1e2541ac157b6a7b88206b37d98063ad3517ee` with GitHub Actions run [41603075099](https://github.com/AndreyCokol/ChemSim/actions/runs/41603075099): Restore, Build and Test all completed successfully.
+- CI status is tied to the exact commit above; re-verify after any subsequent source or test change.
 
 ## Numerical edge-case hardening
 
@@ -39,6 +40,7 @@ Status: implementation draft on `feature/a4-kinetics-core`.
 - The integrator advances in elapsed-time coordinates while passing absolute simulation time to the RHS, avoiding loss of step resolution at large absolute start times.
 - The simulator rejects output intervals that cannot advance the representable time coordinate and rejects non-finite total durations.
 - RHS evaluation diagnostics count the stages actually evaluated before a rejected non-physical trial.
+- The output-time ULP calculation uses the inward representable spacing at `double.MaxValue`, avoiding an infinite spacing result from `Math.BitIncrement(double.MaxValue)`.
 
 ## Explicitly not implemented
 
