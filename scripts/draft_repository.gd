@@ -30,7 +30,7 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	var temporary_path := path + ".tmp"
 	var temporary_absolute := ProjectSettings.globalize_path(temporary_path)
 	if FileAccess.file_exists(temporary_path):
-		return _failure("Сохранение отменено: рядом уже существует временный файл " + temporary_path)
+		return _failure("Сохранение остановлено: найден существующий временный файл " + temporary_path + ". Он не перезаписан. Проверьте его содержимое и при необходимости вручную сохраните копию или переместите файл перед повторной попыткой.")
 	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
 	if file == null:
 		return _failure("Не удалось открыть временный файл: " + str(FileAccess.get_open_error()))
@@ -48,7 +48,7 @@ static func save_draft(path: String, payload: Dictionary) -> Dictionary:
 	if had_previous_file:
 		if FileAccess.file_exists(backup_path):
 			DirAccess.remove_absolute(temporary_absolute)
-			return _failure("Сохранение отменено: резервный файл уже существует " + backup_path)
+			return _failure("Сохранение остановлено: найден существующий резервный файл " + backup_path + ". Он не перезаписан, а исходный черновик оставлен на месте. Проверьте резервную копию и вручную переместите её перед повторной попыткой.")
 		var backup_error := DirAccess.rename_absolute(absolute_path, backup_absolute)
 		if backup_error != OK:
 			DirAccess.remove_absolute(temporary_absolute)
@@ -102,7 +102,17 @@ static func load_draft(path: String) -> Dictionary:
 		else:
 			return _failure("Файл черновика не найден.")
 
-	return _read_and_validate(path)
+	var canonical_result := _read_and_validate(path)
+	if not bool(canonical_result.get("ok", false)):
+		return canonical_result
+	var existing_sidecars: Array[String] = []
+	if FileAccess.file_exists(backup_path):
+		existing_sidecars.append(backup_path)
+	if FileAccess.file_exists(temporary_path):
+		existing_sidecars.append(temporary_path)
+	if not existing_sidecars.is_empty():
+		canonical_result["recovery_warning"] = "Основной черновик открыт, но рядом обнаружены дополнительные файлы восстановления: " + ", ".join(existing_sidecars) + ". Они не изменялись. Перед следующим сохранением проверьте их вручную и сохраните копии нужных данных."
+	return canonical_result
 
 static func _read_and_validate(path: String) -> Dictionary:
 	var file := FileAccess.open(path, FileAccess.READ)
