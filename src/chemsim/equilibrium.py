@@ -37,13 +37,21 @@ class EquilibriumConvergenceError(RuntimeError):
 class SolverDiagnostics:
     iterations: int
     residual: float | None  # None only at the W05 zero-ion saturation boundary.
-    component_balance_residual: float
+    component_balance_residual: float | None
     charge_balance_residual: float | None  # None: charge check not applicable (gas fixtures).
     method: str
     balance_unit: str
     activity_model: str = "ideal_dilute_gamma_equals_1"
     reliability_status: str = "idealized_approximation"
     residual_status: str = "finite"  # "zero_ion_activity" means no finite ln(Q/Ksp).
+    # Local scientific descriptors; these are NOT the integrator's wire DTO.
+    # balance_unit is retained for older fixture consumers, not for rendering residual.
+    residual_kind: str = "aqueous_charge_equation"
+    residual_unit: str | None = "mol/L"
+    component_balance_kind: str = "aqueous_component_balance"
+    component_balance_unit: str | None = "mol/L"
+    charge_balance_kind: str = "aqueous_charge_balance"
+    charge_balance_unit: str | None = "mol/L"
 
 
 @dataclass(frozen=True)
@@ -53,6 +61,7 @@ class AqueousResult:
     diagnostics: SolverDiagnostics
     solid_mol_l: float | None = 0.0  # None means unknown reservoir inventory.
     solid_phase_state: str = "not_modelled"  # Also: reservoir_inventory_unknown, no_precipitate, new_precipitate.
+    pH_method: str = "ideal_concentration_approximation"  # pH=-log10([H+]/(1 mol/L)).
 
 
 @dataclass(frozen=True)
@@ -85,6 +94,52 @@ def _ideal_gas_pressure(amount_mol: float, temperature_k: float, volume_m3: floa
             "Positive gas partial pressure underflowed to zero"
         )
     return pressure
+
+
+def _diagnostic_semantics_valid(diagnostics: SolverDiagnostics) -> bool:
+    """Validate local physical meaning and unit of each diagnostic field.
+
+    A zero-valued residual is not interchangeable with an unassessed check.
+    These labels are Python-local, not a shared JSON schema or ErrorEnvelope.
+    """
+    residual_units = {
+        "aqueous_charge_equation": "mol/L",
+        "log_saturation_index": "1",
+        "ideal_gas_log_quotient": "1",
+        "not_assessed": None,
+    }
+    component_units = {
+        "aqueous_component_balance": "mol/L",
+        "spectator_feed_identity": "mol/L",
+        "extent_update_consistency": "mol",
+        "not_assessed": None,
+    }
+    charge_units = {
+        "aqueous_charge_balance": "mol/L",
+        "not_applicable": None,
+    }
+    return (
+        diagnostics.residual_kind in residual_units
+        and diagnostics.residual_unit == residual_units.get(diagnostics.residual_kind)
+        and diagnostics.component_balance_kind in component_units
+        and diagnostics.component_balance_unit == component_units.get(
+            diagnostics.component_balance_kind
+        )
+        and diagnostics.charge_balance_kind in charge_units
+        and diagnostics.charge_balance_unit == charge_units.get(
+            diagnostics.charge_balance_kind
+        )
+        and (diagnostics.residual_status == "not_assessed")
+        == (diagnostics.residual_kind == "not_assessed")
+        and (
+            diagnostics.residual_status != "zero_ion_activity"
+            or diagnostics.residual_kind == "log_saturation_index"
+        )
+        and (diagnostics.component_balance_residual is None)
+        == (diagnostics.component_balance_kind == "not_assessed")
+        and (diagnostics.charge_balance_residual is None)
+        == (diagnostics.charge_balance_kind == "not_applicable")
+    )
 
 
 def _aqueous_result(
@@ -147,15 +202,34 @@ def _aqueous_result(
                 )
             )
         )
-        or diagnostics.residual_status not in ("finite", "zero_ion_activity")
-        or not _finite_number(diagnostics.component_balance_residual)
-        or diagnostics.component_balance_residual < 0.0
+        or (
+            diagnostics.residual_status == "not_assessed"
+            and not (
+                diagnostics.residual is None
+                and diagnostics.method == "closed-form ideal solubility"
+                and solid_phase_state == "reservoir_inventory_unknown"
+            )
+        )
+        or diagnostics.residual_status not in (
+            "finite", "zero_ion_activity", "not_assessed"
+        )
+        or (
+            diagnostics.component_balance_residual is not None
+            and (
+                not _finite_number(diagnostics.component_balance_residual)
+                or diagnostics.component_balance_residual < 0.0
+            )
+        )
         or not _finite_number(diagnostics.charge_balance_residual)
         or diagnostics.charge_balance_residual < 0.0
         or not isinstance(diagnostics.method, str)
         or not diagnostics.method.strip()
         or not isinstance(diagnostics.balance_unit, str)
         or not diagnostics.balance_unit.strip()
+        or not _diagnostic_semantics_valid(diagnostics)
+        or diagnostics.residual_kind == "ideal_gas_log_quotient"
+        or diagnostics.component_balance_kind == "extent_update_consistency"
+        or diagnostics.charge_balance_kind == "not_applicable"
     ):
         raise EquilibriumConvergenceError(
             "Aqueous equilibrium produced non-finite or nonphysical result values"
@@ -392,6 +466,7 @@ def solve_strong_neutralization(
         SolverDiagnostics(
             iterations, f_residual, spectator_error, abs(charge),
             "log-space bisection", "mol/L",
+            component_balance_kind="spectator_feed_identity",
         ),
     )
 
@@ -411,7 +486,13 @@ def solve_agcl_solubility(ksp: float, kw: float) -> AqueousResult:
         {"Ag+": s, "Cl-": s, "H+": h, "OH-": oh},
         -log10(h),
         SolverDiagnostics(
-            0, 0.0, 0.0, abs((s + h) - (s + oh)), "closed-form ideal solubility", "mol/L"
+            0, None, None, abs((s + h) - (s + oh)),
+            "closed-form ideal solubility", "mol/L",
+            residual_status="not_assessed",
+            residual_kind="not_assessed",
+            residual_unit=None,
+            component_balance_kind="not_assessed",
+            component_balance_unit=None,
         ),
         solid_mol_l=None,
         solid_phase_state="reservoir_inventory_unknown",
@@ -553,6 +634,8 @@ def solve_agcl_precipitation(
             "active-set + bisection" if solid > 0 else "inactive-solid check",
             "mol/L",
             residual_status="zero_ion_activity" if residual is None else "finite",
+            residual_kind="log_saturation_index",
+            residual_unit="1",
         ),
         solid_mol_l=solid,
         solid_phase_state="new_precipitate" if solid > 0 else "no_precipitate",
@@ -677,6 +760,12 @@ def _gas_equilibrium(
             iterations, f_residual, component_balance_residual, None,
             "extent + logQ bisection", "mol",
             activity_model="gas_ideal_partial_pressure",
+            residual_kind="ideal_gas_log_quotient",
+            residual_unit="1",
+            component_balance_kind="extent_update_consistency",
+            component_balance_unit="mol",
+            charge_balance_kind="not_applicable",
+            charge_balance_unit=None,
         ),
     )
 

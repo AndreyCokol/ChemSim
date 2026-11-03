@@ -1,5 +1,6 @@
 import math
 import unittest
+from dataclasses import replace
 
 from chemsim.equilibrium import (
     EquilibriumInputError,
@@ -56,6 +57,27 @@ class AqueousResultValidationTests(unittest.TestCase):
                         output, 7.0, diagnostics,
                         solid_mol_l=solid, solid_phase_state=state,
                     )
+
+    def test_rejects_mismatched_residual_kind_units_and_missing_status(self):
+        valid = SolverDiagnostics(
+            0, 0.0, 0.0, 0.0, "test", "mol/L"
+        )
+        invalid = (
+            replace(valid, residual_kind="log_saturation_index"),
+            replace(valid, residual_unit="1"),
+            replace(valid, component_balance_unit="mol"),
+            replace(valid, component_balance_kind="not_assessed"),
+            replace(valid, component_balance_residual=None),
+            replace(valid, charge_balance_kind="not_applicable"),
+            replace(valid, charge_balance_unit=None),
+            replace(valid, residual_status="not_assessed"),
+            replace(valid, residual_kind="invented_kind"),
+            replace(valid, residual_kind="ideal_gas_log_quotient", residual_unit="1"),
+        )
+        for diagnostics in invalid:
+            with self.subTest(diagnostics=diagnostics):
+                with self.assertRaises(EquilibriumConvergenceError):
+                    _aqueous_result({"H+": 1.0e-7}, 7.0, diagnostics)
 
     def test_rejects_negative_balance_residual_diagnostics(self):
         for component, charge in ((-1.0, 0.0), (0.0, -1.0)):
@@ -194,6 +216,63 @@ class AqueousBenchmarkTests(unittest.TestCase):
         self.assertIsNone(result.diagnostics.residual)
         self.assertEqual(result.diagnostics.residual_status, "zero_ion_activity")
         self.assertEqual(result.solid_phase_state, "no_precipitate")
+
+    def test_all_seven_fixtures_have_explicit_scientific_residual_units(self):
+        synthetic_kw = 1.0e-14  # Numerical fixture, not A1-admitted data.
+        aqueous = (
+            ("W01", solve_weak_acid(0.01, 1.0e-5, synthetic_kw),
+             "aqueous_charge_equation", "mol/L", "aqueous_component_balance"),
+            ("W02", solve_strong_neutralization(0.01, 0.01, synthetic_kw),
+             "aqueous_charge_equation", "mol/L", "spectator_feed_identity"),
+            ("W03", solve_agcl_solubility(1.8e-10, synthetic_kw),
+             "not_assessed", None, "not_assessed"),
+            ("W04", solve_ammonia_buffer(0.02, 0.01, 1.0e-9, synthetic_kw),
+             "aqueous_charge_equation", "mol/L", "aqueous_component_balance"),
+            ("W05", solve_agcl_precipitation(
+                0.01, 0.01, 0.01, 0.01, 1.8e-10, synthetic_kw
+            ), "log_saturation_index", "1", "aqueous_component_balance"),
+        )
+        for name, result, kind, unit, component_kind in aqueous:
+            with self.subTest(fixture=name):
+                diag = result.diagnostics
+                self.assertEqual(result.pH_method, "ideal_concentration_approximation")
+                self.assertEqual(diag.residual_kind, kind)
+                self.assertEqual(diag.residual_unit, unit)
+                self.assertEqual(diag.component_balance_kind, component_kind)
+                self.assertEqual(diag.charge_balance_kind, "aqueous_charge_balance")
+                self.assertEqual(diag.charge_balance_unit, "mol/L")
+                self.assertEqual(
+                    diag.component_balance_unit,
+                    None if component_kind == "not_assessed" else "mol/L",
+                )
+                if diag.residual_status == "not_assessed":
+                    self.assertIsNone(diag.residual)
+                else:
+                    self.assertTrue(math.isfinite(diag.residual))
+
+        for name, result in (
+            ("G01", solve_no2_dimerization(0.01, 0.0, 298.15, 1.0e-3, 6.73)),
+            ("G02", solve_h2_i2_hi(0.01, 0.01, 0.0, 298.15, 1.0e-3, 690.2)),
+        ):
+            with self.subTest(fixture=name):
+                diag = result.diagnostics
+                self.assertEqual(diag.residual_kind, "ideal_gas_log_quotient")
+                self.assertEqual(diag.residual_unit, "1")
+                self.assertEqual(diag.component_balance_kind, "extent_update_consistency")
+                self.assertEqual(diag.component_balance_unit, "mol")
+                self.assertEqual(diag.charge_balance_kind, "not_applicable")
+                self.assertIsNone(diag.charge_balance_unit)
+                self.assertIsNone(diag.charge_balance_residual)
+                self.assertTrue(math.isfinite(diag.residual))
+                self.assertTrue(math.isfinite(diag.component_balance_residual))
+
+        absent_ion = solve_agcl_precipitation(
+            0.01, 0.0, 0.0, 0.01, 1.8e-10, synthetic_kw
+        )
+        self.assertIsNone(absent_ion.diagnostics.residual)
+        self.assertEqual(absent_ion.diagnostics.residual_status, "zero_ion_activity")
+        self.assertEqual(absent_ion.diagnostics.residual_kind, "log_saturation_index")
+        self.assertEqual(absent_ion.diagnostics.residual_unit, "1")
 
     def test_w01_acetic_acid(self):
         ka = 10 ** -4.756
@@ -668,7 +747,12 @@ class AqueousConservationAuditTests(unittest.TestCase):
         self.assert_scaled_residual(charge_residual, max(species.values()))
         self.assertIsNone(result.solid_mol_l)
         self.assertEqual(result.solid_phase_state, "reservoir_inventory_unknown")
-        self.assertEqual(result.diagnostics.component_balance_residual, 0.0)
+        self.assertIsNone(result.diagnostics.residual)
+        self.assertIsNone(result.diagnostics.component_balance_residual)
+        self.assertEqual(result.diagnostics.residual_kind, "not_assessed")
+        self.assertIsNone(result.diagnostics.residual_unit)
+        self.assertEqual(result.diagnostics.component_balance_kind, "not_assessed")
+        self.assertIsNone(result.diagnostics.component_balance_unit)
 
     def test_agcl_precipitation_silver_chloride_and_charge_balances(self):
         for feed in (1.0e-12, 1.0e-2, 1.0e100):
