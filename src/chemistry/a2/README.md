@@ -14,7 +14,7 @@ This folder contains the first executable A2 domain slice in GDScript 4.x. It ha
 - Element symbols from the periodic table.
 - Positive integer subscripts and nested round groups.
 - Phases `(s)`, `(l)`, `(g)`, `(aq)`.
-- Explicit multi-charge notation such as `Fe^3+` and `SO4^2−`.
+- Explicit charge notation such as `Fe^3+`, `SO4^2−`, `SO4^-` and `H2^+`; charge magnitude 1 is valid with a caret and is not confused with an atom subscript.
 - One-charge aliases in the parser allowlist, including `H+`, `OH-`, `NH4+`, `Ag+`, `Cl-`, `NO3-`.
 - Reaction arrows `->`, `→`, `⇌`, `<->`.
 - Stoichiometric coefficients are stored separately from formula AST. Fractional, zero, negative, and oversized coefficients are rejected.
@@ -22,6 +22,8 @@ This folder contains the first executable A2 domain slice in GDScript 4.x. It ha
 - A reaction side uses whitespace around the plus separator: `NH4+ + Cl-`.
 
 Hydrates, square-bracket complexes, redox half-reactions, isotopes, radicals, and advanced organic notation are rejected or not implemented.
+
+**Canonical charge serialization (A2-local):** `serialize_formula()` / `serialize_reaction()` preserve one-unit charge semantics. The serializer uses short `+` or `-` only for explicit entries in `SIMPLE_ION_ALIASES` (e.g. `NH4+`, `OH-`, `Ag+`), otherwise canonical `^+` or `^-` (`SO4^-(aq)`, `H2^+(g)`, `Fe^+`). Previously an unaliased `SO4^-` could become ambiguous `SO4-`; this is now rejected as a serializer regression by round-trip tests. **The original `source_text` is preserved**, while the canonical output may normalize the charge syntax. This local policy is not an integrator decision about the shared v0.1 wire canonicalization or short alias set (INT-28/29).
 
 ## Diagnostic source spans
 
@@ -86,4 +88,4 @@ This is an initial bounded solver, not a general-purpose ILP implementation. Lim
 
 ## Test status
 
-The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest **source/test validation** is commit `5301346f2cab397b6652b45c6961b0e53376a92b`, passed in workflow run [41659813692](https://github.com/AndreyCokol/ChemSim/actions/runs/41659813692): temporary Godot project setup, import/script parsing, and all A2 parser/balancer + UTF-8 source-span tests succeeded. This evidence applies to that exact source/test commit, not to any later documentation HEAD. Local Godot execution and full integrated-project validation have not been performed in this environment.
+The smoke-test script is executed by the GitHub Actions workflow `A2 parser and balancer tests` in a Godot 4.3 headless container. The latest **source/test validation** is commit `1a0f175d0f3148e49250ed332a922bbdc6220b4e`, passed in workflow run [41662285747](https://github.com/AndreyCokol/ChemSim/actions/runs/41662285747): temporary Godot project setup, import/script parsing, and all A2 parser/balancer tests succeeded, including canonical one-unit-charge round trips, exact chemistry-balance vectors and UTF-8 source-span cases. This evidence applies to that exact source/test commit, not to any later documentation HEAD. Local Godot execution and full integrated-project validation have not been performed in this environment.
