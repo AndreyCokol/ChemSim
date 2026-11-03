@@ -1,23 +1,28 @@
 schema: spec-driven
 
 context: |
-  Project: ChemSim — an offline 2D desktop chemistry sandbox for a broad audience.
+  Project: ChemSim — an offline chemistry experiment sandbox for a broad audience.
   Engine target: Godot 4.x. First supported platform: Windows 10/11 x64.
-  UI language: Russian. Medium-complexity interface, primarily panels, structured
-  editors, tables, and scientific graphs rather than drag-and-drop apparatus.
-  Users create experiments by entering a substance, its amount, and a creation coordinate.
+  UI language: Russian. Main screen: flat voxel field with primitive color coding;
+  separate calculation panel; details and graphs open in separate views/windows.
+  No complex spatial/3D simulation; voxel coordinates are visual-only.
+  Users create experiments by entering a substance, its amount, and a visual-only coordinate.
   Users author reactions by text equation or structured component editor, and invoke
   balancing explicitly with a separate action.
   Domain priority: general chemistry, including ionic chemistry, acid/base pH,
   solubility and precipitation, reversible reactions, and chemical equilibrium.
-  Users configure kinetic constants and activation energies. Temperature affects rates
-  through Arrhenius behavior. Both closed and open systems are in scope, including
-  adding reagents and removing substances during an experiment.
+  MVP is isothermal. Arrhenius k(T) is used only with verified kinetic parameters;
+  equilibrium K(T) requires applicable thermodynamic data. Closed/open systems support
+  discrete add/remove events and constant or piecewise-constant continuous flows.
+  Aqueous scope is dilute solutions with explicit ideal/activity model, basic acid/base,
+  pH, Ksp and ionic mass/charge balance. Gas scope is ideal gas PV=nRT and Dalton law;
+  nonideal gases/fugacity are excluded. Instant ideal mixing only; finite mixing deferred.
   Supported amount/concentration display units: mol, mol/L, g, g/L, with dimensionally
   valid conversions only. Mandatory graphs: concentration-time, rate-time, temperature-time.
   Simulation controls: pause, single-step, speed multiplier, and time navigation.
-  A substance encyclopedia is required. Experiment save/load is desirable; CSV export
-  and GitHub Releases ZIP distribution are optional. The application must work offline.
+  A substance encyclopedia is required, including hazard source/completeness; missing
+  hazard data never means safe. Experiment save/load is desirable; CSV export and
+  GitHub Releases ZIP distribution are optional. The application must work offline.
   Scientific correctness is the highest MVP priority. Never claim universal or maximum
   chemical accuracy: define a bounded validity domain, authoritative property datasets,
   explicit assumptions, uncertainty, and numerical validation.
@@ -59,3 +64,16 @@ operations:
     guidance:
       - Sync implemented spec deltas before archiving.
       - Summarize deviations, validation evidence, scientific limitations, and remaining risks.
+
+
+  MVP scope decisions (2026-11-02):
+  - Aqueous: dilute solutions; explicit ideal approximation or supported activity model;
+    basic acid/base, pH, Ksp/precipitation, ionic mass/charge balance.
+  - Gas: ideal gas PV=nRT and Dalton partial pressures only; no fugacity/nonideal model.
+  - Isothermal operation; constant T graph is labelled. Non-isothermal energy balance deferred.
+  - Instant ideal mixing only. Finite mixing unavailable until validated.
+  - Flows: constant and piecewise-constant schedules with start/end times.
+  - Approved benchmark scenarios: five aqueous and two gas scenarios are listed in
+    proposal.md and simulation spec; numerical fixtures still require sourced validation.
+  - Data sources require allowlist, provenance, uncertainty, applicability and license review.
+  - Hazard data completeness must be visible; missing hazard data never means safe.
