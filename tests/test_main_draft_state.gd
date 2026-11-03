@@ -125,6 +125,37 @@ func _initialize() -> void:
 	main._save_draft_to_path(save_as_path)
 	assert(main.current_draft_path == save_as_path, "Save As should switch the current draft path after a successful write")
 	assert(not main.draft_dirty, "Successful Save As should clear dirty state")
+
+	# Save As may target the current path; a successful same-path transaction
+	# must retain that path and clear dirty state just like an ordinary save.
+	main.experiment_name_input.text = "Save As same path"
+	main._save_draft_to_path(save_as_path)
+	assert(not main.draft_dirty, "Save As to the current path should clear dirty state after a successful write")
+	assert(main.current_draft_path == save_as_path, "Save As to the current path must retain the selected path")
+
+	# Failed Save As must not change the active path or mark unsaved edits clean.
+	main.experiment_name_input.text = "Unsaved after failed Save As"
+	var path_before_failed_save := main.current_draft_path
+	main._save_draft_to_path("res://must-not-write-from-ui.chemsim.json")
+	assert(main.draft_dirty, "Failed Save As must preserve the dirty state")
+	assert(main.current_draft_path == path_before_failed_save, "Failed Save As must preserve the previous current path")
+	assert(main.io_error_dialog.visible, "Failed Save As should surface an actionable file error")
+	main.io_error_dialog.hide()
+
+	# If the user confirms discarding edits but the requested file cannot be
+	# opened, the current in-memory experiment must still survive unchanged.
+	var title_before_failed_open := main.experiment_name
+	var missing_open_path := "user://experiments/does-not-exist-ui-audit.chemsim.json"
+	if FileAccess.file_exists(missing_open_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(missing_open_path))
+	main._request_load_draft(missing_open_path)
+	assert(main.discard_dialog.visible, "Opening a different path while dirty must request confirmation")
+	main.discard_dialog.confirmed.emit()
+	assert(main.experiment_name == title_before_failed_open, "Failed Open must preserve the current experiment title")
+	assert(main.draft_dirty, "Failed Open must preserve unsaved changes")
+	assert(main.current_draft_path == path_before_failed_save, "Failed Open must preserve the current draft path")
+	assert(main.io_error_dialog.visible, "Failed Open should surface a file error")
+	main.io_error_dialog.hide()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_as_path))
 
 	main._remove_component(added_id)
