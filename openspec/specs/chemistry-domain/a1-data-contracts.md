@@ -246,3 +246,39 @@ Allowlist ведётся не только на уровне домена/пос
 - выбор численных benchmark fixtures без первичного источника, условий, basis, uncertainty и лицензии;
 - утверждение лицензий или юридическое заключение;
 - окончательная фиксация межагентных DTO, Unit Registry или общей версии схемы.
+
+
+## 13. Уточнение границы A1 ↔ A2 по запросу A2 (2026-11-03)
+
+Ниже — позиция A1 для интеграционного согласования, а не замороженный публичный DTO.
+
+### 13.1 Что несёт ReactionTerm
+
+- Parsed reaction term должен сохранять формульное представление/FormulaAST, заряд и фазовый контекст, выданные A2, а также коэффициент и устойчивый идентификатор исходного терма.
+- Для каталогового вещества допускается отдельная необязательная ссылка на substance_id (либо versioned catalog reference, если такую форму выберет интегратор). Эта ссылка появляется только после явного разрешения/выбора записи каталога.
+- Для формулы, которой нет в каталоге, ReactionTerm остаётся parsed/unresolved species descriptor: FormulaAST + phase context + source-term identity. Нельзя создавать фиктивный substance_id, вычислять его из формулы или автоматически регистрировать запись каталога при парсинге.
+- Разрешение формулы в каталог — отдельная операция catalog lookup/selection, не обязанность FormulaParser и не часть балансировки.
+- Один substance_id не заменяет фазовый контекст: одна каталоговая химическая сущность может участвовать в разных фазах/состояниях. И наоборот, одинаковая формула сама по себе не доказывает, что две независимые каталоговые записи тождественны.
+
+### 13.2 Phase boundary
+
+- На логическом уровне A1 подтверждает разделение: phase не входит в SubstanceRecord identity; phase относится к Species/ReactionTerm occurrence.
+- A2 сейчас выдаёт UNSPECIFIED, SOLID, LIQUID, GAS, AQUEOUS. Временный адаптер A1 A2PhaseAdapter переводит четыре явных значения в старые lowercase tokens и отклоняет UNSPECIFIED/unknown. Это локальная совместимость, не решение общего wire enum.
+- Рекомендация A1 интегратору: утвердить один типизированный enum/набор стабильных wire tokens для всех потребителей и явно сохранить состояние UNSPECIFIED/unknown как отсутствие установленной фазы; не превращать его в aq, g или другую фазу по умолчанию. До решения интегратора адаптер должен оставаться явным на границе, а call site — принадлежать модулю, который соединяет A2 parser с каталогом/экспериментом, не скрытой нормализацией в нескольких потребителях.
+- A1 не утверждает lowercase или uppercase сериализацию в одиночку.
+
+### 13.3 Duplicate terms and consumer contract
+
+- Синтаксические исходные термы остаются отдельными в parsed reaction и сохраняют source-term IDs.
+- Агрегация одинаковых formula+phase термов допустима только как внутренняя переменная конкретного балансировщика/solver; агрегированный результат обязан сохранять полный список исходных term IDs.
+- Downstream consumer не должен терять происхождение термов или произвольно распределять агрегированный коэффициент между исходными термами.
+- Стехиометрический коэффициент не задаёт kinetic order и сам по себе не определяет равновесную константу.
+
+### 13.4 A1 ответы на вопросы A2
+
+1. Catalog-backed reference: optional substance_id/versioned catalog ref attached after explicit lookup; no formula-derived ID.
+2. Unmatched user formula: parsed/unresolved descriptor; save as user-defined catalog entry only after an explicit user/catalog operation, not as a parser side effect.
+3. Phase: phase belongs to ReactionTerm/species occurrence; common enum/wire tokens require integrator decision; preserve unspecified distinctly.
+4. Duplicate aggregation: preserve source terms in AST; aggregate only in solver with source IDs retained.
+5. A3/A4 minimum fields: A1 confirms identity/composition/charge/phase/source-term identity/coefficient separation; arrow/reversibility is reaction semantics; kinetic order and K/k parameters remain explicit model inputs owned by A3/A4, never inferred from coefficient or arrow.
+
