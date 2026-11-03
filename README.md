@@ -1,0 +1,59 @@
+# ChemSim
+
+Офлайн-симулятор химических экспериментов на Godot 4.x для Windows 10/11 x64.
+
+## Текущий статус
+
+Реализация начата после явного подтверждения владельцем OpenSpec baseline. Текущий срез включает:
+- технический каркас приложения Godot;
+- разбор простых химических формул, вложенных круглых групп, фаз и зарядов;
+- разбор уравнений со стрелками `->` и `<->`;
+- стехиометрическую балансировку по элементному составу и отдельной строке электрического заряда;
+- минимальный UI для проверки формул и балансировки уравнения;
+- ранние доменные записи свойств, веществ, химических видов и компонентов эксперимента с проверками входных данных;
+- ограничения ресурсов парсера формул и проверки идентичности свойств в каталожной записи вещества.
+
+Это **не** готовый химический симулятор: каталог проверенных веществ, равновесные модели, кинетика, численный ODE solver, графики и полноценная энциклопедия ещё не реализованы.
+
+## Запуск
+
+1. Установите Godot 4.x.
+2. Откройте в Godot файл `project.godot`.
+3. Нажмите Run Project.
+
+## Проверка
+
+Из корня проекта после импорта проекта и создания global class cache:
+
+```sh
+godot --headless --editor --path . --quit
+godot --headless --path . --script res://tests/test_formula_parser.gd
+godot --headless --path . --script res://tests/test_reaction_balancer.gd
+godot --headless --path . --script res://tests/test_domain_records.gd
+```
+
+Те же три набора запускаются GitHub Actions на push и pull request. Добавление workflow не является подтверждением успешного прогона: актуальный статус проверок смотрите во вкладке Actions.
+
+## Синтаксис и ограничения
+
+- Формулы: простые символы элементов и вложенные круглые группы, например `Ca(OH)2`.
+- Фазы: `(s)`, `(l)`, `(g)`, `(aq)`.
+- Заряд: явная запись с кареткой `SO4^2-`, `Fe^3+`; краткая форма однозарядных частиц `H+`, `OH-`.
+- Уравнение: `H2 + O2 -> H2O`; разделитель веществ — плюс с пробелами вокруг него. Это не позволяет спутать плюс-разделитель с зарядом иона.
+- Коэффициент задаётся перед формулой через пробел: `2 H2 + O2 -> 2 H2O`.
+- Балансировщик учитывает атомы каждого элемента и суммарный заряд. Если пространство решений неоднозначно, нет положительного решения или не удаётся подтвердить целые коэффициенты в ограниченном диапазоне, он возвращает ошибку вместо произвольного выбора.
+- Рациональные числители и знаменатели хранятся как целые значения; промежуточные операции проверяются на ограничение диапазона. При превышении пределов возвращается `numeric_limit`, без перехода на float и без подбора коэффициентов. Это всё ещё требует запуска тестов на Godot 4.x и независимой верификации перед научным использованием.
+- Парсер ограничивает длину формулы, глубину групп, модуль заряда и число атомов, чтобы некорректный ввод не приводил к чрезмерной рекурсии или росту целых значений.
+- Гидраты, комплексы, структурные формулы, редокс-полуреакции и расширенный синтаксис пока не поддерживаются.
+
+## Domain data contracts (early)
+
+The domain layer now has initial records:
+- `PropertyRecord`: value, unit, uncertainty, source, source version, conditions, validity ranges, license identifier and quality status.
+- `SubstanceRecord`: stable catalog identity and formula/composition, with phase deliberately excluded from the substance identity.
+- `SpeciesRef`: references a substance in a particular phase/context.
+- `ExperimentComponent`: experiment-local amount and optional initial state.
+
+A property is usable for scientific calculations only when it has a value, unit, source reference, license identifier and `verified` quality status. Property dictionary keys must match the embedded property identifier; the dedicated molar-mass field follows the same provenance and quality contract. An absent or incomplete property is not replaced by an estimated default. An unknown hazard status is not equivalent to safe.
+
+The initial validators reject malformed property ranges, negative uncertainty, unsupported species phases, negative amounts, nonphysical optional state values and unsupported units. These are initial GDScript domain records, not yet a complete validated persistence schema. Dataset licensing remains per-source/per-field; no broad external chemistry dataset is bundled by this change.

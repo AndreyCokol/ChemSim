@@ -1,0 +1,13 @@
+; ChemSim — offline chemistry simulator
+; Godot Engine 4.x
+config_version=5
+
+[application]
+config/name="ChemSim"
+config/description="Офлайн-симулятор химических экспериментов"
+run/main_scene="res://scenes/main.tscn"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
