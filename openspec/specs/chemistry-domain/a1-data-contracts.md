@@ -320,3 +320,18 @@ A4 опубликовал benchmark matrix `docs/engineering/a4-solver-benchmark
 Следствие для A1: запись rate constant должна ссылаться на конкретную форму rate law и её набор порядков (либо на идентификатор/версию модели), концентрационную базу и размерность. Нельзя хранить универсальное поле `k` без указания закона скорости и контекста. Если сумма порядков меняется, размерность k меняется; нельзя переиспользовать численное значение k между законами с разными порядками без преобразования и обоснования.
 
 Это уточняет минимальные требования к A4-потребляемым данным, но не решает ещё открытые вопросы сериализации, единиц общего Unit Registry, точной структуры RateConstant и поведения при температурной зависимости. В текущем A4 benchmark baseline температурная зависимость/Arrhenius не входят. A1 запросил у A4 точное подтверждение потребительского контракта; до ответа этот пункт остаётся согласованным по физической размерности с опубликованным описанием модели, но не утверждённым общим DTO.
+
+## 16. Уточнение aqueous consumer boundary по текущему A3 reference core (2026-11-03)
+
+В PR #4 A3 зафиксировал, что текущая реализация остаётся семью benchmark fixtures и не является общей speciation API. В частности, текущие ограничения включают gamma=1 aqueous approximations, concentration-based pH, численные equilibrium constants без полноценной provenance/standard-state записи, один AgCl solid, предположения о нейтральной подаче AgNO3/NaCl, идеальногазовые давления без fugacity и локальный reliability flag. Общие elemental/charge matrix validation, reaction-rank diagnostics, typed thermodynamic metadata и shared result/error contracts оставлены будущей интеграционной работой.
+
+### Следствия для A1
+
+1. Нельзя считать численное Ka/Kb/Ksp/Kp из текущей fixture самоописывающимся или переносимым на общий каталог. До появления записи с reaction definition, basis, standard state, medium/phase, T applicability, uncertainty и provenance оно остаётся benchmark-local/unqualified input.
+2. A1 не должен трактовать gamma=1 как универсальную характеристику aqueous data. Это явное допущение конкретного текущего A3 fixture/model; любые коэффициенты активности или ionic-strength dependencies требуют отдельного model contract и данных.
+3. Concentration-based pH не следует смешивать с thermodynamic activity-based pH. Property metadata и результаты должны сохранять basis/convention, а преобразование между ними не предполагается автоматически.
+4. AgCl solid и neutral AgNO3/NaCl feed assumptions ограничивают применимость соответствующих fixture; A1 не распространяет их на все solid phases или произвольные ionic feeds.
+5. Ideal-gas pressure assumptions не являются fugacity model. Нельзя помечать соответствующие Kp/pressure inputs как применимые к неидеальному газу без отдельной модели и supporting data.
+6. A3 сообщение пока не подтверждает полный список полей consumer DTO, точную конвенцию H+/H3O+/water, quality eligibility или typed failure mapping. Эти решения остаются открытыми; перечисленные пункты фиксируют только явно объявленные ограничения текущей реализации.
+
+Источник: PR #4, комментарий A3 6599473392 от 2026-11-03. Это уточнение применимости текущего benchmark core, не утверждение общего aqueous DTO и не одобрение OpenSpec baseline.
