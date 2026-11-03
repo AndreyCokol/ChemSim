@@ -54,11 +54,10 @@ namespace ChemSim.Kinetics.Cli
                 if (File.Exists(outputFullPath))
                     throw new AdmissionException("Refusing to overwrite an existing response.");
 
-                var file = new FileInfo(inputFullPath);
-                if (!file.Exists || file.Length > MaximumRequestBytes)
-                    throw new AdmissionException("Request file is missing or exceeds the size limit.");
-
-                using var document = JsonDocument.Parse(File.ReadAllBytes(inputFullPath),
+                // Read through one handle with a hard byte cap. FileInfo.Length
+                // followed by File.ReadAllBytes had a TOCTOU window: a growing
+                // request could allocate more than the advertised 1 MiB limit.
+                using var document = JsonDocument.Parse(ReadBoundedRequest(inputFullPath),
                     new JsonDocumentOptions { MaxDepth = 32, AllowTrailingCommas = false, CommentHandling = JsonCommentHandling.Disallow });
                 var root = document.RootElement;
                 var requestId = ValidateEnvelope(root);
@@ -84,6 +83,33 @@ namespace ChemSim.Kinetics.Cli
                 stderr.WriteLine("A4 CLI refused request: " + exception.Message);
                 return 2;
             }
+        }
+
+        private static byte[] ReadBoundedRequest(string path)
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                FileShare.Read, bufferSize: 8192, FileOptions.SequentialScan);
+            if (stream.Length > MaximumRequestBytes)
+                throw new AdmissionException("Request file exceeds the 1 MiB size limit.");
+
+            using var content = new MemoryStream(
+                capacity: (int)Math.Min(stream.Length, MaximumRequestBytes));
+            var chunk = new byte[8192];
+            while (true)
+            {
+                // Read one byte beyond the limit at most, even if the file
+                // grows between Length inspection and the next stream.Read.
+                var remaining = MaximumRequestBytes + 1 - (int)content.Length;
+                if (remaining <= 0)
+                    throw new AdmissionException("Request file exceeded the 1 MiB size limit.");
+                var count = stream.Read(chunk, 0, Math.Min(chunk.Length, remaining));
+                if (count == 0)
+                    break;
+                content.Write(chunk, 0, count);
+                if (content.Length > MaximumRequestBytes)
+                    throw new AdmissionException("Request file exceeded the 1 MiB size limit.");
+            }
+            return content.ToArray();
         }
 
         private static string ValidateEnvelope(JsonElement root)
