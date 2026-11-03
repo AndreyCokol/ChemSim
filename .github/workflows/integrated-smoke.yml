@@ -128,8 +128,14 @@ jobs:
           if (-not (Test-Path package/ChemSim/chemsim-solver.exe)) { throw "Missing A4 solver" }
           Push-Location package/ChemSim
           try {
-            & ./ChemSim.exe --headless --quit-after 8
-            if ($LASTEXITCODE -ne 0) { throw "Windows Godot startup failed with exit $LASTEXITCODE" }
+            # Windows GUI-subsystem apps launched via PowerShell's invocation
+            # operator do not reliably populate $LASTEXITCODE. Wait on the
+            # actual process handle and inspect its exit status explicitly.
+            $exe = (Resolve-Path ./ChemSim.exe).Path
+            $process = Start-Process -FilePath $exe -ArgumentList @("--headless", "--quit-after", "8") -PassThru -Wait
+            if ($null -eq $process -or $process.ExitCode -ne 0) {
+              throw "Windows Godot startup failed: $($process.ExitCode)"
+            }
           } finally { Pop-Location }
       - name: Create portable Windows x64 ZIP
         shell: pwsh
