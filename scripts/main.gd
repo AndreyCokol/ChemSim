@@ -599,6 +599,12 @@ func _open_draft_picker() -> void:
 	open_dialog.popup_centered_ratio(0.7)
 
 func _request_load_draft(path: String) -> void:
+	# An empty Open target must never be interpreted as the New action when
+	# the discard confirmation is accepted (both used an empty sentinel).
+	if path.strip_edges().is_empty():
+		pending_open_path = ""
+		_show_io_error("Не указан путь к черновику. Текущий эксперимент не изменён.")
+		return
 	pending_open_path = path
 	if draft_dirty:
 		discard_dialog.popup_centered()
