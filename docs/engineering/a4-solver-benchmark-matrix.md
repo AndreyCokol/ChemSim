@@ -127,6 +127,16 @@ The comparison must include accuracy against independent references, positivity 
 - [ ] Performance reports include exact commit/runtime/hardware metadata.
 - [ ] Solver-family selection, if any, is supported by comparative measurements and a separate approved scope.
 
+## Output-interval controller continuity
+
+The simulator previously created a fresh Dormand–Prince integrator for every requested output segment and supplied the configured initial step each time. That reset discarded the controller's next-step suggestion at every sample boundary, even though output sampling does not change the underlying ODE.
+
+The simulator now carries the accepted controller's suggested next step into the next segment. The suggestion is bounded below by the configured minimum step so a short final clipped step cannot make the following segment fail solely because its inherited starting step is below the minimum. Output timestamps, state samples, error tolerances and ODE semantics are unchanged.
+
+Regression: `OutputSamplingInterval_DoesNotResetAdaptiveStepController` compares the same first-order A→B trajectory over 0–10 s with 1 s and 0.125 s output intervals (11 versus 81 samples). It checks the common-time analytical profiles and directly compares accepted-step and RHS-evaluation diagnostics, allowing the fine schedule its unavoidable additional segment-boundary steps but not a repeated controller warm-up at every boundary. No wall-clock performance claim is made.
+
+The source/test commit `47019845d487b52bed81945af7e796e788934f84` passed .NET 10 Restore, Build and Test in GitHub Actions run [41612326223](https://github.com/AndreyCokol/ChemSim/actions/runs/41612326223).
+
 ## Implementation coverage checkpoint (2026-11-03)
 
 The following analytic/non-stiff cases now have executable regression coverage in the A4 test project:
