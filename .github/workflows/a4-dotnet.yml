@@ -9,7 +9,6 @@ on:
       - 'Directory.Build.props'
       - 'src/ChemSim.Kinetics/**'
       - 'src/ChemSim.Kinetics.Cli/**'
-      - 'src/ChemSim.Kinetics.Cli/**'
       - 'tests/ChemSim.Kinetics.Tests/**'
       - '.github/workflows/a4-dotnet.yml'
   pull_request:
@@ -17,6 +16,7 @@ on:
       - 'ChemSim.sln'
       - 'Directory.Build.props'
       - 'src/ChemSim.Kinetics/**'
+      - 'src/ChemSim.Kinetics.Cli/**'
       - 'tests/ChemSim.Kinetics.Tests/**'
       - '.github/workflows/a4-dotnet.yml'
   workflow_dispatch:
