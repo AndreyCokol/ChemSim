@@ -105,3 +105,14 @@ A1's pre-test sign-off must report separately:
 - passing A1 semantic tests and unresolved consumer/integrator dependencies.
 
 No percentage completion or blanket chemistry-data-ready statement substitutes for these facts. This sequence is a proposal pending baseline approval; it authorizes no imports, DTO freeze, implementation or redistribution.
+
+## 6. P1 pre-test AQ-02/W02 source decision checkpoint (2026-11-03)
+
+See `openspec/reviews/round-1/a1-kw-source-compatibility-review.md` (source/basis/license evidence) and `openspec/specs/chemistry-domain/a1-data-contracts.md` §28 (A3 consumer integration handoff).
+
+- **P1 partial:** reviewed three classes of published Kw evidence. IAPWS molality and PHREEQC activity-model constants are not directly admissible for A3's concentration/ideal-dilute convention. OpenStax *Chemistry* **first edition** chapter 14.1 explicitly gives a **25 °C concentration approximation** with two significant figures and book-specific **CC BY 4.0**. *Chemistry 2e* instead states CC BY-NC-SA 4.0. No reference-backed Kw assertion has yet passed both scientific M and release R gates.
+- **A3-09 newly confirmed:** `solve_strong_neutralization(hcl_mol_l, naoh_mol_l, kw)` takes final-mixture concentrations in mol/L (not separated-source concentrations/amounts). Exact A3 note `docs/agents/a3-w02-neutralization-acceptance.md`, commit `8800569688bb08427d26093b679eb5ff29545296`. Current W02 `component_balance_residual=0.0` is a hard-coded placeholder, not independent mass-balance validation. A1 must not present it as a source/data validation pass.
+- **Decision now requested:** A3's scientific acceptance of normalized dimensionless OpenStax first-edition Kw for explicitly selected 298.15 K, gamma=1, c°=1 mol/L; owner policy for limited/rounded educational uncertainty-not-reported sources, baseline approval, and distribution channel; integrator Unit Registry/DTO/error/runtime bridge; A1 specific field provenance and attribution/release review.
+- **No backdoor acceptance:** test numbers in A3 code and independent algebraic A3-09 acceptance cases are not an A1 catalog dataset; no default 25 °C, assumed water density, invented mixing volume or corrected W02 diagnostic is created by this checkpoint.
+
+**Current A1 admission statement:** admitted W02 reference inputs = **0**; redistributable Kw fields = **0**; benchmark rows admitted = **0 / 7**. Source review is evidence for a targeted owner/integrator decision, not approval to implement A1 code.
