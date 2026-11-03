@@ -11,5 +11,6 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <ProjectReference Include="../../src/ChemSim.Kinetics/ChemSim.Kinetics.csproj" />
+    <ProjectReference Include="../../src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj" />
   </ItemGroup>
 </Project>
