@@ -1,0 +1,31 @@
+name: A1 data contract gate tests
+
+on:
+  pull_request:
+    branches:
+      - implementation/bootstrap
+      - main
+    paths:
+      - 'src/chemistry/a1/**'
+      - 'tests/a1/**'
+      - '.github/workflows/a1-data-gate-tests.yml'
+  push:
+    branches:
+      - agent/a1-data-contract-implementation
+    paths:
+      - 'src/chemistry/a1/**'
+      - 'tests/a1/**'
+      - '.github/workflows/a1-data-gate-tests.yml'
+
+jobs:
+  a1-headless:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.4.1
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Import Godot project
+        run: godot --headless --editor --path . --quit
+      - name: Run A1 synthetic property and rights gates
+        run: godot --headless --path . --script res://tests/a1/test_a1_property_gate.gd
