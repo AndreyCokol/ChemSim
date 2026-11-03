@@ -189,7 +189,10 @@ static func _convert_scalar(original: float, from_id: String, to_id: String) -> 
 	var converted: float = canonical / float(UNIT_DEFS[to_id]["scale"])
 	if to_id == "degC":
 		converted = canonical - 273.15
-	if not is_finite(converted) or (original != 0.0 and converted == 0.0):
+	# Zero Celsius and absolute-zero Kelvin are real affine conversion
+	# results, not underflow. Apply nonzero->zero guards to linear units only.
+	var loss_to_zero: bool = UNIT_DEFS[from_id]["dimension"] != "temperature" and original != 0.0 and converted == 0.0
+	if not is_finite(converted) or loss_to_zero:
 		return {"ok": false, "error": "A1_UNIT_NUMERIC_RANGE"}
 	return {"ok": true, "value": converted}
 
