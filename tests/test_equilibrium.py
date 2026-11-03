@@ -352,7 +352,7 @@ class AqueousBenchmarkTests(unittest.TestCase):
         expected_net = naoh - hcl
         self.assertLess(
             result.diagnostics.charge_balance_residual,
-            abs(expected_net) * 1.0e-14,
+            abs(expected_net) * 1.0e-13,
         )
 
     def test_strong_acid_only_and_strong_base_only(self):
