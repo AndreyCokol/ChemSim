@@ -7,17 +7,26 @@ class_name ChemStoichiometryHandoff
 ## No reaction order, k, equilibrium K, phase assumption or provenance is made.
 
 const Parser = preload("res://src/chemistry/a2/chem_equation_parser.gd")
+const SourceSpan = preload("res://src/chemistry/a2/chem_source_span.gd")
 
 
 static func extract_balanced_terms(source: String) -> Dictionary:
 	var parser = Parser.new()
 	var parsed: Dictionary = parser.parse_reaction(source)
 	if not bool(parsed.get("ok", false)):
+		# Preserve original Godot character offsets and provide the byte
+		# boundaries that an integrator/A5 wire consumer will eventually
+		# need. Never change the source or highlight an invented character.
+		var parser_span: Dictionary = parsed.get("source_span", {})
+		var encoded_error_span: Dictionary = SourceSpan.to_utf8_byte_span(source, parser_span)
+		if not bool(encoded_error_span.get("ok", false)):
+			return {"ok": false, "code": "A2_SOURCE_SPAN_CONVERSION_FAILED"}
 		return {
 			"ok": false,
 			"code": "A2_REACTION_PARSE_FAILED",
 			"parser_code": String(parsed.get("code", "PARSE_UNKNOWN")),
-			"source_span": parsed.get("source_span", {}).duplicate(true)
+			"source_span": parser_span.duplicate(true),
+			"source_span_utf8": encoded_error_span.source_span
 		}
 	var reaction: Dictionary = parsed.reaction
 	var check: Dictionary = parser.check_balance(reaction)
@@ -38,9 +47,15 @@ static func extract_balanced_terms(source: String) -> Dictionary:
 
 	var terms: Array = []
 	for term in reaction.reactants:
-		terms.append(_term_fact(term, "REACTANT", -1))
+		var reactant_fact: Dictionary = _term_fact(term, "REACTANT", -1, source)
+		if not bool(reactant_fact.get("ok", false)):
+			return {"ok": false, "code": "A2_SOURCE_SPAN_CONVERSION_FAILED"}
+		terms.append(reactant_fact.term)
 	for term in reaction.products:
-		terms.append(_term_fact(term, "PRODUCT", 1))
+		var product_fact: Dictionary = _term_fact(term, "PRODUCT", 1, source)
+		if not bool(product_fact.get("ok", false)):
+			return {"ok": false, "code": "A2_SOURCE_SPAN_CONVERSION_FAILED"}
+		terms.append(product_fact.term)
 
 	return {
 		"ok": true,
@@ -58,12 +73,17 @@ static func extract_balanced_terms(source: String) -> Dictionary:
 	}
 
 
-static func _term_fact(term: Dictionary, side: String, sign: int) -> Dictionary:
+static func _term_fact(term: Dictionary, side: String, sign: int, source: String) -> Dictionary:
+	var local_span: Dictionary = term.source_span
+	var converted_span: Dictionary = SourceSpan.to_utf8_byte_span(source, local_span)
+	if not bool(converted_span.get("ok", false)):
+		return {"ok": false}
 	var ast: Dictionary = term.species.formula_ast
 	var coefficient: int = term.stoichiometric_coefficient
-	return {
+	return {"ok": true, "term": {
 		"source_term_id": String(term.term_id),
-		"source_span": term.source_span.duplicate(true),
+		"source_span": local_span.duplicate(true),
+		"source_span_utf8": converted_span.source_span,
 		"side": side,
 		"stoichiometric_coefficient": coefficient,
 		# The numerical A4 reaction convention: product PLUS, reactant MINUS.
@@ -72,7 +92,7 @@ static func _term_fact(term: Dictionary, side: String, sign: int) -> Dictionary:
 		"element_counts": ast.element_counts.duplicate(true),
 		"net_charge": int(ast.net_charge),
 		"phase": String(term.species.phase)
-	}
+	}}
 
 
 static func _exact_conservation_rows(terms: Array) -> Array:
