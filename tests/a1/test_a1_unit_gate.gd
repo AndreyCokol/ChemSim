@@ -112,7 +112,7 @@ func _test_numeric_range_and_unit_aliases() -> void:
 	_code(Gate.convert_quantity(_q(NAN, "g"), "kg", _context("mass")), "A1_UNIT_VALUE_INVALID", "NaN not finite")
 	_code(Gate.convert_quantity(_q(INF, "g"), "kg", _context("mass")), "A1_UNIT_VALUE_INVALID", "Inf not finite")
 	_code(Gate.convert_quantity(_q(1.0e308, "kg"), "g", _context("mass")), "A1_UNIT_NUMERIC_RANGE", "overflow blocked")
-	_code(Gate.convert_quantity(_q(1.0e-320, "g"), "kg", _context("mass")), "A1_UNIT_NUMERIC_RANGE", "underflow to zero blocked")
+	_code(Gate.convert_quantity(_q(1.0e-323, "g"), "kg", _context("mass")), "A1_UNIT_NUMERIC_RANGE", "underflow to zero blocked")
 	_code(Gate.convert_quantity(_q(1.0, "mol/kg"), "mol/L", _context("concentration", "aqueous_molality")), "A1_UNIT_UNREGISTERED", "molal unit not currently registered for direct conversion")
 	_code(Gate.convert_quantity(_q(1.0, "mL"), "L", _context("volume")), "A1_UNIT_UNREGISTERED", "unregistered alias rejected")
 	_code(Gate.convert_quantity(_q(1.0, "g"), "KG", _context("mass")), "A1_UNIT_UNREGISTERED", "case-sensitive registered units")
