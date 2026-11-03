@@ -119,6 +119,10 @@ func _test_numeric_range_and_unit_aliases() -> void:
 	var tiny: float = 1.0e-300 / 1.0e22
 	_expect(tiny > 0.0, "subnormal fixture remains nonzero at gate input")
 	_code(Gate.convert_quantity(_q(tiny, "g"), "kg", _context("mass")), "A1_UNIT_NUMERIC_RANGE", "underflow to zero blocked")
+	var same: Dictionary = Gate.convert_quantity(_q(tiny, "g"), "g", _context("mass"))
+	_ok(same, "same-unit conversion retains positive subnormal")
+	if same["ok"]:
+		_expect(same["quantity"]["value"] == tiny, "same-unit conversion cannot round tiny input to zero")
 	_code(Gate.convert_quantity(_q(1.0, "mol/kg"), "mol/L", _context("concentration", "aqueous_molality")), "A1_UNIT_UNREGISTERED", "molal unit not currently registered for direct conversion")
 	_code(Gate.convert_quantity(_q(1.0, "mL"), "L", _context("volume")), "A1_UNIT_UNREGISTERED", "unregistered alias rejected")
 	_code(Gate.convert_quantity(_q(1.0, "g"), "KG", _context("mass")), "A1_UNIT_UNREGISTERED", "case-sensitive registered units")
