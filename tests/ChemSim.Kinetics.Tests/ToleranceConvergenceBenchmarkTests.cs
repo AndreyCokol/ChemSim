@@ -316,4 +316,86 @@ public sealed class ToleranceConvergenceBenchmarkTests
             Math.Abs(actualA - expectedA),
             Math.Max(Math.Abs(actualB - expectedB), Math.Abs(actualC - expectedC)));
     }
+
+    [Fact]
+    public void HalfOrderReaction_ProfileErrorDecreasesAsTolerancesTighten()
+    {
+        var looseError = MeasureHalfOrderMaximumEndpointError(relativeTolerance: 1e-2d);
+        var baselineError = MeasureHalfOrderMaximumEndpointError(relativeTolerance: 1e-4d);
+        var tightError = MeasureHalfOrderMaximumEndpointError(relativeTolerance: 1e-6d);
+
+        Assert.True(looseError > 0d, $"Expected a measurable loose-tolerance error, got {looseError:G17}.");
+        Assert.True(baselineError < looseError * 0.5d,
+            $"Baseline error {baselineError:G17} did not clearly improve on loose error {looseError:G17}.");
+        Assert.True(tightError < baselineError * 0.5d,
+            $"Tight error {tightError:G17} did not clearly improve on baseline error {baselineError:G17}.");
+    }
+
+    private static double MeasureHalfOrderMaximumEndpointError(double relativeTolerance)
+    {
+        const double initialA = 4d;
+        const double volume = 2d;
+        const double rateConstant = 0.4d;
+        const double endTime = 1d;
+
+        var network = new ReactionNetwork(
+            ["A", "B"],
+            [
+                new ReactionDefinition(
+                    "half-order-A-to-B",
+                    new Dictionary<string, int> { ["A"] = -1, ["B"] = 1 },
+                    new Dictionary<string, double> { ["A"] = 0.5d },
+                    new RateConstant(rateConstant, -0.5d))
+            ],
+            [
+                new ConservationLaw("total", new Dictionary<string, double>
+                {
+                    ["A"] = 1d, ["B"] = 1d
+                })
+            ]);
+
+        var result = new KineticsSimulator().Run(new SimulationRequest
+        {
+            Network = network,
+            InitialAmountsMol = new Dictionary<string, double>
+            {
+                ["A"] = initialA, ["B"] = 0d
+            },
+            VolumeM3 = volume,
+            StartTimeSeconds = 0d,
+            EndTimeSeconds = endTime,
+            OutputIntervalSeconds = endTime,
+            Solver = new SolverOptions
+            {
+                RelativeTolerance = relativeTolerance,
+                AbsoluteToleranceMol = 1e-14d,
+                InitialStepSeconds = endTime,
+                MinimumStepSeconds = 1e-12d,
+                MaximumStepSeconds = endTime
+            }
+        });
+
+        Assert.True(result.IsSuccess, result.Diagnostics.Message);
+        Assert.Equal(2, result.Samples.Count);
+
+        var maximumError = 0d;
+        foreach (var sample in result.Samples)
+        {
+            var remainingRoot = Math.Sqrt(initialA) -
+                                rateConstant * Math.Sqrt(volume) * sample.TimeSeconds / 2d;
+            var expectedA = remainingRoot * remainingRoot;
+            var expectedB = initialA - expectedA;
+            var actualA = sample.AmountsMol["A"];
+            var actualB = sample.AmountsMol["B"];
+
+            Assert.True(double.IsFinite(actualA) && actualA >= 0d);
+            Assert.True(double.IsFinite(actualB) && actualB >= 0d);
+            Assert.InRange(Math.Abs(actualA + actualB - initialA), 0d, 5e-10d);
+
+            maximumError = Math.Max(maximumError, Math.Abs(actualA - expectedA));
+            maximumError = Math.Max(maximumError, Math.Abs(actualB - expectedB));
+        }
+
+        return maximumError;
+    }
 }
