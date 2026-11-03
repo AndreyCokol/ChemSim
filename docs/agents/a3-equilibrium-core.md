@@ -180,6 +180,19 @@ For aqueous fixture compatibility, the adapter must map the A2 phase vocabulary 
 No A2 files or DTOs are changed by this consumer-boundary note. Canonical phase enum, persistent reaction/term IDs, DTO versioning and the parser-to-solver adapter call site remain integrator decisions.
 
 
+## A4 kinetics consumer boundary (2026-11-03)
+
+A4 has published an implementation-aligned consumer note at `docs/engineering/a4-kinetics-input-contract.md` (commit `56f4011ed92fb7112c8c04cddb941bce40e4defc`). A3 reviewed the note and confirmed the following separation:
+
+- A4 state is species amount in mol; concentrations are derived as mol·m⁻³ using an explicit positive volume in m³.
+- A4 rate laws are volumetric power laws in mol·m⁻³·s⁻¹ with explicit finite non-negative kinetic orders, independent of stoichiometric coefficients. The dimensional exponent of the kinetic rate constant is (1-\sum_i \alpha_i).
+- A4's current implementation is closed, constant-volume and isothermal. It does not accept thermodynamic K/Ka/Kb/Ksp/Kp, apply Arrhenius corrections, or consume an A3 equilibrium result.
+- A3 must never convert thermodynamic K into kinetic k or infer a universal (k_f/k_r=K) relation.
+- The current MVP does not require an A3-to-A4 equilibrium coupling interface. If a future workflow initializes a kinetic simulation from equilibrium, this is an explicit orchestration step: solve with a selected A3 model and typed/applicable constants, then map the resulting state into A4's exact mol-valued initial-state vector with explicit volume/unit conversion and complete species coverage. The result remains one equilibrium state, not a kinetic trajectory.
+- A4's non-success status remains authoritative even when a valid prefix of samples exists; an adapter/UI must preserve partial-result status rather than claim a completed trajectory.
+
+These are consumer-boundary confirmations only. A4's local RateConstant and SimulationResult are not shared DTOs; Unit Registry, shared schema/version, ErrorEnvelope, ReliabilityVector and adapter ownership remain integrator decisions. A3 does not change A4-owned files.
+
 ## A5 presentation/consumption boundary (2026-11-03)
 
 The current Python prototype exposes AqueousResult with species_mol_l, concentration-based pH, SolverDiagnostics, and optional solid_mol_l; gas fixtures expose GasResult with species amounts, partial pressures in Pa, total pressure in Pa, extent in mol, and diagnostics. These are implementation dataclasses, not stable Godot DTOs or an approved serialization contract.
