@@ -113,6 +113,18 @@ func _initialize() -> void:
 	assert(main.pressure_input.text == "raw pressure" and main.volume_input.text == "raw volume", "Loading should restore raw condition text")
 	assert(main.components[0].unit == "custom unit" and main.components[0].phase == "custom phase", "Custom component metadata should survive save/load")
 	assert(main.temperature_input.text == "298.15", "The isothermal temperature must remain fixed in the UI")
+	assert(main.current_draft_path == round_trip_path, "Loading a draft should remember its path for subsequent Save actions")
+	main.experiment_name_input.text = "Saved again"
+	assert(main.draft_dirty, "Editing a loaded draft should mark it dirty before Save")
+	main._save_draft()
+	assert(not main.draft_dirty, "Save should write to the current draft path and clear dirty state")
+	assert(main.current_draft_path == round_trip_path, "Save should retain the current draft path")
+	main.experiment_name_input.text = "Save As title"
+	var save_as_path := "user://experiments/main-ui-save-as.chemsim.json"
+	main._save_draft_to_path(save_as_path)
+	assert(main.current_draft_path == save_as_path, "Save As should switch the current draft path after a successful write")
+	assert(not main.draft_dirty, "Successful Save As should clear dirty state")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_as_path))
 
 	main._remove_component(added_id)
 	assert(main.components.is_empty(), "Removing a component should delete its draft record")
