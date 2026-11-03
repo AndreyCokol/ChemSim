@@ -186,6 +186,7 @@ func _run() -> void:
 	# Reopening the same path while dirty is destructive and must require
 	# confirmation; cancellation must retain the edits and active path.
 	main.experiment_name_input.text = "Unsaved same-path edit"
+	main.experiment_name_input.text_changed.emit("Unsaved same-path edit")
 	main._request_load_draft(round_trip_path)
 	assert(main.discard_dialog.visible, "Opening the active path while dirty must request discard confirmation")
 	main.discard_dialog.canceled.emit()
@@ -196,6 +197,7 @@ func _run() -> void:
 	assert(main.experiment_name == "Новый эксперимент" and not main.draft_dirty, "Confirming a dirty same-path Open must restore the saved contents")
 	assert(main.current_draft_path == round_trip_path, "Confirming a same-path Open must retain the active path")
 	main.experiment_name_input.text = "Unsaved title"
+	main.experiment_name_input.text_changed.emit("Unsaved title")
 	assert(main.draft_dirty, "Changing the title should mark the UI draft dirty")
 	main._request_load_draft(round_trip_path)
 	assert(main.discard_dialog.visible, "Opening another draft should request confirmation when the current draft is dirty")
@@ -217,11 +219,13 @@ func _run() -> void:
 	assert(main.temperature_input.text == "298.15", "The isothermal temperature must remain fixed in the UI")
 	assert(main.current_draft_path == round_trip_path, "Loading a draft should remember its path for subsequent Save actions")
 	main.experiment_name_input.text = "Saved again"
+	main.experiment_name_input.text_changed.emit("Saved again")
 	assert(main.draft_dirty, "Editing a loaded draft should mark it dirty before Save")
 	main._save_draft()
 	assert(not main.draft_dirty, "Save should write to the current draft path and clear dirty state")
 	assert(main.current_draft_path == round_trip_path, "Save should retain the current draft path")
 	main.experiment_name_input.text = "Save As title"
+	main.experiment_name_input.text_changed.emit("Save As title")
 	var save_as_path := "user://experiments/main-ui-save-as.chemsim.json"
 	main._save_draft_to_path(save_as_path)
 	assert(main.current_draft_path == save_as_path, "Save As should switch the current draft path after a successful write")
@@ -243,6 +247,7 @@ func _run() -> void:
 	# Save As may target the current path; a successful same-path transaction
 	# must retain that path and clear dirty state just like an ordinary save.
 	main.experiment_name_input.text = "Save As same path"
+	main.experiment_name_input.text_changed.emit("Save As same path")
 	main._save_draft_to_path(save_as_path)
 	assert(not main.draft_dirty, "Save As to the current path should clear dirty state after a successful write")
 	assert(main.current_draft_path == save_as_path, "Save As to the current path must retain the selected path")
@@ -281,6 +286,7 @@ func _run() -> void:
 
 	# Failed Save As must not change the active path or mark unsaved edits clean.
 	main.experiment_name_input.text = "Unsaved after failed Save As"
+	main.experiment_name_input.text_changed.emit("Unsaved after failed Save As")
 	var path_before_failed_save: String = main.current_draft_path
 	main._save_draft_to_path("res://must-not-write-from-ui.chemsim.json")
 	assert(main.draft_dirty, "Failed Save As must preserve the dirty state")
