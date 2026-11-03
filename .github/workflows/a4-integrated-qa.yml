@@ -1,0 +1,66 @@
+name: A4 independent integrated Godot negative QA
+
+on:
+  push:
+    branches:
+      - feature/a4-kinetics-core
+    paths:
+      - '.github/workflows/a4-integrated-qa.yml'
+      - 'tests/a4_cross_agent/**'
+  pull_request:
+    paths:
+      - '.github/workflows/a4-integrated-qa.yml'
+      - 'tests/a4_cross_agent/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a4-integration-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-integrated-godot-negative:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    timeout-minutes: 20
+    steps:
+      - name: Checkout current A4 QA script without touching integration branch
+        uses: actions/checkout@v4
+        with:
+          path: a4
+
+      - name: Checkout reviewed integrated A2 A4 A5 source at immutable SHA
+        uses: actions/checkout@v4
+        with:
+          ref: 96008906b0d0063b146a9882831e42ac2a863b1f
+          path: integrated
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build real integrated solver as Linux self-contained subprocess
+        shell: bash
+        run: |
+          dotnet publish integrated/src/ChemSim.Kinetics.Cli/ChemSim.Kinetics.Cli.csproj \
+            -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -o integrated/bin --nologo
+          chmod +x integrated/bin/chemsim-solver
+
+      - name: Import pinned integrated Godot project and QA script
+        shell: bash
+        run: |
+          cp a4/tests/a4_cross_agent/qa_integrated_smoke_negative.gd integrated/tests/a4_qa_integrated_negative.gd
+          timeout 180s godot --headless --editor --path integrated --quit
+
+      - name: Fail if corrupt real A4 output is admitted by A5
+        shell: bash
+        run: |
+          cd integrated
+          bash .github/scripts/strict-godot-test.sh \
+            res://tests/a4_qa_integrated_negative.gd \
+            "QA_NEGATIVE_OK" 3000
