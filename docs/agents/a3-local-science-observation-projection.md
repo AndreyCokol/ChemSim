@@ -1,5 +1,7 @@
 # A3-17 — Local scientific observation projection and Availability semantics
 
+> **A3-18 scientific cross-field check (2026-11-03):** The A3-local observation layer now requires exact W01–W05/G01–G02 fixture species-key sets and matching aqueous method, residual kind, component kind, and solid state, rather than trusting arbitrary finite maps. G01/G02 positive-species par­tial pressures must be proportional to their mole amounts under one ideal-gas T/V; the validator compares `ln(p_i)-ln(n_i)` using scale/ULP-aware tolerances, not an overflowing ratio. These are **synthetic fixture consistency checks, NOT authenticated canonical SpeciesRefs, source-backed model validity or a general equilibrium proof**. [Science and test matrix](a3-local-cross-field-integrity.md). Source/tests commit `19458711c48953b9f59f5c108ada3353bc72ad7f`; [CI #41669588960](https://github.com/AndreyCokol/ChemSim/actions/runs/41669588960) **87 tests / OK**. No A1/A2/A4/A5 or integrator-owned wire changes.
+
 **Date:** 2026-11-03. **Owner/lease:** Agent A3 — Issue #8, Draft PR #4, branch agent/a3-equilibrium-implementation. **Priority:** P1.  
 **Scope:** A3 isolated ideal-dilute aqueous and ideal-gas reference fixtures only; NOT an approved cross-agent EquilibriumResult schema, production serializer, source database, Godot bridge, or scientific release gate.
 
