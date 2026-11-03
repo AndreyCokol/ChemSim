@@ -423,3 +423,77 @@ Staleness is separate from completeness. A record can be complete relative to an
 A5 has not yet confirmed its minimum fields for rendering unavailable, stale and conflicting hazard evidence. The integrator/owner must also decide whether a shared hazard schema needs additional controlled vocabularies for jurisdiction, hazard domain, source edition and regulatory framework. A1 does not select a global source-precedence policy or legal/regulatory interpretation in this proposal.
 
 Source of coordination request: PR #3 comment `6599360808`, 2026-11-03. This is an A1 semantic proposal, not A5 acceptance or OpenSpec baseline approval.
+
+
+## 19. Data origin, review transitions and model eligibility — A1 proposal (2026-11-03)
+
+This section makes explicit that the six origin classes are not interchangeable quality grades and are not a single linear promotion ladder. Origin describes how an assertion came to exist; review/quality describes what has been checked; model eligibility describes whether a particular consumer may use it. These dimensions must remain independent.
+
+### 19.1 Independent dimensions
+
+Every candidate property assertion should preserve, where applicable:
+
+1. **Origin class** (proposed closed vocabulary): `curated_reference`, `experimental`, `calculated_estimated`, `user_defined`, `hypothetical`, `unknown`.
+2. **Review/quality state**: at minimum `unreviewed`, `reviewed`, `rejected`, with review evidence, reviewer/process identity, timestamp and ruleset/version. A future richer vocabulary may distinguish validation dimensions, but must not overload origin.
+3. **Applicability**: the declared model/property context and conditions against which the assertion was checked.
+4. **Eligibility decision**: a scoped decision for a named model and model-contract version, with explicit reasons and the policy version used.
+5. **Redistribution disposition**: independent rights decision from the source/license gate in the source-license evidence memo. Numerical validity never grants redistribution rights.
+
+A single global boolean such as `validated` or `trusted` is insufficient: a value may be reviewed but inapplicable to a model, scientifically eligible but non-redistributable, or useful for exploration but not reference calculations.
+
+### 19.2 Origin semantics and default posture
+
+| Origin | Meaning | Default calculation posture |
+|---|---|---|
+| `curated_reference` | Selected/reference assertion curated from an identified source or authoritative compilation | Candidate only; require source, conditions, units/basis, uncertainty/precision and model applicability checks |
+| `experimental` | Measurement or experimental result, with method and conditions | Candidate only; require method, conditions, uncertainty and identity match; do not assume universally superior to curated data |
+| `calculated_estimated` | Derived, predicted, fitted or estimated value | Ineligible by default until method/model, inputs, uncertainty and validation policy are supplied and the consuming model explicitly permits it |
+| `user_defined` | Supplied by a user or caller | Exploratory-only by default; preserve caller/source identity and propagate the designation to downstream results |
+| `hypothetical` | Proposed, theoretical or not empirically/reference established entity or property | Ineligible for validated/reference calculations; may be used only by an explicitly hypothetical workflow |
+| `unknown` | Origin cannot be established | Fail closed: no validated calculation eligibility and no redistribution approval |
+
+No origin class automatically implies high quality, correct units, applicable conditions, or legal permission. Experimental does not automatically outrank curated reference; a comparison requires compatible measurand, method, conditions, uncertainty and a declared selection policy.
+
+### 19.3 Allowed review transitions
+
+The following is a conservative transition policy for an assertion, not a workflow implementation:
+
+- New assertion starts as `unreviewed`; missing provenance or origin is retained as `unknown`, not guessed.
+- `unreviewed → reviewed` is allowed only after the applicable identity, numeric/type, unit/dimension, basis/conditions, provenance, uncertainty/precision and domain checks are recorded with evidence.
+- `unreviewed → rejected` is allowed when a check fails; the failed checks and evidence are retained.
+- `reviewed → rejected` is allowed when new evidence invalidates the assertion or a previously hidden incompatibility is found; the prior review decision remains auditable.
+- `rejected → reviewed` requires a corrected/new assertion or new evidence and a new review event. Do not erase the rejection history.
+- A change to value, unit, basis, phase, conditions, source/version, method, uncertainty, identity, or transformation creates a new assertion/version and invalidates any eligibility decision that depended on the old content.
+- Origin is immutable for a given assertion. If an experimental value is later curated, normalized, fitted or estimated, retain the original experimental assertion and create a separate derived/curated assertion linked by explicit derivation provenance; do not relabel the original.
+- No automatic promotion from `user_defined`, `calculated_estimated`, `hypothetical` or `unknown` to `curated_reference` is permitted. Any new origin classification requires a distinct assertion and evidence of the new origin.
+
+### 19.4 Model-specific eligibility decision
+
+Eligibility is evaluated per model contract, not stored as a universal property of a value. A decision should identify:
+
+- property assertion ID/version and subject identity;
+- consumer model name and contract/version;
+- required property semantics, dimensions, units and basis;
+- required conditions and applicability interval;
+- accepted origin classes and minimum review state;
+- uncertainty/precision requirements and any transformation applied;
+- decision (`eligible` / `ineligible` / `exploratory_only`) and machine-readable reasons;
+- policy/ruleset version and decision timestamp.
+
+A3's current ideal-dilute fixtures and A4's current kinetic model therefore have different eligibility predicates. For example, a dimensionless aqueous equilibrium constant with the wrong standard state is ineligible for the A3 fixture even if its source is curated; an A4 rate constant without a rate-law/model version, kinetic-order basis and dimensionally compatible k unit is ineligible even if numerically finite. Eligibility must not be inferred from origin alone.
+
+### 19.5 Required negative acceptance cases
+
+- A finite numeric value with `unknown` origin does not become calculation-eligible.
+- A reviewed value with incompatible unit, basis, phase or conditions is ineligible for that model.
+- A source with valid scientific data but unknown/restricted redistribution rights remains blocked from the relevant bundle/export.
+- A user-defined value remains `exploratory_only` downstream; serialization, caching or adapter conversion cannot silently promote it.
+- A calculated estimate without method, input provenance or uncertainty remains ineligible unless a named exploratory model explicitly allows it.
+- A hypothetical property cannot satisfy a validated benchmark fixture by matching its numeric value.
+- Updating an assertion's value, source version, conditions or method invalidates its previous review/eligibility decision.
+- A derived assertion retains parent assertion references, transformation method/version and propagated uncertainty; it cannot inherit a stronger origin or rights status than justified by its inputs.
+- Conflicting assertions remain separate; selecting one requires an explicit, versioned, context-specific selection policy and must preserve rejected/alternative candidates for audit.
+
+### 19.6 Open decisions
+
+The exact serialized enum names, review-event schema, eligibility reason vocabulary and policy ownership require integrator/product-owner agreement. This proposal does not freeze a shared DTO, prescribe a global source-ranking policy, approve any source for redistribution, or authorize implementation before OpenSpec baseline approval.
