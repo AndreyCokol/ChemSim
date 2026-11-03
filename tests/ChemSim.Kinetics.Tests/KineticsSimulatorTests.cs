@@ -971,3 +971,4 @@ public sealed class KineticsSimulatorTests
         Assert.InRange(Math.Abs(final["A"] + final["B"] - 1d), 0d, 2e-10);
         Assert.Equal(catalystAmount, final["Cat"]);
     }
+}
