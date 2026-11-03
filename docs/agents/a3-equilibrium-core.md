@@ -100,3 +100,62 @@ declared conditions, uncertainty, and benchmark-specific tolerances.
 The current seven fixtures remain useful as isolated regression examples.
 Passing them demonstrates implementation consistency for those assumptions,
 not scientific validation outside their documented domains.
+
+
+## A1 consumer requirements — aqueous equilibrium inputs (2026-11-03)
+
+This section answers A1's request for the minimum thermodynamic-data requirements consumed by A3. It is a model-specific consumer contract proposal, not an approval or freeze of shared DTOs. The current public functions still accept bare numeric constants; a future adapter must validate the typed records before converting them to the current scalar inputs.
+
+### Equilibrium constants
+
+All constants consumed by the current aqueous fixtures must be finite, positive, dimensionless values on the stated standard-state convention. A1's logical ThermoConstantRecord should expose, at minimum:
+
+- stable constant/reaction identity and constant kind (Ka, Kw, Ksp; Kb only for a future explicit base-dissociation fixture);
+- numeric value plus uncertainty and significant-figure/precision metadata;
+- basis (activity or explicitly declared concentration approximation), dimensionless convention, and standard-state reference for every participating species;
+- temperature at which the value applies, source-supported temperature interval, and pressure interval when the source/model says pressure is relevant;
+- solvent/medium, phase assignment, and activity-model identifier or explicit ideal-model applicability statement;
+- source identity/version/date/retrieval metadata, method, quality/status, and provenance classification.
+
+Current fixture-specific semantics:
+
+| Constant | Equilibrium represented | Current A3 convention |
+|---|---|---|
+| Ka (weak acid) | HA(aq) ⇌ H+(aq) + A−(aq) | Dimensionless activity constant approximated by concentration ratios using c° = 1 mol/L and gamma_i = 1 |
+| Ka (ammonium) | NH4+(aq) ⇌ NH3(aq) + H+(aq) | Same ideal concentration convention; the implementation consumes Ka(NH4+), not Kb(NH3) |
+| Kw | H2O(l) ⇌ H+(aq) + OH−(aq) | Dimensionless water-ionization constant on the same aqueous standard-state convention; water activity is treated as unity |
+| Ksp (AgCl) | AgCl(s) ⇌ Ag+(aq) + Cl−(aq) | Dimensionless activity product approximated by ([Ag+]/c°)([Cl−]/c°); pure AgCl solid activity is unity |
+
+A Kb record is not currently consumed by any public A3 fixture. Do not silently pass Kb where Ka is expected. A future adapter may derive Ka = Kw/Kb only when both records refer to the same temperature, solvent, standard-state/activity convention and compatible species reaction; it must preserve both source records and the derived-value provenance.
+
+The current aqueous functions do not accept temperature as an argument. Therefore their numeric Ka/Kw/Ksp values are assumed already evaluated at one mutually compatible declared condition. This is a known API limitation, not permission to assume 25 °C or to ignore source applicability. Until a temperature-aware API exists, an adapter must reject records whose declared conditions do not match the selected calculation condition, and must not claim A3 has independently applied a temperature correction.
+
+### Species identity and aqueous conventions
+
+For the current fixtures, each species input/term needs a stable identity or unresolved FormulaAST descriptor, formula/composition, integer net charge, and phase. A3 specifically uses aqueous H+, OH−, A−, HA, NH4+, NH3, Ag+, Cl−, Na+, NO3− and the solid AgCl(s). Phase is chemically material: AgCl(aq) and AgCl(s) are not interchangeable.
+
+The current numerical vocabulary uses H+ as the aqueous proton species (a conventional shorthand for hydrated proton); it does not separately model H3O+ or proton hydration clusters. It treats liquid water as the solvent with unit activity and does not include H2O as an explicit solved species. A future canonical identity layer may choose H3O+ as its display/identity convention, but any mapping to A3's H+ must be explicit and must preserve charge, reaction stoichiometry and the constant's standard-state convention. Do not silently count both H+ and H3O+ as independent species.
+
+The AgCl precipitation fixture has an additional narrow feed constraint: neutral AgNO3 and NaCl analytical feeds, with Ag_total = nitrate_total and Na_total = chloride_total within the documented relative tolerance; one AgCl(s) phase; no initial solid inventory. It is not a general precipitation/speciation network.
+
+### Activity model and supporting data
+
+Current A3 aqueous fixtures support only an explicitly declared ideal-dilute model with gamma_i = 1 and concentration scale c° = 1 mol/L. No ionic-strength calculation, activity-coefficient correlation, ion-size parameter, solvent dielectric model, complexation model or salinity correction is consumed. Inputs whose intended basis requires a non-ideal activity model are not compatible with the current solver and must be rejected or routed to a future capable model; they must not be silently treated as ideal.
+
+For a future non-ideal aqueous model, A3 will need the model identifier/version and the model-specific inputs needed to compute each activity coefficient at the stated T/P/medium (potentially ionic strength, solvent composition/dielectric properties, ion-size or interaction parameters, and species charge). The exact list depends on the selected activity model and must not be guessed in the generic ThermoConstantRecord.
+
+### Provenance and calculation eligibility
+
+A3 needs provenance/quality dimensions preserved separately from numerical convergence and model applicability. Curated/reference or experimental values can be eligible when their source, conditions, basis and uncertainty satisfy the selected model. Calculated/estimated values may be eligible only under an explicit model policy with method and uncertainty retained. User-defined values may be used in an explicitly exploratory scenario if clearly labelled and propagated to the result; they must not be upgraded to reference/verified status. Hypothetical or unknown-origin values must not silently qualify for a reference/validated result. License/redistribution status governs catalog packaging, not the mathematical validity of an already supplied value, and should remain a separate gate.
+
+The current fixture API has no provenance parameter and cannot enforce these policies itself. Until the typed adapter and result metadata are approved, the caller is responsible for not passing ineligible constants; the result must continue to be labelled as an idealized prototype result.
+
+### Failure semantics required at the A3 boundary
+
+Before calling the scalar solver, the adapter must reject a missing constant, non-finite/non-positive value, non-dimensionless or incompatible basis, absent/ambiguous standard state, incompatible solvent/phase, incompatible temperature/applicability interval, unsupported activity model, or invalid species charge/phase identity. Unit/basis conversion is allowed only when the required conversion data and validated thermodynamic transformation are present. No default basis, 25 °C, gamma=1, H+/H3O+ mapping, or missing value = zero may be inferred from an incomplete record.
+
+The existing low-level EquilibriumInputError is the current fixture's input-failure signal; mapping it to the shared ErrorEnvelope is an integrator decision. Numerical non-representability/non-convergence remains EquilibriumConvergenceError. This mapping is provisional and does not define the shared application error DTO.
+
+### Gas benchmark note
+
+For completeness, G01/G02 consume dimensionless Kp on p° = 100,000 Pa (1 bar), using ideal-gas partial pressures p_i = n_i RT/V and no fugacity coefficients. The reaction quotient is formed from p_i/p°. Kp must therefore declare pressure standard state, reaction stoichiometry, temperature/applicability and ideal-gas model. The current gas functions accept T and V, but do not perform fugacity or non-ideal gas corrections.
