@@ -159,6 +159,13 @@ func _test_snapshot_version_and_json_guards() -> void:
 	_ok(decoded, "deserialize valid catalog")
 	_expect(decoded["document"] == doc, "round-trip preserves exact record and metadata")
 	_code(Catalog.deserialize_document("{oops"), "A1_CATALOG_JSON_INVALID", "malformed JSON")
+	_code(Catalog.deserialize_document('{"schema_version":1.5,"records":[]}'), "A1_CATALOG_VERSION_UNSUPPORTED", "fractional schema version rejected")
+	var nonintegral: Dictionary = doc.duplicate(true)
+	nonintegral["records"][0]["record_revision"] = 1.25
+	_code(Catalog.validate_document(nonintegral), "A1_CATALOG_IDENTITY_INVALID", "fractional revisions rejected")
+	var bool_revision: Dictionary = doc.duplicate(true)
+	bool_revision["records"][0]["record_revision"] = true
+	_code(Catalog.validate_document(bool_revision), "A1_CATALOG_IDENTITY_INVALID", "boolean revisions rejected")
 	var future: Dictionary = doc.duplicate(true)
 	future["schema_version"] = 2
 	_code(Catalog.serialize_document(future), "A1_CATALOG_VERSION_UNSUPPORTED", "unknown schema is not auto-migrated")
