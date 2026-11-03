@@ -71,6 +71,9 @@ func _initialize() -> void:
 	assert(not main.graph_view.series_by_quantity.has("concentration"), "Rate samples must not leak into concentration")
 	main.graph_view.clear_series()
 	assert(main.graph_view.series_by_quantity.is_empty(), "Clearing synthetic fixture data must restore unavailable state")
+	assert(bool(main._accept_graph_series(synthetic_graph, "0.1").get("ok", false)), "Test fixture can be re-admitted after clearing")
+	main._on_reaction_changed("synthetic edit")
+	assert(main.graph_view.series_by_quantity.is_empty(), "Editing reaction text must invalidate all cached simulation graphs")
 
 	main.components = [{
 		"id": 7,
@@ -84,7 +87,9 @@ func _initialize() -> void:
 	main.visual_field.set_marker(7, "Вода", Vector2(0.5, 0.5))
 	main.draft_dirty = false
 
+	assert(bool(main._accept_graph_series(synthetic_graph, "0.1").get("ok", false)), "Rate fixture should be admitted before a presentation-only movement")
 	assert(main.visual_field.move_marker_by(7, Vector2.RIGHT, 0.1), "The real workspace marker should move")
+	assert(main.graph_view.series_by_quantity.has("rate"), "Presentation-only marker movement must not invalidate chemical results")
 	assert(main.draft_dirty, "The main workspace signal connection must mark the draft dirty")
 	assert(Vector2(main.components[0].position).is_equal_approx(Vector2(0.6, 0.5)), "The real main draft model must receive the marker position")
 
@@ -156,7 +161,9 @@ func _initialize() -> void:
 	main._save_draft_to_path(round_trip_path)
 	assert(not main.draft_dirty, "A successful UI save should clear the dirty state")
 	# Reopening the clean active path should load directly without a discard prompt.
+	assert(bool(main._accept_graph_series(synthetic_graph, "0.1").get("ok", false)), "Fixture should be present before a clean Open")
 	main._request_load_draft(round_trip_path)
+	assert(main.graph_view.series_by_quantity.is_empty(), "Opening another draft must clear prior experiment graphs")
 	assert(not main.discard_dialog.visible, "Opening the current path while clean should not show a discard confirmation")
 	assert(not main.draft_dirty, "A clean same-path Open should leave the draft clean")
 	assert(main.current_draft_path == round_trip_path, "A clean same-path Open should retain the current path")
@@ -341,8 +348,11 @@ func _initialize() -> void:
 	assert(main.current_draft_path == save_as_path, "Cancelling New must preserve the current draft path")
 	main._request_new_experiment()
 	assert(main.discard_dialog.visible, "Retrying New should request confirmation again")
+	assert(bool(main._accept_graph_series(synthetic_graph, "0.1").get("ok", false)), "Pre-New graph fixture should be insertable")
+
 	main.discard_dialog.confirmed.emit()
 	assert(main.components.is_empty(), "Confirming discard should create an empty experiment")
+	assert(main.graph_view.series_by_quantity.is_empty(), "New experiment must discard cached graph values")
 	assert(not main.draft_dirty, "A new empty experiment should start clean")
 	assert(main.current_draft_path.is_empty(), "A confirmed New action should clear the previous draft path")
 	assert(main.reaction_input.text.is_empty() and main.pressure_input.text.is_empty() and main.volume_input.text.is_empty(), "A new experiment should clear raw reaction and condition fields")
