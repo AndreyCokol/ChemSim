@@ -66,10 +66,22 @@ def _ideal_gas_pressure(amount_mol: float, temperature_k: float, volume_m3: floa
     if amount_mol == 0.0:
         return 0.0
     log_pressure = log(amount_mol) + log(R) + log(temperature_k) - log(volume_m3)
+    # A positive amount has a strictly positive ideal-gas pressure. Returning
+    # 0.0 after exp() underflows would silently turn a present species into an
+    # absent one in the public result, so fail explicitly at the float boundary.
+    if log_pressure < log(nextafter(0.0, 1.0)):
+        raise EquilibriumConvergenceError(
+            "Positive gas partial pressure is below float range"
+        )
     try:
-        return exp(log_pressure)
+        pressure = exp(log_pressure)
     except OverflowError:
         return float("inf")
+    if pressure == 0.0:
+        raise EquilibriumConvergenceError(
+            "Positive gas partial pressure underflowed to zero"
+        )
+    return pressure
 
 
 def _aqueous_result(
