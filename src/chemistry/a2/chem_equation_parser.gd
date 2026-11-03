@@ -225,10 +225,14 @@ func serialize_formula(formula_ast: Dictionary, phase: String = "UNSPECIFIED") -
 		return ""
 	var output := _serialize_nodes(trusted_ast.nodes)
 	var charge := int(formula_ast.get("net_charge", 0))
+	# A short + / - suffix is safe only for explicitly supported aliases.
+	# Non-aliased formulae with trailing subscripts (e.g. SO4^-) must keep
+	# the caret: SO4- is intentionally rejected as an ambiguous charge.
+	# Prefer canonical caret for other mono-ions instead of inventing aliases.
 	if charge == 1:
-		output += "+"
+		output += "+" if SIMPLE_ION_ALIASES.has(output + "+") else "^+"
 	elif charge == -1:
-		output += "-"
+		output += "-" if SIMPLE_ION_ALIASES.has(output + "-") else "^-"
 	elif charge > 1:
 		output += "^%d+" % charge
 	elif charge < -1:
