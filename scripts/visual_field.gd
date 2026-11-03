@@ -21,6 +21,8 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_ALL
 	tooltip_text = "Визуальная раскладка: мышь для перетаскивания, стрелки для перемещения, Shift + стрелка — крупный шаг. Не влияет на химию."
+	focus_entered.connect(queue_redraw)
+	focus_exited.connect(queue_redraw)
 	queue_redraw()
 
 func set_marker(component_id: int, label: String, normalized_position: Vector2) -> void:
@@ -72,6 +74,7 @@ func _draw() -> void:
 		var center := size * 0.5
 		draw_circle(center, 4.0, Color("#607D91"))
 		draw_string(ThemeDB.fallback_font, center + Vector2(-105, 28), "Поле эксперимента пока пусто", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, TEXT_COLOR)
+		_draw_focus_ring()
 		return
 	for marker in markers:
 		var position: Vector2 = Vector2(marker.position) * size
@@ -81,6 +84,11 @@ func _draw() -> void:
 		draw_arc(position, 13.0, 0.0, TAU, 32, color, 2.0)
 		draw_circle(position, 4.0, color)
 		draw_string(ThemeDB.fallback_font, position + Vector2(18, 4), str(marker.label), HORIZONTAL_ALIGNMENT_LEFT, 180, 12, TEXT_COLOR)
+	_draw_focus_ring()
+
+func _draw_focus_ring() -> void:
+	if has_focus() and size.x > 2.0 and size.y > 2.0:
+		draw_rect(Rect2(Vector2.ONE, size - Vector2(2.0, 2.0)), SELECTED_COLOR, false, 2.0)
 
 func _input(event: InputEvent) -> void:
 	# A drag may end outside this Control, where _gui_input will not receive
